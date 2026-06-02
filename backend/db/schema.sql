@@ -1,120 +1,120 @@
-DROP DATABASE IF EXISTS lock_in_db;
-CREATE DATABASE lock_in_db;
-USE lock_in_db;
+-- PostgreSQL Schema for Lock-In Database
 
-CREATE TABLE Users (
-  user_id INT PRIMARY KEY AUTO_INCREMENT,
+-- Drop existing objects if they exist
+DROP TRIGGER IF EXISTS updateReputation ON participation;
+DROP FUNCTION IF EXISTS updateReputationFunction();
+DROP FUNCTION IF EXISTS safeCount(INT);
+DROP PROCEDURE IF EXISTS showUsers();
+DROP VIEW IF EXISTS "CompletedUsers";
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS participation;
+DROP TABLE IF EXISTS mission;
+DROP TABLE IF EXISTS skill;
+DROP TABLE IF EXISTS category;
+DROP TABLE IF EXISTS users;
+
+-- Create Tables
+CREATE TABLE users (
+  user_id SERIAL PRIMARY KEY,
   name VARCHAR(50) NOT NULL,
   email VARCHAR(100) UNIQUE,
   department VARCHAR(50),
   reputation_score INT DEFAULT 0
 );
 
-CREATE TABLE Category (
-  category_id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE category (
+  category_id SERIAL PRIMARY KEY,
   category_name VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE Mission (
-  mission_id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE mission (
+  mission_id SERIAL PRIMARY KEY,
   mission_title VARCHAR(100) NOT NULL,
-  mission_time DATETIME NOT NULL,
+  mission_time TIMESTAMP NOT NULL,
   location VARCHAR(100),
-  category_id INT,
-  created_by INT,
-  FOREIGN KEY (category_id) REFERENCES Category(category_id),
-  FOREIGN KEY (created_by) REFERENCES Users(user_id)
+  category_id INT REFERENCES category(category_id) ON DELETE CASCADE,
+  created_by INT REFERENCES users(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE Skill (
-  skill_id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE skill (
+  skill_id SERIAL PRIMARY KEY,
   skill_name VARCHAR(50) NOT NULL,
   verification_source VARCHAR(50)
 );
 
-CREATE TABLE Participation (
-  participation_id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT,
-  mission_id INT,
+CREATE TABLE participation (
+  participation_id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  mission_id INT NOT NULL REFERENCES mission(mission_id) ON DELETE CASCADE,
   status VARCHAR(20) NOT NULL,
   showed_up BOOLEAN DEFAULT NULL,
-  UNIQUE KEY unique_user_mission (user_id, mission_id),
-  FOREIGN KEY (user_id) REFERENCES Users(user_id),
-  FOREIGN KEY (mission_id) REFERENCES Mission(mission_id)
+  UNIQUE(user_id, mission_id)
 );
 
-CREATE TABLE Messages (
-  message_id INT PRIMARY KEY AUTO_INCREMENT,
-  mission_id INT,
-  sender_id INT,
+CREATE TABLE messages (
+  message_id SERIAL PRIMARY KEY,
+  mission_id INT NOT NULL REFERENCES mission(mission_id) ON DELETE CASCADE,
+  sender_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   message TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (mission_id) REFERENCES Mission(mission_id),
-  FOREIGN KEY (sender_id) REFERENCES Users(user_id)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE VIEW CompletedUsers AS
+-- Create View
+CREATE VIEW "CompletedUsers" AS
 SELECT U.name, M.mission_title
-FROM Users U
-JOIN Participation P ON U.user_id = P.user_id
-JOIN Mission M ON P.mission_id = M.mission_id
+FROM users U
+JOIN participation P ON U.user_id = P.user_id
+JOIN mission M ON P.mission_id = M.mission_id
 WHERE P.status = 'Completed';
 
-DELIMITER $$
-
-CREATE PROCEDURE safeInsert()
-BEGIN
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-  SELECT 'Error occurred' AS message;
-
-  INSERT INTO Users (user_id, name, email, department, reputation_score)
-  VALUES (1, 'Duplicate', 'dup@gmail.com', 'CSE', 0);
-END $$
-
-CREATE FUNCTION safeCount(uid INT)
-RETURNS INT
-DETERMINISTIC
-BEGIN
-  DECLARE total INT DEFAULT 0;
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-  SET total = -1;
-
-  SELECT COUNT(*) INTO total
-  FROM Participation
-  WHERE user_id = uid;
-
-  RETURN total;
-END $$
-
-CREATE TRIGGER updateReputation
-AFTER UPDATE ON Participation
-FOR EACH ROW
+-- Create Function for updating reputation
+CREATE OR REPLACE FUNCTION updateReputationFunction()
+RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.status = 'Completed' AND OLD.status != 'Completed' THEN
-    UPDATE Users
+    UPDATE users
     SET reputation_score = reputation_score + 10
     WHERE user_id = NEW.user_id;
   END IF;
-END $$
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE PROCEDURE showUsers()
+-- Create Trigger
+CREATE TRIGGER updateReputation
+AFTER UPDATE ON participation
+FOR EACH ROW
+EXECUTE FUNCTION updateReputationFunction();
+
+-- Create Function: safeCount
+CREATE OR REPLACE FUNCTION safeCount(uid INT)
+RETURNS INT AS $$
+DECLARE
+  total INT DEFAULT 0;
 BEGIN
-  DECLARE done INT DEFAULT 0;
-  DECLARE uname VARCHAR(50);
-  DECLARE user_cursor CURSOR FOR SELECT name FROM Users;
-  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+  SELECT COUNT(*) INTO total
+  FROM participation
+  WHERE user_id = uid;
+  RETURN total;
+EXCEPTION WHEN OTHERS THEN
+  RETURN -1;
+END;
+$$ LANGUAGE plpgsql;
 
+-- Create Procedure: showUsers
+CREATE OR REPLACE PROCEDURE showUsers()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  uname VARCHAR(50);
+  user_cursor CURSOR FOR SELECT name FROM users;
+BEGIN
   OPEN user_cursor;
-
-  read_loop: LOOP
+  LOOP
     FETCH user_cursor INTO uname;
-    IF done THEN
-      LEAVE read_loop;
-    END IF;
-    SELECT uname;
+    EXIT WHEN NOT FOUND;
+    RAISE NOTICE 'User: %', uname;
   END LOOP;
-
   CLOSE user_cursor;
-END $$
-
-DELIMITER ;
+END;
+$$;
