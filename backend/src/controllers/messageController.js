@@ -1,0 +1,108 @@
+const prisma = require("../config/db");
+const memoryStore = require("../data/memoryStore");
+const { isDbUnavailable } = require("../utils/dbFallback");
+
+async function ensureParticipant(missionId, userId) {
+  try {
+    const count = await prisma.participation.count({
+      where: {
+        missionId: Number(missionId),
+        userId: Number(userId)
+      }
+    });
+    return count > 0;
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    return memoryStore.ensureParticipant(missionId, userId);
+  }
+}
+
+async function getMessages(req, res) {
+  const { missionId } = req.params;
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required." });
+  }
+
+  if (!(await ensureParticipant(missionId, userId))) {
+    return res.status(403).json({ error: "Chat unlocks only after accepting the mission." });
+  }
+
+  try {
+    const messages = await prisma.message.findMany({
+      where: { missionId: Number(missionId) },
+      orderBy: { createdAt: "asc" },
+      include: {
+        sender: {
+          select: { name: true }
+        }
+      }
+    });
+
+    const rows = messages.map((msg) => ({
+      id: msg.id,
+      mission_id: msg.missionId,
+      sender_id: msg.senderId,
+      message: msg.message,
+      created_at: msg.createdAt,
+      sender_name: msg.sender.name
+    }));
+
+    res.json(rows);
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    res.json(memoryStore.getMessages(missionId));
+  }
+}
+
+async function sendMessage(req, res) {
+  const { missionId } = req.params;
+  const { senderId, message } = req.body;
+  if (!senderId || !message || !message.trim()) {
+    return res.status(400).json({ error: "senderId and message are required." });
+  }
+
+  if (!(await ensureParticipant(missionId, senderId))) {
+    return res.status(403).json({ error: "Chat unlocks only after accepting the mission." });
+  }
+
+  try {
+    const msg = await prisma.message.create({
+      data: {
+        missionId: Number(missionId),
+        senderId: Number(senderId),
+        message: message.trim()
+      },
+      include: {
+        sender: {
+          select: { name: true }
+        }
+      }
+    });
+
+    const response = {
+      id: msg.id,
+      mission_id: msg.missionId,
+      sender_id: msg.senderId,
+      message: msg.message,
+      created_at: msg.createdAt,
+      sender_name: msg.sender.name
+    };
+
+    // Emit real-time message through Socket.IO
+    if (req.app.get("io")) {
+      req.app.get("io").to(`mission_${missionId}`).emit("new_message", response);
+    }
+
+    res.status(201).json(response);
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    const response = memoryStore.sendMessage(missionId, senderId, message.trim());
+    if (req.app.get("io")) {
+      req.app.get("io").to(`mission_${missionId}`).emit("new_message", response);
+    }
+    res.status(201).json(response);
+  }
+}
+
+module.exports = { getMessages, sendMessage };

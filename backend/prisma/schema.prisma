@@ -1,0 +1,77 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               Int             @id @default(autoincrement()) @map("user_id")
+  name             String          @db.VarChar(50)
+  email            String?         @unique @db.VarChar(100)
+  department       String?         @db.VarChar(50)
+  reputationScore  Int             @default(0) @map("reputation_score")
+  missions         Mission[]       @relation("CreatedMissions")
+  participations   Participation[]
+  messages         Message[]
+
+  @@map("users")
+}
+
+model Category {
+  id           Int       @id @default(autoincrement()) @map("category_id")
+  categoryName String    @map("category_name") @db.VarChar(50)
+  missions     Mission[]
+
+  @@map("category")
+}
+
+model Mission {
+  id             Int             @id @default(autoincrement()) @map("mission_id")
+  title          String          @map("mission_title") @db.VarChar(100)
+  datetime       DateTime        @map("mission_time")
+  location       String?         @db.VarChar(100)
+  categoryId     Int?            @map("category_id")
+  createdBy      Int?            @map("created_by")
+  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  creator        User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
+  participations Participation[]
+  messages       Message[]
+
+  @@map("mission")
+}
+
+model Skill {
+  id                Int     @id @default(autoincrement()) @map("skill_id")
+  skillName         String  @map("skill_name") @db.VarChar(50)
+  verificationSource String? @map("verification_source") @db.VarChar(50)
+
+  @@map("skill")
+}
+
+model Participation {
+  id          Int      @id @default(autoincrement()) @map("participation_id")
+  userId      Int      @map("user_id")
+  missionId   Int      @map("mission_id")
+  status      String   @db.VarChar(20)
+  showedUp    Boolean? @map("showed_up")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission     Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionId], name: "unique_user_mission")
+  @@map("participation")
+}
+
+model Message {
+  id         Int      @id @default(autoincrement()) @map("message_id")
+  missionId  Int      @map("mission_id")
+  senderId   Int      @map("sender_id")
+  message    String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
