@@ -15,12 +15,15 @@ async function createUser(req, res) {
 
   const payload = {
     name: name.trim(),
-    college: "SRM Institute of Science and Technology KTR",
+    college: college.trim(),
     college_id: college_id.trim(),
     department: department.trim(),
     location: location.trim()
   };
-  const email = `${payload.college_id.toLowerCase().replace(/[^a-z0-9]/g, "")}@srmist.edu.in`;
+  let email = payload.college_id;
+  if (!email.includes("@")) {
+    email = `${email.toLowerCase().replace(/[^a-z0-9]/g, "")}@srmist.edu.in`;
+  }
 
   try {
     const user = await prisma.user.create({
@@ -28,6 +31,8 @@ async function createUser(req, res) {
         name: payload.name,
         email: email,
         department: payload.department,
+        college: payload.college,
+        location: payload.location,
         reputationScore: 0
       }
     });
@@ -35,11 +40,11 @@ async function createUser(req, res) {
     res.status(201).json({
       id: user.id,
       name: user.name,
-      college: payload.college,
+      college: user.college,
       college_id: user.email,
       department: user.department,
       reputation_score: user.reputationScore,
-      location: payload.location
+      location: user.location
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -58,11 +63,11 @@ async function getUser(req, res) {
     res.json({
       id: user.id,
       name: user.name,
-      college: 'SRM Institute of Science and Technology KTR',
+      college: user.college || 'SRM Institute of Science and Technology KTR',
       college_id: user.email,
       department: user.department,
       reputation_score: user.reputationScore,
-      location: 'SRM KTR Campus'
+      location: user.location || 'SRM KTR Campus'
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;

@@ -28,6 +28,7 @@ async function createMission(req, res) {
     const mission = await prisma.mission.create({
       data: {
         title: payload.title,
+        description: payload.description,
         datetime: payload.datetime,
         location: payload.location,
         categoryId: 1, // Default Coding
@@ -44,7 +45,7 @@ async function createMission(req, res) {
       id: mission.id,
       creator_id: mission.createdBy,
       title: mission.title,
-      description: mission.title, // Map description to title as in original MySQL code
+      description: mission.description,
       location: mission.location,
       datetime: mission.datetime.toISOString(),
       creator_name: mission.creator?.name || "Unknown",
@@ -87,7 +88,7 @@ async function getMissionFeed(req, res) {
       id: m.id,
       creator_id: m.createdBy,
       title: m.title,
-      description: `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
+      description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
       location: m.location,
       datetime: m.datetime.toISOString(),
       creator_name: m.creator?.name || "Unknown",
@@ -129,7 +130,7 @@ async function acceptMission(req, res) {
 
       const participation = await tx.participation.upsert({
         where: {
-          userId_missionId: {
+          unique_user_mission: {
             userId: Number(userId),
             missionId: Number(id)
           }
@@ -192,7 +193,7 @@ async function getActiveMissions(req, res) {
           id: p.mission.id,
           creator_id: p.mission.createdBy,
           title: p.mission.title,
-          description: `Category: ${p.mission.category?.categoryName || "Coding"}. Meet at ${p.mission.location} and execute the mission.`,
+          description: p.mission.description || `Category: ${p.mission.category?.categoryName || "Coding"}. Meet at ${p.mission.location} and execute the mission.`,
           location: p.mission.location,
           datetime: p.mission.datetime.toISOString(),
           status: p.status,

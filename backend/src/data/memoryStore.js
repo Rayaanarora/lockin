@@ -14,16 +14,16 @@ const users = [
 ];
 
 const missions = [
-  ["Hackathon Grind", "Category: Coding. Meet at SRM KTR Library and execute the mission.", "SRM KTR Library", 4, 101],
-  ["LeetCode Lock-In", "Category: Coding. Meet at SRM KTR Tech Park and execute the mission.", "SRM KTR Tech Park", 7, 102],
-  ["API Battle Test", "Category: Coding. Meet at SRM KTR Computer Lab 2 and execute the mission.", "SRM KTR Computer Lab 2", 24, 103],
-  ["Pitch Deck Build", "Category: Coding. Meet at SRM KTR Seminar Hall and execute the mission.", "SRM KTR Seminar Hall", 28, 104],
-  ["Database Schema Jam", "Category: Coding. Meet at SRM KTR DBMS Lab and execute the mission.", "SRM KTR DBMS Lab", 48, 105],
-  ["Open Source Fix Run", "Category: Coding. Meet at SRM KTR Innovation Centre and execute the mission.", "SRM KTR Innovation Centre", 52, 106],
-  ["DSA Mock Duel", "Category: Coding. Meet at SRM KTR Block C and execute the mission.", "SRM KTR Block C", 72, 107],
-  ["Frontend Polish Night", "Category: Coding. Meet at SRM KTR Design Studio and execute the mission.", "SRM KTR Design Studio", 76, 108],
-  ["Backend Deploy Squad", "Category: Coding. Meet at SRM KTR Networking Lab and execute the mission.", "SRM KTR Networking Lab", 96, 109],
-  ["Final Demo Rehearsal", "Category: Coding. Meet at SRM KTR Auditorium Lobby and execute the mission.", "SRM KTR Auditorium Lobby", 120, 110]
+  ["Hackathon Grind", "All-night coding session to build the MVP. Bring caffeine.", "SRM KTR Library", 4, 101],
+  ["LeetCode Lock-In", "Solving 5 hard/medium problems on arrays and graphs.", "SRM KTR Tech Park", 7, 102],
+  ["API Battle Test", "Load testing express endpoints and optimizing performance.", "SRM KTR Computer Lab 2", 24, 103],
+  ["Pitch Deck Build", "Design pitch slides and polish the demo script.", "SRM KTR Seminar Hall", 28, 104],
+  ["Database Schema Jam", "Designing optimal relational tables and indexes.", "SRM KTR DBMS Lab", 48, 105],
+  ["Open Source Fix Run", "Squashing open bugs in our target repo. Let's contribute.", "SRM KTR Innovation Centre", 52, 106],
+  ["DSA Mock Duel", "1v1 mock interview sessions on tree traversal.", "SRM KTR Block C", 72, 107],
+  ["Frontend Polish Night", "Adding Framer Motion micro-animations to improve UI feel.", "SRM KTR Design Studio", 76, 108],
+  ["Backend Deploy Squad", "Setting up docker and deploying Express services.", "SRM KTR Networking Lab", 96, 109],
+  ["Final Demo Rehearsal", "Simulating public presentation and timing of slides.", "SRM KTR Auditorium Lobby", 120, 110]
 ].map(([title, description, location, hours, creator_id], index) => ({
   id: index + 201,
   creator_id,

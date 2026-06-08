@@ -13,6 +13,8 @@ model User {
   email            String?         @unique @db.VarChar(100)
   department       String?         @db.VarChar(50)
   reputationScore  Int             @default(0) @map("reputation_score")
+  college          String?         @db.VarChar(100)
+  location         String?         @db.VarChar(100)
   missions         Mission[]       @relation("CreatedMissions")
   participations   Participation[]
   messages         Message[]
@@ -31,6 +33,7 @@ model Category {
 model Mission {
   id             Int             @id @default(autoincrement()) @map("mission_id")
   title          String          @map("mission_title") @db.VarChar(100)
+  description    String          @default("") @db.Text
   datetime       DateTime        @map("mission_time")
   location       String?         @db.VarChar(100)
   categoryId     Int?            @map("category_id")
