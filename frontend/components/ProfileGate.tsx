@@ -50,16 +50,7 @@ const INTEREST_TAGS = [
   { id: "Fitness", label: "Fitness", icon: Heart },
 ];
 
-const MEET_SPOTS = [
-  "Library",
-  "Tech Park / Innovation Lab",
-  "Canteen / Cafe",
-  "Main Block",
-  "Hostel Common Room",
-  "Auditorium Foyer",
-  "Sports Ground",
-  "Open Air Theatre",
-];
+
 
 const TUTORIAL_STEPS = [
   {
@@ -80,9 +71,9 @@ const TUTORIAL_STEPS = [
   },
   {
     icon: Star,
-    color: "text-yellow-400",
-    bg: "bg-yellow-400/10 border-yellow-400/30",
-    glow: "shadow-[0_0_30px_rgba(250,204,21,0.2)]",
+    color: "text-white",
+    bg: "bg-white/8 border-white/20",
+    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
     title: "Vibe Check",
     body: "Timer done? Rate each other's vibe. W Vibe earns +2 Aura. L Vibe costs -1. Honest vibes only.",
   },
@@ -168,7 +159,8 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   function validateStep(s: number) {
     const errs: { [key: string]: string } = {};
     if (s === 1) {
-      if (!form.campusId) errs.campusId = "Select your campus.";
+      if (!form.campusId && form.campusName.trim().length < 3)
+        errs.campusId = "Select a campus or type your college name (min 3 chars).";
       const reg = form.college_id.trim().toUpperCase();
       if (!reg || reg.length < 6) errs.college_id = "Enter a valid registration number.";
       if (form.department.trim().length < 2) errs.department = "Enter your department & year.";
@@ -531,6 +523,26 @@ function CampusStep({
           )}
         </div>
 
+        {/* Custom college fallback — shown only when nothing selected from list */}
+        {!form.campusId && (
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
+              Not listed? Type your college name
+            </label>
+            <Input
+              value={form.campusName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setForm((f: any) => ({ ...f, campusName: e.target.value }))
+              }
+              placeholder="e.g. VIT Bhopal, Lovely Professional University..."
+              className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-boxOrange focus:ring-boxOrange/10"
+            />
+            <p className="text-[9px] text-zinc-600 leading-tight">
+              Make sure spelling is exact. This is how your campus community will find you.
+            </p>
+          </div>
+        )}
+
         {/* Registration Number */}
         <div className="space-y-1.5">
           <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
@@ -637,26 +649,16 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
             <MapPin className="h-3 w-3" />
             Preferred Meet Spot on Campus
           </label>
-          <div className="relative">
-            <select
-              value={form.location}
-              onChange={(e) =>
-                setForm((f: any) => ({ ...f, location: e.target.value }))
-              }
-              className="h-11 w-full appearance-none rounded-lg border border-white/10 bg-black/40 px-3 text-sm text-white outline-none transition focus:border-boxOrange focus:ring-2 focus:ring-boxOrange/10 cursor-pointer"
-            >
-              <option value="" className="bg-zinc-950">
-                Pick a spot...
-              </option>
-              {MEET_SPOTS.map((spot) => (
-                <option key={spot} value={spot} className="bg-zinc-950">
-                  {spot}
-                </option>
-              ))}
-            </select>
-            <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-zinc-600" />
-          </div>
+          <Input
+            value={form.location}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setForm((f: any) => ({ ...f, location: e.target.value }))
+            }
+            placeholder="e.g. Main Library, Block B Canteen, IT Lab"
+            className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-boxOrange focus:ring-boxOrange/10"
+          />
         </div>
+
       </div>
 
       <NextButton onClick={onNext} />

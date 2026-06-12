@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { Shield } from "lucide-react";
 import { User } from "../app/types";
 
 interface HeaderProps {
@@ -20,10 +19,9 @@ export default function Header({ user }: HeaderProps) {
         </h1>
       </div>
 
-      <div className="flex items-center gap-1.5 rounded-full border border-boxGreen/30 bg-boxGreen/10 px-3 py-1.5 shadow-[0_0_20px_rgba(24,189,0,0.12)]">
-        <Shield className="h-3.5 w-3.5 text-boxGreen animate-pulse" />
+      <div className="flex items-center gap-1.5 rounded-full border border-boxOrange/30 bg-boxOrange/8 px-3 py-1.5">
         <span className="text-xs font-black text-white tracking-wider">
-          {user?.reputation_score ?? 0} PS
+          ⚡ {user?.reputation_score ?? 0} Aura
         </span>
       </div>
     </header>

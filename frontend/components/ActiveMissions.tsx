@@ -101,15 +101,39 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         </div>
         <div className="rounded-xl border border-white/5 bg-zinc-950/45 px-3 py-1.5 text-right">
           <span className="block text-[8px] font-black uppercase tracking-wider text-zinc-500">
-            Completed Ratio
+            Completed
           </span>
           <span className="text-sm font-black text-boxGreen">
-            {missions.filter((m) => m.status === "Completed").length}/{missions.filter((m) => m.status === "Completed" || m.status === "Missed").length || 0}
+            {missions.filter((m) => m.status === "Completed").length}
           </span>
         </div>
       </div>
 
-      {/* Warning check alert */}
+      {/* Pending join requests banner for creators */}
+      {(() => {
+        const pendingRequests = missions.filter(
+          (m) => m.role === "creator" && m.status === "Requested"
+        ).length;
+        return pendingRequests > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-3 rounded-xl border border-boxRed/35 bg-boxRed/5 p-3.5"
+          >
+            <AlertCircle className="h-4 w-4 text-boxRed shrink-0 mt-0.5 animate-pulse" />
+            <div>
+              <h4 className="text-xs font-black text-white uppercase tracking-wider leading-none">
+                {pendingRequests} Join Request{pendingRequests > 1 ? "s" : ""} Waiting
+              </h4>
+              <p className="mt-1 text-[11px] font-medium leading-normal text-zinc-400">
+                Review and approve who locks in with you. Scroll down to see them.
+              </p>
+            </div>
+          </motion.div>
+        ) : null;
+      })()}
+
+      {/* Attendance check alert */}
       {pendingReviews > 0 && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -122,7 +146,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
               Attendance check required
             </h4>
             <p className="mt-1 text-[11px] font-medium leading-normal text-zinc-400">
-              Confirm who showed up on {pendingReviews} due runway{pendingReviews > 1 ? "s" : ""} to sync score weights.
+              Confirm who showed up on {pendingReviews} due runway{pendingReviews > 1 ? "s" : ""} to sync Aura.
             </p>
           </div>
         </motion.div>
@@ -223,7 +247,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           </p>
                         </div>
                         <div className="rounded-lg border border-boxGreen/20 bg-boxGreen/5 px-2 py-0.5 text-[9px] font-black text-boxGreen flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> Rep: {mission.participant_reputation}
+                          <Sparkles className="h-3 w-3" /> {mission.participant_reputation} Aura
                         </div>
                       </div>
                       

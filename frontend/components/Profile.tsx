@@ -1,9 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Activity, Shield, Award, MapPin, Zap } from "lucide-react";
-import { User } from "../app/types";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Activity,
+  Trophy,
+  MapPin,
+  Zap,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Instagram,
+  Github,
+  ChevronRight,
+  Flame,
+  LayoutGrid
+} from "lucide-react";
+import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 
@@ -13,77 +26,96 @@ interface ProfileProps {
   api: (path: string, options?: RequestInit) => Promise<any>;
 }
 
-const SRM_SPOTS = [
-  "SRM KTR Tech Park",
-  "SRM KTR Library",
-  "SRM KTR Java Canteen",
-  "SRM KTR Bio-Tech Block",
-  "SRM KTR Cafe Court",
-  "SRM KTR UB Block",
-  "SRM KTR MBA Block",
-  "SRM KTR Bel Canto"
-];
+interface LeaderboardEntry {
+  id: number;
+  name: string;
+  department: string;
+  reputation_score: number;
+  interests?: string;
+}
+
+const TABS = ["Stats", "Leaderboard", "Missions"] as const;
+type Tab = (typeof TABS)[number];
 
 export default function Profile({ user, refreshUser, api }: ProfileProps) {
-  const [syncing, setSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("Stats");
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [pastMissions, setPastMissions] = useState<Mission[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [loadingMissions, setLoadingMissions] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({
     name: user.name || "",
     department: user.department || "",
-    location: user.location || "SRM KTR Library"
+    bio: user.bio || "",
+    instagram: user.instagram || "",
+    github: user.github || "",
+    location: user.location || "",
   });
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
 
-  const score = Math.max(0, Math.min(100, user.reputation_score || 0));
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
 
-  // Determine dynamic level based on reputation score
-  const level = Math.floor(score / 25) + 1;
-  const levelName = level === 1 ? "Initiate" : level === 2 ? "Executor" : level === 3 ? "Specialist" : "Elite Agent";
+  useEffect(() => {
+    const idx = TABS.indexOf(activeTab);
+    const el = tabRefs.current[idx];
+    if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [activeTab]);
 
-  // Initials generator
+  useEffect(() => {
+    if (activeTab === "Leaderboard" && user.campus_id) {
+      setLoadingLeaderboard(true);
+      api(`/users/leaderboard?campusId=${user.campus_id}`)
+        .then(setLeaderboard)
+        .catch(() => setLeaderboard([]))
+        .finally(() => setLoadingLeaderboard(false));
+    }
+  }, [activeTab, user.campus_id]);
+
+  useEffect(() => {
+    if (activeTab === "Missions") {
+      setLoadingMissions(true);
+      api(`/missions/active/${user.id}`)
+        .then((data: Mission[]) => {
+          const past = data.filter(
+            (m) => m.status === "Completed" || m.status === "Missed" || m.showed_up !== undefined
+          );
+          setPastMissions(past);
+        })
+        .catch(() => setPastMissions([]))
+        .finally(() => setLoadingMissions(false));
+    }
+  }, [activeTab, user.id]);
+
   const initials = user.name
-    ? user.name
-        .split(" ")
-        .map((p) => p[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
+    ? user.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()
     : "??";
+
+  const aura = user.reputation_score ?? 0;
 
   async function handleSync() {
     setSyncing(true);
     try {
       await refreshUser();
-      setForm({
-        name: user.name || "",
-        department: user.department || "",
-        location: user.location || "SRM KTR Library"
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTimeout(() => setSyncing(false), 800); // short delay to feel premium
-    }
+    } catch {}
+    setTimeout(() => setSyncing(false), 800);
   }
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
-    if (form.name.trim().length < 3) {
-      setError("Name must be at least 3 characters.");
+    if (form.name.trim().length < 2) {
+      setError("Name must be at least 2 characters.");
       return;
     }
-    if (form.department.trim().length < 3) {
-      setError("Department description is required.");
-      return;
-    }
-
     setUpdating(true);
     setError("");
     try {
       await api(`/users/${user.id}`, {
         method: "PUT",
-        body: JSON.stringify(form)
+        body: JSON.stringify(form),
       });
       await refreshUser();
       setShowEdit(false);
@@ -95,181 +127,329 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-md px-4 py-6 pb-24 space-y-6">
-      {/* Profile Header Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/40 p-5 backdrop-blur-md">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(247,128,5,0.1),transparent_40%)]" />
-        
-        <div className="flex flex-col items-center md:flex-row md:items-start gap-4 text-left">
-          {/* Avatar Initials with custom glow */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-boxOrange/30 bg-boxOrange/10 text-xl font-black text-white shadow-[0_0_30px_rgba(247,128,5,0.15)]">
+    <section className="mx-auto w-full max-w-md px-4 py-6 pb-24 space-y-5">
+      {/* ── Profile header ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-zinc-950/60 p-5">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg font-black text-white">
             {initials}
           </div>
-
-          <div className="flex-1 text-center md:text-left">
-            <div className="flex flex-col md:flex-row md:items-center gap-2">
-              <h2 className="text-lg font-black text-white">{user.name}</h2>
-              <span className="mx-auto md:mx-0 flex items-center gap-1 rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-zinc-400 w-fit">
-                <Zap className="h-2.5 w-2.5 text-boxOrange fill-current" /> Lvl {level} • {levelName}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-zinc-500 font-semibold">{user.department}</p>
-
-            <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-2.5 text-[9px] font-black text-zinc-400 uppercase tracking-wider">
-              <span className="flex items-center gap-1.5 rounded-xl border border-white/5 bg-zinc-900/40 px-2.5 py-1.5">
-                <Shield className="h-3.5 w-3.5 text-boxGreen" />
-                {user.reputation_score} Reputation
-              </span>
-              <span className="flex items-center gap-1.5 rounded-xl border border-white/5 bg-zinc-900/40 px-2.5 py-1.5 truncate max-w-[200px]">
-                <MapPin className="h-3.5 w-3.5 text-boxRed" />
-                {user.location || "On Campus"}
-              </span>
-            </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-black text-white leading-tight">{user.name}</h2>
+            <p className="text-[11px] text-zinc-500 font-semibold mt-0.5 truncate">{user.department}</p>
+            {user.bio && (
+              <p className="text-[11px] text-zinc-400 mt-1 leading-snug line-clamp-2">{user.bio}</p>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Progress & Level Card */}
-      <div className="rounded-3xl border border-white/10 bg-zinc-950/40 p-5 backdrop-blur-md">
-        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">
-          <span>Level Progress</span>
-          <span className="text-boxGreen">{score}%</span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-zinc-900 border border-white/5">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${score}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="h-full rounded-full bg-gradient-to-r from-boxRed via-boxOrange to-boxGreen"
-          />
-        </div>
-        <div className="flex justify-between mt-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
-          <span>Lvl {level}</span>
-          <span>Lvl {level + 1}</span>
-        </div>
-      </div>
-
-      {/* Stats Bento Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-3xl border border-white/10 bg-zinc-950/40 p-4 text-center backdrop-blur-md">
-          <Award className="h-5 w-5 mx-auto text-boxOrange animate-pulse" />
-          <span className="mt-2 block text-[9px] font-black uppercase tracking-widest text-zinc-500">
-            Reputation Rank
+        {/* Aura + location pills */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="flex items-center gap-1.5 rounded-lg border border-boxOrange/25 bg-boxOrange/8 px-2.5 py-1 text-[10px] font-black text-boxOrange uppercase tracking-wider">
+            <Zap className="h-3 w-3 fill-current" />
+            {aura} Aura
           </span>
-          <span className="mt-1 block text-xl font-black text-white">
-            #{Math.max(1, 100 - user.reputation_score)}
-          </span>
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-zinc-950/40 p-4 text-center backdrop-blur-md">
-          <Activity className="h-5 w-5 mx-auto text-boxGreen" />
-          <span className="mt-2 block text-[9px] font-black uppercase tracking-widest text-zinc-500">
-            Showed Up Score
-          </span>
-          <span className="mt-1 block text-xl font-black text-white">
-            {user.reputation_score > 0 ? `+${user.reputation_score}` : user.reputation_score}
-          </span>
-        </div>
-      </div>
-
-      {/* Information Cards */}
-      <div className="space-y-3">
-        {[
-          { label: "Registered Institution", value: user.college },
-          { label: "Institutional Email ID", value: user.college_id }
-        ].map((info) => (
-          <div key={info.label} className="rounded-2xl border border-white/5 bg-zinc-950/20 p-3.5 text-left">
-            <span className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-              {info.label}
+          {user.location && (
+            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-semibold text-zinc-500">
+              <MapPin className="h-3 w-3" />
+              {user.location}
             </span>
-            <span className="mt-1 block text-xs font-semibold text-zinc-300">
-              {info.value}
+          )}
+          {user.interests && (
+            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 truncate max-w-[160px]">
+              {user.interests}
             </span>
+          )}
+        </div>
+
+        {/* Socials row */}
+        {(user.instagram || user.github) && (
+          <div className="mt-3 flex gap-3">
+            {user.instagram && (
+              <a
+                href={`https://instagram.com/${user.instagram}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 hover:text-white transition"
+              >
+                <Instagram className="h-3.5 w-3.5" />@{user.instagram}
+              </a>
+            )}
+            {user.github && (
+              <a
+                href={`https://github.com/${user.github}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 hover:text-white transition"
+              >
+                <Github className="h-3.5 w-3.5" />@{user.github}
+              </a>
+            )}
           </div>
+        )}
+
+        {/* Actions */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-wider text-zinc-400 transition hover:text-white disabled:opacity-50"
+          >
+            <Activity className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync"}
+          </button>
+          <button
+            onClick={() => setShowEdit(true)}
+            className="flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-wider text-zinc-400 transition hover:text-white"
+          >
+            Edit Profile
+          </button>
+        </div>
+      </div>
+
+      {/* ── Tab bar ── */}
+      <div className="relative flex gap-0 rounded-xl border border-white/8 bg-zinc-950/60 p-1">
+        <motion.div
+          className="absolute top-1 bottom-1 rounded-lg bg-white/8 border border-white/10"
+          animate={{ left: indicator.left, width: indicator.width }}
+          transition={{ type: "spring", stiffness: 400, damping: 35 }}
+        />
+        {TABS.map((tab, idx) => (
+          <button
+            key={tab}
+            ref={(el) => { tabRefs.current[idx] = el; }}
+            onClick={() => setActiveTab(tab)}
+            className={`relative z-10 flex-1 py-2 text-[11px] font-black uppercase tracking-wider transition ${
+              activeTab === tab ? "text-white" : "text-zinc-600"
+            }`}
+          >
+            {tab}
+          </button>
         ))}
       </div>
 
-      {/* Sync & Edit Actions grid */}
-      <div className="grid grid-cols-2 gap-3 shrink-0">
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-black uppercase tracking-wider text-zinc-200 transition hover:bg-white/10 hover:text-white disabled:opacity-55"
-        >
-          <Activity className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Syncing..." : "Sync Profile"}
-        </button>
-        <button
-          onClick={() => setShowEdit(true)}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-boxOrange/40 bg-boxOrange/10 text-xs font-black uppercase tracking-wider text-boxOrange transition hover:bg-boxOrange/20 hover:text-white active:scale-[0.98]"
-        >
-          Edit Profile
-        </button>
-      </div>
+      {/* ── Tab content ── */}
+      <AnimatePresence mode="wait">
+        {activeTab === "Stats" && (
+          <motion.div
+            key="stats"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            {/* Aura bar */}
+            <div className="rounded-2xl border border-white/8 bg-zinc-950/60 p-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aura Points</span>
+                <span className="text-sm font-black text-boxOrange">{aura}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-900">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (aura / 500) * 100)}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="h-full rounded-full bg-gradient-to-r from-boxRed via-boxOrange to-boxGreen"
+                />
+              </div>
+              <p className="text-[9px] text-zinc-700 uppercase tracking-widest">
+                {aura < 100 ? "Initiate" : aura < 250 ? "Executor" : aura < 500 ? "Specialist" : "Elite"}
+                {" — "}{Math.max(0, 500 - aura)} Aura to Elite
+              </p>
+            </div>
 
-      {/* Edit Profile Dialog Modal */}
+            {/* Info tiles */}
+            <div className="space-y-2">
+              {[
+                { label: "Institution", value: user.college },
+                { label: "Email / Reg ID", value: user.college_id },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-white/5 bg-zinc-950/40 px-4 py-3 flex justify-between items-center"
+                >
+                  <span className="text-[9px] font-black uppercase tracking-wider text-zinc-600">{item.label}</span>
+                  <span className="text-[11px] font-semibold text-zinc-300 max-w-[200px] truncate text-right">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === "Leaderboard" && (
+          <motion.div
+            key="leaderboard"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-3"
+          >
+            {!user.campus_id ? (
+              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
+                <Trophy className="h-6 w-6 mx-auto text-zinc-700 mb-3" />
+                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">Campus not set</p>
+                <p className="text-[11px] text-zinc-700 mt-1">Re-register with a campus to see rankings.</p>
+              </div>
+            ) : loadingLeaderboard ? (
+              <div className="py-12 text-center text-[11px] font-bold text-zinc-700 uppercase tracking-widest">
+                Loading...
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
+                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">No data yet</p>
+                <p className="text-[11px] text-zinc-700 mt-1">Complete missions to appear on the board.</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/8 bg-zinc-950/60 overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                  <Trophy className="h-3.5 w-3.5 text-boxOrange" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Campus Leaderboard</span>
+                </div>
+                <div className="divide-y divide-white/4">
+                  {leaderboard.map((entry, idx) => {
+                    const isYou = entry.id === user.id;
+                    const rankColor =
+                      idx === 0
+                        ? "text-boxOrange font-black"
+                        : idx === 1
+                        ? "text-zinc-300 font-black"
+                        : idx === 2
+                        ? "text-zinc-500 font-bold"
+                        : "text-zinc-700 font-bold";
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`flex items-center gap-3 px-4 py-3 ${isYou ? "bg-boxOrange/5" : ""}`}
+                      >
+                        <span className={`w-5 text-xs shrink-0 text-right ${rankColor}`}>
+                          {idx === 0 ? "①" : idx === 1 ? "②" : idx === 2 ? "③" : `${idx + 1}`}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-bold truncate ${isYou ? "text-boxOrange" : "text-white"}`}>
+                            {entry.name} {isYou && <span className="text-[9px] text-zinc-600">(you)</span>}
+                          </p>
+                          <p className="text-[10px] text-zinc-600 truncate">{entry.department}</p>
+                        </div>
+                        <span className="text-xs font-black text-white shrink-0">
+                          {entry.reputation_score}
+                          <span className="text-[9px] text-zinc-600 ml-0.5 font-normal">AP</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {activeTab === "Missions" && (
+          <motion.div
+            key="missions"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-3"
+          >
+            {loadingMissions ? (
+              <div className="py-12 text-center text-[11px] font-bold text-zinc-700 uppercase tracking-widest">
+                Loading...
+              </div>
+            ) : pastMissions.length === 0 ? (
+              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
+                <LayoutGrid className="h-6 w-6 mx-auto text-zinc-700 mb-3" />
+                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">No missions yet</p>
+                <p className="text-[11px] text-zinc-700 mt-1">Accept a mission from the feed to get started.</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/8 bg-zinc-950/60 overflow-hidden">
+                <div className="divide-y divide-white/4">
+                  {pastMissions.map((m) => {
+                    const done = m.status === "Completed";
+                    const missed = m.status === "Missed";
+                    return (
+                      <div key={`${m.id}-${m.role}`} className="flex items-center gap-3 px-4 py-3">
+                        {done ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-boxGreen" />
+                        ) : missed ? (
+                          <XCircle className="h-4 w-4 shrink-0 text-boxRed" />
+                        ) : (
+                          <Clock className="h-4 w-4 shrink-0 text-zinc-600" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-bold text-white truncate">{m.title}</p>
+                          <p className="text-[10px] text-zinc-600">
+                            {m.role === "creator" ? "You hosted" : `Partner: ${m.creator_name}`}
+                            {" · "}
+                            {new Date(m.datetime).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </p>
+                        </div>
+                        <span
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
+                            done
+                              ? "border-boxGreen/25 bg-boxGreen/8 text-boxGreen"
+                              : missed
+                              ? "border-boxRed/25 bg-boxRed/8 text-boxRed"
+                              : "border-white/10 text-zinc-600"
+                          }`}
+                        >
+                          {m.status}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit Profile Dialog ── */}
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="border-white/10 bg-zinc-950/95 text-white max-w-sm rounded-3xl backdrop-blur-xl">
+        <DialogContent className="border-white/10 bg-zinc-950/98 text-white max-w-sm rounded-3xl backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black tracking-tight text-white uppercase">
-              EDIT PROFILE
+            <DialogTitle className="text-sm font-black tracking-widest text-white uppercase">
+              Edit Profile
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-4 mt-2">
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-                Full Name
-              </label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Your Name"
-                className="h-10 border-white/10 bg-black/40 text-xs text-white"
-                required
-              />
-            </div>
-
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-                Department & Year
-              </label>
-              <Input
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-                placeholder="e.g. Networking & Comm, 3rd Year"
-                className="h-10 border-white/10 bg-black/40 text-xs text-white"
-                required
-              />
-            </div>
-
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-                Preferred Meet Spot
-              </label>
-              <select
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-                className="h-10 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-boxOrange cursor-pointer"
-              >
-                {SRM_SPOTS.map((spot) => (
-                  <option key={spot} value={spot} className="bg-zinc-950 text-white">
-                    {spot}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <form onSubmit={handleUpdate} className="space-y-3 mt-1">
+            {[
+              { label: "Full Name", key: "name", placeholder: "Your Name" },
+              { label: "Department & Year", key: "department", placeholder: "e.g. CSE, 3rd Year" },
+              { label: "Meet Spot", key: "location", placeholder: "e.g. Library, Block B Canteen..." },
+              { label: "Bio", key: "bio", placeholder: "What are you building?" },
+              { label: "Instagram", key: "instagram", placeholder: "@username" },
+              { label: "GitHub", key: "github", placeholder: "@username" },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="space-y-1">
+                <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
+                  {label}
+                </label>
+                <Input
+                  value={(form as any)[key]}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setForm((f) => ({ ...f, [key]: e.target.value }))
+                  }
+                  placeholder={placeholder}
+                  className="h-10 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-boxOrange"
+                />
+              </div>
+            ))}
 
             {error && (
-              <p className="text-xs font-bold text-boxRed animate-pulse text-left">
-                {error}
-              </p>
+              <p className="text-[11px] font-bold text-boxRed">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={updating}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-boxGreen/40 bg-boxGreen text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(24,189,0,0.15)] hover:bg-boxGreen/90 transition active:scale-[0.98] disabled:opacity-50"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-boxGreen/40 bg-boxGreen text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxGreen/90 disabled:opacity-50"
             >
+              <Flame className="h-3.5 w-3.5 fill-current" />
               {updating ? "Saving..." : "Save Changes"}
             </button>
           </form>
