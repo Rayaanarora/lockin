@@ -15,11 +15,27 @@ model User {
   reputationScore  Int             @default(0) @map("reputation_score")
   college          String?         @db.VarChar(100)
   location         String?         @db.VarChar(100)
+  campusId         Int?            @map("campus_id")
+  bio              String?         @db.VarChar(150)
+  instagram        String?         @db.VarChar(50)
+  github           String?         @db.VarChar(50)
+  interests        String?         @db.Text
+  campus           Campus?         @relation(fields: [campusId], references: [id], onDelete: SetNull)
   missions         Mission[]       @relation("CreatedMissions")
   participations   Participation[]
   messages         Message[]
 
   @@map("users")
+}
+
+model Campus {
+  id       Int       @id @default(autoincrement()) @map("campus_id")
+  name     String    @unique @db.VarChar(150)
+  location String?   @db.VarChar(100)
+  users    User[]
+  missions Mission[]
+
+  @@map("campus")
 }
 
 model Category {
@@ -38,9 +54,12 @@ model Mission {
   location         String?         @db.VarChar(100)
   categoryId       Int?            @map("category_id")
   createdBy        Int?            @map("created_by")
+  campusId         Int?            @map("campus_id")
+  focusDuration    Int             @default(25) @map("focus_duration")
   verificationCode String?         @map("verification_code") @db.VarChar(10)
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   creator          User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
+  campus           Campus?         @relation(fields: [campusId], references: [id], onDelete: SetNull)
   participations   Participation[]
   messages         Message[]
 
@@ -48,34 +67,38 @@ model Mission {
 }
 
 model Skill {
-  id                Int     @id @default(autoincrement()) @map("skill_id")
-  skillName         String  @map("skill_name") @db.VarChar(50)
+  id                 Int     @id @default(autoincrement()) @map("skill_id")
+  skillName          String  @map("skill_name") @db.VarChar(50)
   verificationSource String? @map("verification_source") @db.VarChar(50)
 
   @@map("skill")
 }
 
 model Participation {
-  id          Int      @id @default(autoincrement()) @map("participation_id")
-  userId      Int      @map("user_id")
-  missionId   Int      @map("mission_id")
-  status      String   @db.VarChar(20)
-  showedUp    Boolean? @map("showed_up")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mission     Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  id                    Int       @id @default(autoincrement()) @map("participation_id")
+  userId                Int       @map("user_id")
+  missionId             Int       @map("mission_id")
+  status                String    @db.VarChar(20)
+  showedUp              Boolean?  @map("showed_up")
+  workStartedAt         DateTime? @map("work_started_at")
+  workDuration          Int       @default(25) @map("work_duration")
+  creatorVibeRating     String?   @map("creator_vibe_rating") @db.VarChar(10)
+  participantVibeRating String?   @map("participant_vibe_rating") @db.VarChar(10)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission               Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, missionId], name: "unique_user_mission")
   @@map("participation")
 }
 
 model Message {
-  id         Int      @id @default(autoincrement()) @map("message_id")
-  missionId  Int      @map("mission_id")
-  senderId   Int      @map("sender_id")
-  message    String   @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
-  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement()) @map("message_id")
+  missionId Int      @map("mission_id")
+  senderId  Int      @map("sender_id")
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
 }

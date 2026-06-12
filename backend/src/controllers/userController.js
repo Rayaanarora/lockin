@@ -7,10 +7,10 @@ function required(value) {
 }
 
 async function createUser(req, res) {
-  const { name, college, college_id, department, location } = req.body;
+  const { name, college, college_id, department, bio, instagram, github, interests, campusId } = req.body;
 
-  if (![name, college, college_id, department, location].every(required)) {
-    return res.status(400).json({ error: "Name, college, college_id, department, and location are required." });
+  if (![name, college, college_id, department].every(required)) {
+    return res.status(400).json({ error: "Name, college, college_id, and department are required." });
   }
 
   const payload = {
@@ -18,8 +18,13 @@ async function createUser(req, res) {
     college: college.trim(),
     college_id: college_id.trim(),
     department: department.trim(),
-    location: location.trim()
+    bio: bio ? bio.trim() : "",
+    instagram: instagram ? instagram.trim() : "",
+    github: github ? github.trim() : "",
+    interests: interests ? interests.trim() : "",
+    campusId: campusId ? Number(campusId) : null
   };
+
   let email = payload.college_id;
   if (!email.includes("@")) {
     email = `${email.toLowerCase().replace(/[^a-z0-9]/g, "")}@srmist.edu.in`;
@@ -32,8 +37,12 @@ async function createUser(req, res) {
         email: email,
         department: payload.department,
         college: payload.college,
-        location: payload.location,
-        reputationScore: 0
+        reputationScore: 100, // Seed initial Aura to 100
+        bio: payload.bio,
+        instagram: payload.instagram,
+        github: payload.github,
+        interests: payload.interests,
+        campusId: payload.campusId
       }
     });
 
@@ -44,7 +53,11 @@ async function createUser(req, res) {
       college_id: user.email,
       department: user.department,
       reputation_score: user.reputationScore,
-      location: user.location
+      bio: user.bio,
+      instagram: user.instagram,
+      github: user.github,
+      interests: user.interests,
+      campus_id: user.campusId
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -55,7 +68,8 @@ async function createUser(req, res) {
 async function getUser(req, res) {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: Number(req.params.id) }
+      where: { id: Number(req.params.id) },
+      include: { campus: true }
     });
     if (!user) {
       return res.status(404).json({ error: "User not found." });
@@ -67,7 +81,12 @@ async function getUser(req, res) {
       college_id: user.email,
       department: user.department,
       reputation_score: user.reputationScore,
-      location: user.location || 'SRM KTR Campus'
+      bio: user.bio || "",
+      instagram: user.instagram || "",
+      github: user.github || "",
+      interests: user.interests || "",
+      campus_id: user.campusId,
+      campus_name: user.campus?.name || ""
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -82,6 +101,7 @@ async function getLockStatus(req, res) {
     const activeCount = await prisma.participation.count({
       where: {
         userId: Number(req.params.id),
+        status: "Accepted",
         showedUp: null
       }
     });
@@ -99,7 +119,7 @@ async function getLockStatus(req, res) {
 
 async function updateUser(req, res) {
   const { id } = req.params;
-  const { name, department, location } = req.body;
+  const { name, department, bio, instagram, github, interests, location } = req.body;
 
   try {
     const user = await prisma.user.update({
@@ -107,7 +127,11 @@ async function updateUser(req, res) {
       data: {
         name: name ? name.trim() : undefined,
         department: department ? department.trim() : undefined,
-        location: location ? location.trim() : undefined
+        bio: bio !== undefined ? bio.trim() : undefined,
+        instagram: instagram !== undefined ? instagram.trim() : undefined,
+        github: github !== undefined ? github.trim() : undefined,
+        interests: interests !== undefined ? interests.trim() : undefined,
+        location: location !== undefined ? location.trim() : undefined
       }
     });
 
@@ -118,12 +142,51 @@ async function updateUser(req, res) {
       college_id: user.email,
       department: user.department,
       reputation_score: user.reputationScore,
+      bio: user.bio,
+      instagram: user.instagram,
+      github: user.github,
+      interests: user.interests,
       location: user.location
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
-    res.json({ error: "Database unavailable fallback not configured for updating users." });
+    res.json({ error: "Database unavailable." });
   }
 }
 
-module.exports = { createUser, getUser, getLockStatus, updateUser };
+async function getLeaderboard(req, res) {
+  const { campusId } = req.query;
+  if (!campusId) {
+    return res.status(400).json({ error: "campusId query parameter is required." });
+  }
+
+  try {
+    const leaderboard = await prisma.user.findMany({
+      where: { campusId: Number(campusId) },
+      orderBy: { reputationScore: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        reputationScore: true,
+        interests: true
+      }
+    });
+
+    const rows = leaderboard.map((u) => ({
+      id: u.id,
+      name: u.name,
+      department: u.department,
+      reputation_score: u.reputationScore,
+      interests: u.interests
+    }));
+
+    res.json(rows);
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    res.json([]);
+  }
+}
+
+module.exports = { createUser, getUser, getLockStatus, updateUser, getLeaderboard };

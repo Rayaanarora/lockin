@@ -11,7 +11,7 @@ function assertUserId(userId, res) {
 }
 
 async function createMission(req, res) {
-  const { creator_id, title, description, location, datetime, categoryId } = req.body;
+  const { creator_id, title, description, location, datetime, categoryId, focusDuration } = req.body;
   if (!creator_id || !title || !description || !location || !datetime) {
     return res.status(400).json({ error: "creator_id, title, description, location, and datetime are required." });
   }
@@ -22,10 +22,16 @@ async function createMission(req, res) {
     description: description.trim(),
     location: location.trim(),
     datetime: new Date(datetime),
-    categoryId: categoryId ? Number(categoryId) : 1
+    categoryId: categoryId ? Number(categoryId) : 1,
+    focusDuration: focusDuration ? Number(focusDuration) : 25
   };
 
   try {
+    const creatorUser = await prisma.user.findUnique({
+      where: { id: payload.creator_id },
+      select: { campusId: true }
+    });
+
     const verificationCode = String(Math.floor(1000 + Math.random() * 9000));
     const mission = await prisma.mission.create({
       data: {
@@ -35,6 +41,8 @@ async function createMission(req, res) {
         location: payload.location,
         categoryId: payload.categoryId,
         createdBy: payload.creator_id,
+        campusId: creatorUser ? creatorUser.campusId : null,
+        focusDuration: payload.focusDuration,
         verificationCode: verificationCode
       },
       include: {
@@ -53,7 +61,8 @@ async function createMission(req, res) {
       datetime: mission.datetime.toISOString(),
       creator_name: mission.creator?.name || "Unknown",
       creator_department: mission.creator?.department || "Creator",
-      verification_code: mission.verificationCode
+      verification_code: mission.verificationCode,
+      focus_duration: mission.focusDuration
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -71,9 +80,15 @@ async function getMissionFeed(req, res) {
 
     const numericUserId = Number(userId);
 
+    const activeUser = await prisma.user.findUnique({
+      where: { id: numericUserId },
+      select: { campusId: true }
+    });
+
     const whereClause = {
       createdBy: { not: numericUserId },
       datetime: { gte: twelveHoursAgo },
+      campusId: activeUser ? activeUser.campusId : null,
       participations: {
         none: {
           userId: numericUserId
@@ -104,7 +119,8 @@ async function getMissionFeed(req, res) {
       creator_name: m.creator?.name || "Unknown",
       creator_department: m.creator?.department || "Creator",
       category_name: m.category?.categoryName || "Coding",
-      category_id: m.categoryId
+      category_id: m.categoryId,
+      focus_duration: m.focusDuration
     }));
 
     res.json(rows);
@@ -242,7 +258,12 @@ async function getActiveMissions(req, res) {
           showed_up: p.showedUp,
           creator_name: p.mission.creator?.name || "Unknown",
           role: "participant",
-          participant_name: p.user?.name || "Me"
+          participant_name: p.user?.name || "Me",
+          focus_duration: p.mission.focusDuration,
+          work_started_at: p.workStartedAt ? p.workStartedAt.toISOString() : null,
+          work_duration: p.workDuration,
+          creator_vibe_rating: p.creatorVibeRating,
+          participant_vibe_rating: p.participantVibeRating
         };
       })
       .filter(Boolean);
@@ -266,7 +287,12 @@ async function getActiveMissions(req, res) {
           participant_id: p.userId,
           participant_department: p.user?.department || "Student",
           participant_reputation: p.user?.reputationScore || 0,
-          verification_code: p.mission.verificationCode
+          verification_code: p.mission.verificationCode,
+          focus_duration: p.mission.focusDuration,
+          work_started_at: p.workStartedAt ? p.workStartedAt.toISOString() : null,
+          work_duration: p.workDuration,
+          creator_vibe_rating: p.creatorVibeRating,
+          participant_vibe_rating: p.participantVibeRating
         };
       })
       .filter(Boolean);
@@ -311,7 +337,7 @@ async function submitAttendance(req, res) {
         throw new Error("NOT_FOUND");
       }
 
-      if (participant.showedUp !== null) {
+      if (participant.status === "Executing" || participant.showedUp !== null) {
         throw new Error("ALREADY_SUBMITTED");
       }
 
@@ -319,56 +345,60 @@ async function submitAttendance(req, res) {
         if (!code || String(code).trim() !== String(participant.mission.verificationCode).trim()) {
           throw new Error("INVALID_CODE");
         }
-      }
 
-      const status = showedUp ? "Completed" : "Missed";
-      const delta = showedUp ? 10 : -5;
-
-      await tx.participation.update({
-        where: { id: participant.id },
-        data: { showedUp, status }
-      });
-
-      // Participant reputation increase/decrease
-      const updatedUser = await tx.user.update({
-        where: { id: Number(userId) },
-        data: {
-          reputationScore: {
-            increment: delta
+        const updated = await tx.participation.update({
+          where: { id: participant.id },
+          data: {
+            status: "Executing",
+            workStartedAt: new Date(),
+            workDuration: participant.mission.focusDuration,
+            showedUp: true
           }
-        }
-      });
+        });
 
-      // Host creator reward
-      if (showedUp && participant.mission.createdBy) {
-        await tx.user.update({
-          where: { id: participant.mission.createdBy },
+        return {
+          status: "Executing",
+          workStartedAt: updated.workStartedAt
+        };
+      } else {
+        // Creator marking participant as missed
+        await tx.participation.update({
+          where: { id: participant.id },
+          data: {
+            status: "Missed",
+            showedUp: false
+          }
+        });
+
+        // Deduct Aura immediately
+        const updatedUser = await tx.user.update({
+          where: { id: Number(userId) },
           data: {
             reputationScore: {
-              increment: 5
+              decrement: 5
             }
           }
         });
-      }
 
-      return {
-        status,
-        reputationScore: updatedUser.reputationScore
-      };
+        return {
+          status: "Missed",
+          reputationScore: updatedUser.reputationScore
+        };
+      }
     });
 
     res.json({
       mission_id: Number(id),
       user_id: Number(userId),
       status: result.status,
-      reputation_score: result.reputationScore
+      work_started_at: result.workStartedAt ? result.workStartedAt.toISOString() : null
     });
   } catch (error) {
     if (error.message === "NOT_FOUND") {
       return res.status(404).json({ error: "Accepted mission not found." });
     }
     if (error.message === "ALREADY_SUBMITTED") {
-      return res.status(409).json({ error: "Attendance has already been submitted." });
+      return res.status(409).json({ error: "Vibe check session already completed." });
     }
     if (error.message === "INVALID_CODE") {
       return res.status(400).json({ error: "Invalid check-in code. Please try again." });
@@ -468,6 +498,130 @@ async function getCategories(req, res) {
   }
 }
 
+async function getCampuses(req, res) {
+  try {
+    const campuses = await prisma.campus.findMany({
+      orderBy: { name: "asc" }
+    });
+    res.json(campuses);
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    res.json([
+      { id: 1, name: "SRM IST, Kattankulathur (KTR)", location: "Chennai, TN" }
+    ]);
+  }
+}
+
+async function submitVibeCheck(req, res) {
+  const { id } = req.params;
+  const { raterId, rating } = req.body;
+
+  if (!raterId || !["W", "L"].includes(rating)) {
+    return res.status(400).json({ error: "raterId and rating ('W' or 'L') are required." });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const participation = await tx.participation.findFirst({
+        where: {
+          missionId: Number(id),
+          status: { in: ["Executing", "Completed"] }
+        },
+        include: {
+          mission: true
+        }
+      });
+
+      if (!participation) {
+        throw new Error("NOT_FOUND");
+      }
+
+      const numericRaterId = Number(raterId);
+      const isCreator = participation.mission.createdBy === numericRaterId;
+      const isParticipant = participation.userId === numericRaterId;
+
+      if (!isCreator && !isParticipant) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      let updatedRatingField = {};
+      let targetUserId = null;
+      let auraDelta = rating === "W" ? 2 : -1;
+      let baseAuraDelta = 0;
+
+      if (isCreator) {
+        if (participation.creatorVibeRating !== null) {
+          throw new Error("ALREADY_RATED");
+        }
+        updatedRatingField = { creatorVibeRating: rating };
+        targetUserId = participation.userId;
+        baseAuraDelta = 10; // Participant base Completion reward
+      } else {
+        if (participation.participantVibeRating !== null) {
+          throw new Error("ALREADY_RATED");
+        }
+        updatedRatingField = { participantVibeRating: rating };
+        targetUserId = participation.mission.createdBy;
+        baseAuraDelta = 5; // Creator base Hosting reward
+      }
+
+      const updatedParticipation = await tx.participation.update({
+        where: { id: participation.id },
+        data: updatedRatingField
+      });
+
+      const totalDelta = baseAuraDelta + auraDelta;
+      if (targetUserId) {
+        await tx.user.update({
+          where: { id: targetUserId },
+          data: {
+            reputationScore: {
+              increment: totalDelta
+            }
+          }
+        });
+      }
+
+      // Mark status as Completed once both ratings are submitted
+      let finalStatus = participation.status;
+      if (
+        (isCreator && updatedParticipation.participantVibeRating !== null) ||
+        (isParticipant && updatedParticipation.creatorVibeRating !== null)
+      ) {
+        finalStatus = "Completed";
+        await tx.participation.update({
+          where: { id: participation.id },
+          data: { status: "Completed" }
+        });
+      }
+
+      return {
+        status: finalStatus,
+        targetUserId,
+        auraDelta: totalDelta
+      };
+    });
+
+    res.json({
+      mission_id: Number(id),
+      status: result.status,
+      rated_user_id: result.targetUserId,
+      aura_delta: result.auraDelta
+    });
+  } catch (error) {
+    if (error.message === "NOT_FOUND") {
+      return res.status(404).json({ error: "Active participation not found." });
+    }
+    if (error.message === "UNAUTHORIZED") {
+      return res.status(403).json({ error: "Unauthorized vibe check." });
+    }
+    if (error.message === "ALREADY_RATED") {
+      return res.status(409).json({ error: "Vibe check already submitted." });
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   createMission,
   getMissionFeed,
@@ -476,5 +630,7 @@ module.exports = {
   getActiveMissions,
   submitAttendance,
   approveParticipant,
-  getCategories
+  getCategories,
+  getCampuses,
+  submitVibeCheck
 };

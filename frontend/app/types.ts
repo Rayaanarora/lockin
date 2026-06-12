@@ -6,6 +6,11 @@ export interface User {
   department: string;
   reputation_score: number;
   location: string;
+  bio?: string;
+  instagram?: string;
+  github?: string;
+  interests?: string;
+  campus_id?: number;
 }
 
 export interface Mission {
