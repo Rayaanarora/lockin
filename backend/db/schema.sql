@@ -36,7 +36,8 @@ CREATE TABLE mission (
   mission_time TIMESTAMP NOT NULL,
   location VARCHAR(100),
   category_id INT REFERENCES category(category_id) ON DELETE CASCADE,
-  created_by INT REFERENCES users(user_id) ON DELETE CASCADE
+  created_by INT REFERENCES users(user_id) ON DELETE CASCADE,
+  verification_code VARCHAR(10)
 );
 
 CREATE TABLE skill (

@@ -10,7 +10,6 @@ import Shell from "../components/Shell";
 import Header from "../components/Header";
 import Nav from "../components/Nav";
 import ProfileGate from "../components/ProfileGate";
-import LockScreen from "../components/LockScreen";
 import Feed from "../components/Feed";
 import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
@@ -78,17 +77,18 @@ export default function Home() {
       );
     }
     if (tab === "profile") {
-      return <Profile user={user} refreshUser={refreshUser} />;
+      return <Profile user={user} refreshUser={refreshUser} api={api} />;
     }
     return (
       <Feed
         user={user}
         refreshUser={refreshUser}
+        locked={locked}
         setLocked={setLocked}
         api={api}
       />
     );
-  }, [tab, user]);
+  }, [tab, user, locked]);
 
   if (loading) {
     return (
@@ -119,9 +119,6 @@ export default function Home() {
         </motion.div>
       </AnimatePresence>
       <Nav tab={tab} setTab={setTab} />
-      <AnimatePresence>
-        {locked && tab !== "active" && <LockScreen />}
-      </AnimatePresence>
     </Shell>
   );
 }

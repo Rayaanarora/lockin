@@ -79,11 +79,18 @@ function createMission(payload) {
   return creatorFields(mission);
 }
 
-function getMissionFeed(userId) {
+function getMissionFeed(userId, categoryId) {
   const numericUserId = Number(userId);
   const accepted = new Set(participants.filter((item) => item.user_id === numericUserId).map((item) => item.mission_id));
   return missions
-    .filter((mission) => mission.creator_id !== numericUserId && !accepted.has(mission.id))
+    .filter((mission) => {
+      const matchUser = mission.creator_id !== numericUserId && !accepted.has(mission.id);
+      if (!matchUser) return false;
+      if (categoryId && categoryId !== "all") {
+        return Number(mission.category_id) === Number(categoryId);
+      }
+      return true;
+    })
     .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
     .map(creatorFields);
 }
@@ -97,9 +104,9 @@ function acceptMission(missionId, userId) {
     return { error: "You are locked in. Mark attendance before accepting more missions.", status: 423 };
   }
   const existing = participants.find((item) => item.mission_id === numericMissionId && item.user_id === numericUserId);
-  if (existing) existing.status = "Pending";
-  else participants.push({ mission_id: numericMissionId, user_id: numericUserId, status: "Pending", showed_up: null });
-  return { mission_id: numericMissionId, user_id: numericUserId, status: "Pending" };
+  if (existing) existing.status = "Requested";
+  else participants.push({ mission_id: numericMissionId, user_id: numericUserId, status: "Requested", showed_up: null });
+  return { mission_id: numericMissionId, user_id: numericUserId, status: "Requested" };
 }
 
 function getActiveMissions(userId) {
@@ -110,7 +117,7 @@ function getActiveMissions(userId) {
     .sort((a, b) => Number(a.showed_up !== null) - Number(b.showed_up !== null) || new Date(a.datetime) - new Date(b.datetime));
 }
 
-function submitAttendance(missionId, userId, showedUp) {
+function submitAttendance(missionId, userId, showedUp, code) {
   const participant = participants.find((item) => item.mission_id === Number(missionId) && item.user_id === Number(userId));
   if (!participant) return { error: "Accepted mission not found.", status: 404 };
   if (participant.showed_up !== null) return { error: "Attendance has already been submitted.", status: 409 };

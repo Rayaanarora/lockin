@@ -97,4 +97,33 @@ async function getLockStatus(req, res) {
   }
 }
 
-module.exports = { createUser, getUser, getLockStatus };
+async function updateUser(req, res) {
+  const { id } = req.params;
+  const { name, department, location } = req.body;
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: Number(id) },
+      data: {
+        name: name ? name.trim() : undefined,
+        department: department ? department.trim() : undefined,
+        location: location ? location.trim() : undefined
+      }
+    });
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      college: user.college,
+      college_id: user.email,
+      department: user.department,
+      reputation_score: user.reputationScore,
+      location: user.location
+    });
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    res.json({ error: "Database unavailable fallback not configured for updating users." });
+  }
+}
+
+module.exports = { createUser, getUser, getLockStatus, updateUser };

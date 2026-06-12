@@ -16,7 +16,12 @@ async function main() {
   await prisma.category.createMany({
     data: [
       { id: 1, categoryName: "Coding" },
-      { id: 2, categoryName: "Sports" }
+      { id: 2, categoryName: "Sports" },
+      { id: 3, categoryName: "Study" },
+      { id: 4, categoryName: "Design" },
+      { id: 5, categoryName: "Gaming" },
+      { id: 6, categoryName: "Fitness" },
+      { id: 7, categoryName: "Other" }
     ]
   });
 
@@ -59,16 +64,16 @@ async function main() {
   // Seed Missions
   await prisma.mission.createMany({
     data: [
-      { id: 201, title: "Hackathon Grind", description: "All-night coding session to build the MVP. Bring caffeine.", datetime: addHours(now, 4), location: "SRM KTR Library", categoryId: 1, createdBy: 101 },
-      { id: 202, title: "LeetCode Lock-In", description: "Solving 5 hard/medium problems on arrays and graphs.", datetime: addHours(now, 7), location: "SRM KTR Tech Park", categoryId: 1, createdBy: 102 },
-      { id: 203, title: "API Battle Test", description: "Load testing express endpoints and optimizing performance.", datetime: addHours(now, 24), location: "SRM KTR Computer Lab 2", categoryId: 1, createdBy: 103 },
-      { id: 204, title: "Pitch Deck Build", description: "Design pitch slides and polish the demo script.", datetime: addHours(now, 24), location: "SRM KTR Seminar Hall", categoryId: 1, createdBy: 104 },
-      { id: 205, title: "Database Schema Jam", description: "Designing optimal relational tables and indexes.", datetime: addHours(now, 48), location: "SRM KTR DBMS Lab", categoryId: 1, createdBy: 105 },
-      { id: 206, title: "Open Source Fix Run", description: "Squashing open bugs in our target repo. Let's contribute.", datetime: addHours(now, 48), location: "SRM KTR Innovation Centre", categoryId: 1, createdBy: 106 },
-      { id: 207, title: "DSA Mock Duel", description: "1v1 mock interview sessions on tree traversal.", datetime: addHours(now, 72), location: "SRM KTR Block C", categoryId: 1, createdBy: 107 },
-      { id: 208, title: "Frontend Polish Night", description: "Adding Framer Motion micro-animations to improve UI feel.", datetime: addHours(now, 72), location: "SRM KTR Design Studio", categoryId: 1, createdBy: 108 },
-      { id: 209, title: "Backend Deploy Squad", description: "Setting up docker and deploying Express services.", datetime: addHours(now, 96), location: "SRM KTR Networking Lab", categoryId: 1, createdBy: 109 },
-      { id: 210, title: "Final Demo Rehearsal", description: "Simulating public presentation and timing of slides.", datetime: addHours(now, 120), location: "SRM KTR Auditorium Lobby", categoryId: 1, createdBy: 110 }
+      { id: 201, title: "Hackathon Grind", description: "All-night coding session to build the MVP. Bring caffeine.", datetime: addHours(now, 4), location: "SRM KTR Library", categoryId: 1, createdBy: 101, verificationCode: "2011" },
+      { id: 202, title: "LeetCode Lock-In", description: "Solving 5 hard/medium problems on arrays and graphs.", datetime: addHours(now, 7), location: "SRM KTR Tech Park", categoryId: 1, createdBy: 102, verificationCode: "2022" },
+      { id: 203, title: "API Battle Test", description: "Load testing express endpoints and optimizing performance.", datetime: addHours(now, 24), location: "SRM KTR Computer Lab 2", categoryId: 1, createdBy: 103, verificationCode: "2033" },
+      { id: 204, title: "Pitch Deck Build", description: "Design pitch slides and polish the demo script.", datetime: addHours(now, 24), location: "SRM KTR Seminar Hall", categoryId: 1, createdBy: 104, verificationCode: "2044" },
+      { id: 205, title: "Database Schema Jam", description: "Designing optimal relational tables and indexes.", datetime: addHours(now, 48), location: "SRM KTR DBMS Lab", categoryId: 1, createdBy: 105, verificationCode: "2055" },
+      { id: 206, title: "Open Source Fix Run", description: "Squashing open bugs in our target repo. Let's contribute.", datetime: addHours(now, 48), location: "SRM KTR Innovation Centre", categoryId: 1, createdBy: 106, verificationCode: "2066" },
+      { id: 207, title: "DSA Mock Duel", description: "1v1 mock interview sessions on tree traversal.", datetime: addHours(now, 72), location: "SRM KTR Block C", categoryId: 1, createdBy: 107, verificationCode: "2077" },
+      { id: 208, title: "Frontend Polish Night", description: "Adding Framer Motion micro-animations to improve UI feel.", datetime: addHours(now, 72), location: "SRM KTR Design Studio", categoryId: 1, createdBy: 108, verificationCode: "2088" },
+      { id: 209, title: "Backend Deploy Squad", description: "Setting up docker and deploying Express services.", datetime: addHours(now, 96), location: "SRM KTR Networking Lab", categoryId: 1, createdBy: 109, verificationCode: "2099" },
+      { id: 210, title: "Final Demo Rehearsal", description: "Simulating public presentation and timing of slides.", datetime: addHours(now, 120), location: "SRM KTR Auditorium Lobby", categoryId: 1, createdBy: 110, verificationCode: "2100" }
     ]
   });
 

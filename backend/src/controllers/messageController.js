@@ -4,10 +4,21 @@ const { isDbUnavailable } = require("../utils/dbFallback");
 
 async function ensureParticipant(missionId, userId) {
   try {
+    // 1. Check if the user is the creator of the mission
+    const mission = await prisma.mission.findUnique({
+      where: { id: Number(missionId) },
+      select: { createdBy: true }
+    });
+    if (mission && mission.createdBy === Number(userId)) {
+      return true;
+    }
+
+    // 2. Check if the user is an accepted/completed/missed participant
     const count = await prisma.participation.count({
       where: {
         missionId: Number(missionId),
-        userId: Number(userId)
+        userId: Number(userId),
+        status: { in: ["Accepted", "Completed", "Missed"] }
       }
     });
     return count > 0;

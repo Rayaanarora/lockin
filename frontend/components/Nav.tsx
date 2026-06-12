@@ -17,14 +17,15 @@ export default function Nav({ tab, setTab }: NavProps) {
   ] as const;
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-6 z-40 mx-auto max-w-[340px] px-4">
-      <div className="relative flex items-center justify-between rounded-full border border-white/10 bg-black/75 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-md">
+    <nav className="safe-bottom absolute inset-x-0 bottom-6 z-40 mx-auto max-w-[340px] px-4">
+      <div className="relative flex items-center justify-between rounded-full border border-white/10 bg-black/80 p-1.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-lg">
         {items.map(({ key, label, icon: Icon, color }) => {
           const isActive = tab === key;
           return (
-            <button
+            <motion.button
               key={key}
               onClick={() => setTab(key)}
+              whileTap={{ scale: 0.92 }}
               className="relative flex flex-1 flex-col items-center justify-center py-2 text-center outline-none transition"
             >
               {isActive && (
@@ -46,7 +47,7 @@ export default function Nav({ tab, setTab }: NavProps) {
               >
                 {label}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

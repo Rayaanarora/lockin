@@ -11,7 +11,7 @@ function assertUserId(userId, res) {
 }
 
 async function createMission(req, res) {
-  const { creator_id, title, description, location, datetime } = req.body;
+  const { creator_id, title, description, location, datetime, categoryId } = req.body;
   if (!creator_id || !title || !description || !location || !datetime) {
     return res.status(400).json({ error: "creator_id, title, description, location, and datetime are required." });
   }
@@ -21,18 +21,21 @@ async function createMission(req, res) {
     title: title.trim(),
     description: description.trim(),
     location: location.trim(),
-    datetime: new Date(datetime)
+    datetime: new Date(datetime),
+    categoryId: categoryId ? Number(categoryId) : 1
   };
 
   try {
+    const verificationCode = String(Math.floor(1000 + Math.random() * 9000));
     const mission = await prisma.mission.create({
       data: {
         title: payload.title,
         description: payload.description,
         datetime: payload.datetime,
         location: payload.location,
-        categoryId: 1, // Default Coding
-        createdBy: payload.creator_id
+        categoryId: payload.categoryId,
+        createdBy: payload.creator_id,
+        verificationCode: verificationCode
       },
       include: {
         creator: {
@@ -49,7 +52,8 @@ async function createMission(req, res) {
       location: mission.location,
       datetime: mission.datetime.toISOString(),
       creator_name: mission.creator?.name || "Unknown",
-      creator_department: mission.creator?.department || "Creator"
+      creator_department: mission.creator?.department || "Creator",
+      verification_code: mission.verificationCode
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -58,7 +62,7 @@ async function createMission(req, res) {
 }
 
 async function getMissionFeed(req, res) {
-  const { userId } = req.query;
+  const { userId, categoryId } = req.query;
   if (!assertUserId(userId, res)) return;
 
   try {
@@ -67,16 +71,22 @@ async function getMissionFeed(req, res) {
 
     const numericUserId = Number(userId);
 
-    const missions = await prisma.mission.findMany({
-      where: {
-        createdBy: { not: numericUserId },
-        datetime: { gte: twelveHoursAgo },
-        participations: {
-          none: {
-            userId: numericUserId
-          }
+    const whereClause = {
+      createdBy: { not: numericUserId },
+      datetime: { gte: twelveHoursAgo },
+      participations: {
+        none: {
+          userId: numericUserId
         }
-      },
+      }
+    };
+
+    if (categoryId && categoryId !== "all") {
+      whereClause.categoryId = Number(categoryId);
+    }
+
+    const missions = await prisma.mission.findMany({
+      where: whereClause,
       orderBy: { datetime: "asc" },
       include: {
         category: true,
@@ -92,13 +102,15 @@ async function getMissionFeed(req, res) {
       location: m.location,
       datetime: m.datetime.toISOString(),
       creator_name: m.creator?.name || "Unknown",
-      creator_department: m.creator?.department || "Creator"
+      creator_department: m.creator?.department || "Creator",
+      category_name: m.category?.categoryName || "Coding",
+      category_id: m.categoryId
     }));
 
     res.json(rows);
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
-    res.json(memoryStore.getMissionFeed(userId));
+    res.json(memoryStore.getMissionFeed(userId, categoryId));
   }
 }
 
@@ -112,6 +124,7 @@ async function acceptMission(req, res) {
       const activeCount = await tx.participation.count({
         where: {
           userId: Number(userId),
+          status: "Accepted",
           showedUp: null
         }
       });
@@ -135,11 +148,11 @@ async function acceptMission(req, res) {
             missionId: Number(id)
           }
         },
-        update: { status: "Pending" },
+        update: { status: "Requested" },
         create: {
           userId: Number(userId),
           missionId: Number(id),
-          status: "Pending"
+          status: "Requested"
         }
       });
 
@@ -153,7 +166,7 @@ async function acceptMission(req, res) {
     });
   } catch (error) {
     if (error.message === "LOCKED_OUT") {
-      return res.status(423).json({ error: "You are locked in. Mark attendance before accepting more missions." });
+      return res.status(423).json({ error: "Runway full. Mark attendance on your active missions before accepting more." });
     }
     if (error.message === "NOT_FOUND") {
       return res.status(404).json({ error: "Mission not found." });
@@ -173,10 +186,13 @@ async function passMission(req, res) {
 
 async function getActiveMissions(req, res) {
   const { userId } = req.params;
+  const numericUserId = Number(userId);
   try {
-    const participations = await prisma.participation.findMany({
-      where: { userId: Number(userId) },
+    // 1. Fetch missions accepted by this user (where they are participant)
+    const accepted = await prisma.participation.findMany({
+      where: { userId: numericUserId },
       include: {
+        user: { select: { name: true } },
         mission: {
           include: {
             category: true,
@@ -186,7 +202,33 @@ async function getActiveMissions(req, res) {
       }
     });
 
-    const rows = participations
+    // 2. Fetch participations on missions hosted by this user (where they are creator)
+    const hosted = await prisma.participation.findMany({
+      where: {
+        mission: {
+          createdBy: numericUserId
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            reputationScore: true
+          }
+        },
+        mission: {
+          include: {
+            category: true,
+            creator: true
+          }
+        }
+      }
+    });
+
+    const acceptedRows = accepted
+      .filter((p) => p.status !== "Rejected")
       .map((p) => {
         if (!p.mission) return null;
         return {
@@ -198,10 +240,38 @@ async function getActiveMissions(req, res) {
           datetime: p.mission.datetime.toISOString(),
           status: p.status,
           showed_up: p.showedUp,
-          creator_name: p.mission.creator?.name || "Unknown"
+          creator_name: p.mission.creator?.name || "Unknown",
+          role: "participant",
+          participant_name: p.user?.name || "Me"
         };
       })
       .filter(Boolean);
+
+    const hostedRows = hosted
+      .filter((p) => p.status !== "Rejected")
+      .map((p) => {
+        if (!p.mission) return null;
+        return {
+          id: p.mission.id,
+          creator_id: p.mission.createdBy,
+          title: p.mission.title,
+          description: p.mission.description || `Category: ${p.mission.category?.categoryName || "Coding"}. Meet at ${p.mission.location} and execute the mission.`,
+          location: p.mission.location,
+          datetime: p.mission.datetime.toISOString(),
+          status: p.status,
+          showed_up: p.showedUp,
+          creator_name: p.mission.creator?.name || "Me",
+          role: "creator",
+          participant_name: p.user?.name || "Unknown",
+          participant_id: p.userId,
+          participant_department: p.user?.department || "Student",
+          participant_reputation: p.user?.reputationScore || 0,
+          verification_code: p.mission.verificationCode
+        };
+      })
+      .filter(Boolean);
+
+    const rows = [...acceptedRows, ...hostedRows];
 
     // Sort: showed_up = null first, then datetime
     rows.sort((a, b) => {
@@ -219,7 +289,7 @@ async function getActiveMissions(req, res) {
 
 async function submitAttendance(req, res) {
   const { id } = req.params;
-  const { userId, showedUp } = req.body;
+  const { userId, showedUp, code } = req.body;
   if (!assertUserId(userId, res)) return;
   if (typeof showedUp !== "boolean") {
     return res.status(400).json({ error: "showedUp must be true or false." });
@@ -231,6 +301,9 @@ async function submitAttendance(req, res) {
         where: {
           missionId: Number(id),
           userId: Number(userId)
+        },
+        include: {
+          mission: true
         }
       });
 
@@ -242,6 +315,12 @@ async function submitAttendance(req, res) {
         throw new Error("ALREADY_SUBMITTED");
       }
 
+      if (showedUp) {
+        if (!code || String(code).trim() !== String(participant.mission.verificationCode).trim()) {
+          throw new Error("INVALID_CODE");
+        }
+      }
+
       const status = showedUp ? "Completed" : "Missed";
       const delta = showedUp ? 10 : -5;
 
@@ -250,6 +329,7 @@ async function submitAttendance(req, res) {
         data: { showedUp, status }
       });
 
+      // Participant reputation increase/decrease
       const updatedUser = await tx.user.update({
         where: { id: Number(userId) },
         data: {
@@ -258,6 +338,18 @@ async function submitAttendance(req, res) {
           }
         }
       });
+
+      // Host creator reward
+      if (showedUp && participant.mission.createdBy) {
+        await tx.user.update({
+          where: { id: participant.mission.createdBy },
+          data: {
+            reputationScore: {
+              increment: 5
+            }
+          }
+        });
+      }
 
       return {
         status,
@@ -278,12 +370,101 @@ async function submitAttendance(req, res) {
     if (error.message === "ALREADY_SUBMITTED") {
       return res.status(409).json({ error: "Attendance has already been submitted." });
     }
+    if (error.message === "INVALID_CODE") {
+      return res.status(400).json({ error: "Invalid check-in code. Please try again." });
+    }
     if (isDbUnavailable(error)) {
-      const result = memoryStore.submitAttendance(id, userId, showedUp);
+      const result = memoryStore.submitAttendance(id, userId, showedUp, code);
       if (result.error) return res.status(result.status).json({ error: result.error });
       return res.json(result);
     }
     throw error;
+  }
+}
+
+async function approveParticipant(req, res) {
+  const { id } = req.params;
+  const { creatorId, participantId } = req.body;
+
+  if (!creatorId || !participantId) {
+    return res.status(400).json({ error: "creatorId and participantId are required." });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const mission = await tx.mission.findUnique({
+        where: { id: Number(id) }
+      });
+
+      if (!mission) {
+        throw new Error("MISSION_NOT_FOUND");
+      }
+
+      if (mission.createdBy !== Number(creatorId)) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const targetParticipation = await tx.participation.findFirst({
+        where: {
+          missionId: Number(id),
+          userId: Number(participantId),
+          status: "Requested"
+        }
+      });
+
+      if (!targetParticipation) {
+        throw new Error("REQUEST_NOT_FOUND");
+      }
+
+      const approved = await tx.participation.update({
+        where: { id: targetParticipation.id },
+        data: { status: "Accepted" }
+      });
+
+      // Reject all other join requests for this mission
+      await tx.participation.updateMany({
+        where: {
+          missionId: Number(id),
+          id: { not: targetParticipation.id },
+          status: "Requested"
+        },
+        data: { status: "Rejected" }
+      });
+
+      return approved;
+    });
+
+    res.json({
+      mission_id: Number(id),
+      participant_id: Number(participantId),
+      status: result.status
+    });
+  } catch (error) {
+    if (error.message === "MISSION_NOT_FOUND") {
+      return res.status(404).json({ error: "Mission not found." });
+    }
+    if (error.message === "UNAUTHORIZED") {
+      return res.status(403).json({ error: "Only the mission creator can approve requests." });
+    }
+    if (error.message === "REQUEST_NOT_FOUND") {
+      return res.status(404).json({ error: "Join request not found." });
+    }
+    throw error;
+  }
+}
+
+async function getCategories(req, res) {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { id: "asc" }
+    });
+    res.json(categories);
+  } catch (error) {
+    if (!isDbUnavailable(error)) throw error;
+    res.json([
+      { id: 1, categoryName: "Coding" },
+      { id: 2, categoryName: "Sports" }
+    ]);
   }
 }
 
@@ -293,5 +474,7 @@ module.exports = {
   acceptMission,
   passMission,
   getActiveMissions,
-  submitAttendance
+  submitAttendance,
+  approveParticipant,
+  getCategories
 };

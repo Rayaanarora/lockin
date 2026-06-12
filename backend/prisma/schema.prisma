@@ -31,17 +31,18 @@ model Category {
 }
 
 model Mission {
-  id             Int             @id @default(autoincrement()) @map("mission_id")
-  title          String          @map("mission_title") @db.VarChar(100)
-  description    String          @default("") @db.Text
-  datetime       DateTime        @map("mission_time")
-  location       String?         @db.VarChar(100)
-  categoryId     Int?            @map("category_id")
-  createdBy      Int?            @map("created_by")
-  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  creator        User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
-  participations Participation[]
-  messages       Message[]
+  id               Int             @id @default(autoincrement()) @map("mission_id")
+  title            String          @map("mission_title") @db.VarChar(100)
+  description      String          @default("") @db.Text
+  datetime         DateTime        @map("mission_time")
+  location         String?         @db.VarChar(100)
+  categoryId       Int?            @map("category_id")
+  createdBy        Int?            @map("created_by")
+  verificationCode String?         @map("verification_code") @db.VarChar(10)
+  category         Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  creator          User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
+  participations   Participation[]
+  messages         Message[]
 
   @@map("mission")
 }

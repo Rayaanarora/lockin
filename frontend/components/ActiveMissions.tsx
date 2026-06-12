@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles } from "lucide-react";
 import { User, Mission } from "../app/types";
 import Chat from "./Chat";
 
@@ -17,6 +17,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [missions, setMissions] = useState<Mission[]>([]);
   const [chatMission, setChatMission] = useState<Mission | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inputCodes, setInputCodes] = useState<{ [missionId: number]: string }>({});
+  const [errors, setErrors] = useState<{ [missionId: number]: string }>({});
+  const [submitting, setSubmitting] = useState<{ [missionId: number]: boolean }>({});
 
   async function load() {
     try {
@@ -31,22 +34,41 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
   useEffect(() => {
     load();
-    // Auto-update every 30 seconds
     const interval = setInterval(() => {
       load();
-    }, 30000);
+    }, 15000); // refresh every 15s for faster request/check-in updates
     return () => clearInterval(interval);
   }, [user.id]);
 
-  async function handleAttendance(mission: Mission, showedUp: boolean) {
+  async function handleApprove(missionId: number, participantId: number) {
     try {
-      await api(`/missions/${mission.id}/attendance`, {
+      await api(`/missions/${missionId}/approve-participant`, {
         method: "POST",
-        body: JSON.stringify({ userId: user.id, showedUp })
+        body: JSON.stringify({ creatorId: user.id, participantId })
+      });
+      await load();
+    } catch (err: any) {
+      alert(err.message || "Failed to approve request.");
+    }
+  }
+
+  async function handleAttendance(missionId: number, showedUp: boolean, targetParticipantId?: number) {
+    const code = inputCodes[missionId] || "";
+    const pId = targetParticipantId || user.id; // if creator calls, it passes the participant's ID
+
+    setErrors((prev) => ({ ...prev, [missionId]: "" }));
+    setSubmitting((prev) => ({ ...prev, [missionId]: true }));
+
+    try {
+      await api(`/missions/${missionId}/attendance`, {
+        method: "POST",
+        body: JSON.stringify({ userId: pId, showedUp, code })
       });
       await Promise.all([load(), refreshUser()]);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setErrors((prev) => ({ ...prev, [missionId]: err.message || "Failed to submit." }));
+    } finally {
+      setSubmitting((prev) => ({ ...prev, [missionId]: false }));
     }
   }
 
@@ -64,11 +86,11 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   };
 
   const pendingReviews = missions.filter(
-    (mission) => mission.showed_up === null && isDue(mission.datetime)
+    (mission) => mission.showed_up === null && isDue(mission.datetime) && mission.status === "Accepted"
   ).length;
 
   return (
-    <section className="mx-auto w-full max-w-md flex-1 px-4 py-4 pb-20 space-y-6">
+    <section className="mx-auto w-full max-w-md flex-1 px-4 py-4 pb-24 space-y-6">
       {/* Title block */}
       <div className="flex items-end justify-between">
         <div>
@@ -82,7 +104,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             Completed Ratio
           </span>
           <span className="text-sm font-black text-boxGreen">
-            {missions.filter((m) => m.status === "Completed").length}/{missions.length}
+            {missions.filter((m) => m.status === "Completed").length}/{missions.filter((m) => m.status === "Completed" || m.status === "Missed").length || 0}
           </span>
         </div>
       </div>
@@ -113,26 +135,41 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             Syncing queue...
           </div>
         ) : missions.length === 0 ? (
-          <div className="text-center py-20 rounded-2xl border border-white/5 bg-zinc-950/10 p-6">
+          <div className="text-center py-16 rounded-2xl border border-white/5 bg-zinc-950/10 p-6">
             <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Queue Empty</p>
             <p className="mt-1.5 text-xs text-zinc-500 leading-relaxed max-w-[200px] mx-auto">
-              Accept run targets from the discovery board to display them here.
+              Accept targets from the discovery board or launch a new runway.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {missions.map((mission, idx) => {
               const due = isDue(mission.datetime);
-              const needsReview = mission.showed_up === null && due;
+              const isCreator = mission.role === "creator";
+              const isRequest = mission.status === "Requested";
+              const active = mission.status === "Accepted";
+              const needsReview = mission.showed_up === null && due && active;
               
+              let statusLabel = mission.status || "Pending";
               let statusColor = "border-white/10 bg-zinc-950/30 text-zinc-400";
-              if (mission.status === "Completed") statusColor = "border-boxGreen/25 bg-boxGreen/10 text-boxGreen shadow-[0_0_15px_rgba(24,189,0,0.06)]";
-              if (mission.status === "Missed") statusColor = "border-boxRed/25 bg-boxRed/10 text-boxRed";
-              if (needsReview) statusColor = "border-boxOrange/20 bg-boxOrange/5 text-boxOrange animate-pulse";
+
+              if (isRequest) {
+                statusLabel = "Request";
+                statusColor = "border-boxOrange/25 bg-boxOrange/10 text-boxOrange animate-pulse";
+              } else if (active) {
+                statusLabel = "Active";
+                statusColor = "border-boxOrange/45 bg-boxOrange/5 text-boxOrange";
+              } else if (mission.status === "Completed") {
+                statusLabel = "Completed";
+                statusColor = "border-boxGreen/25 bg-boxGreen/10 text-boxGreen shadow-[0_0_15px_rgba(24,189,0,0.06)]";
+              } else if (mission.status === "Missed") {
+                statusLabel = "Missed";
+                statusColor = "border-boxRed/25 bg-boxRed/10 text-boxRed";
+              }
 
               return (
                 <motion.article
-                  key={mission.id}
+                  key={`${mission.id}-${mission.role}`}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
@@ -140,22 +177,25 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     needsReview ? "border-boxOrange/40 ring-1 ring-boxOrange/10" : "border-white/5"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start justify-between gap-3 mb-3 text-left">
                     <div>
                       <h3 className="text-sm font-black text-white leading-tight">
                         {mission.title}
                       </h3>
                       <p className="mt-0.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                        with {mission.creator_name}
+                        {isCreator 
+                          ? `Host (Participant: ${mission.participant_name})`
+                          : `Partner: ${mission.creator_name}`
+                        }
                       </p>
                     </div>
                     <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusColor}`}>
-                      {needsReview ? "Review" : mission.status}
+                      {statusLabel}
                     </span>
                   </div>
 
                   {/* Timing & Location */}
-                  <div className="grid grid-cols-2 gap-2.5 text-xs font-bold text-zinc-400 mb-4">
+                  <div className="grid grid-cols-2 gap-2.5 text-xs font-bold text-zinc-400 mb-4 text-left">
                     <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-black/30 p-2.5">
                       <CalendarClock className="h-3.5 w-3.5 text-boxOrange shrink-0" />
                       <span>{due ? "Ready" : timeLeft(mission.datetime)}</span>
@@ -166,59 +206,138 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     </div>
                   </div>
 
-                  {/* Review box */}
-                  {needsReview && (
+                  {/* 1. Request Review Box (Creator Only) */}
+                  {isCreator && isRequest && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="mb-3.5 rounded-xl border border-boxOrange/20 bg-boxOrange/5 p-3 text-center"
+                      className="mb-3 rounded-xl border border-boxOrange/20 bg-boxOrange/5 p-3 text-left space-y-2"
                     >
-                      <p className="text-[10px] font-black uppercase tracking-wider text-white">
-                        Confirm Attendance
-                      </p>
-                      <p className="mt-0.5 text-[9px] text-zinc-500 font-semibold">
-                        Did they show up? +10 Reputation / -5 Penality
-                      </p>
-                      <div className="mt-3.5 grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => handleAttendance(mission, true)}
-                          className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-boxGreen text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-boxGreen/95"
-                        >
-                          <Check className="h-3.5 w-3.5 stroke-[3]" /> Yes
-                        </button>
-                        <button
-                          onClick={() => handleAttendance(mission, false)}
-                          className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-boxRed text-[10px] font-black uppercase tracking-wider text-white transition hover:bg-boxRed/95"
-                        >
-                          <X className="h-3.5 w-3.5 stroke-[3]" /> No
-                        </button>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wider text-white">
+                            Join Request Received
+                          </p>
+                          <p className="text-[9px] text-zinc-400 font-semibold mt-0.5">
+                            Dept: {mission.participant_department}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-boxGreen/20 bg-boxGreen/5 px-2 py-0.5 text-[9px] font-black text-boxGreen flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Rep: {mission.participant_reputation}
+                        </div>
                       </div>
+                      
+                      <button
+                        onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}
+                        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-boxOrange text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-boxOrange/95"
+                      >
+                        <Check className="h-3.5 w-3.5 stroke-[3]" /> Approve Request
+                      </button>
                     </motion.div>
                   )}
 
-                  {/* Footer actions */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => setChatMission(mission)}
-                      className="flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 hover:text-white transition"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleAttendance(mission, true)}
-                      disabled={mission.showed_up !== null || !due}
-                      className="flex h-10 items-center justify-center rounded-xl border border-boxGreen/30 bg-boxGreen/5 text-boxGreen hover:bg-boxGreen/10 active:scale-[0.98] transition disabled:opacity-35"
-                    >
-                      <Check className="h-4 w-4 stroke-[3]" />
-                    </button>
-                    <button
-                      onClick={() => handleAttendance(mission, false)}
-                      disabled={mission.showed_up !== null || !due}
-                      className="flex h-10 items-center justify-center rounded-xl border border-boxRed/30 bg-boxRed/5 text-boxRed hover:bg-boxRed/10 active:scale-[0.98] transition disabled:opacity-35"
-                    >
-                      <X className="h-4 w-4 stroke-[3]" />
-                    </button>
-                  </div>
+                  {/* 2. Participant Request Pending state */}
+                  {!isCreator && isRequest && (
+                    <div className="mb-3 rounded-xl border border-white/5 bg-zinc-900/20 p-3 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                        Join Requested
+                      </p>
+                      <p className="text-[9px] text-zinc-500 font-semibold mt-0.5">
+                        Waiting for {mission.creator_name} to approve your lock-in request...
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 3. Confirmed Active Review / OTP Code check */}
+                  {active && (
+                    <div className="space-y-3">
+                      {/* Creator Code display */}
+                      {isCreator && due && (
+                        <div className="rounded-xl border border-boxGreen/20 bg-boxGreen/5 p-3 text-center">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-white">
+                            Meetup Verification Code
+                          </p>
+                          <p className="text-[9px] text-zinc-500 font-semibold mt-0.5">
+                            Share this OTP with {mission.participant_name} to check in:
+                          </p>
+                          <div className="mt-2 text-2xl font-black tracking-widest text-boxGreen bg-black/40 rounded-lg py-1 max-w-[120px] mx-auto border border-boxGreen/20 shadow-[0_0_15px_rgba(24,189,0,0.1)]">
+                            {mission.verification_code}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Participant OTP Entry box */}
+                      {!isCreator && due && (
+                        <div className="rounded-xl border border-boxOrange/20 bg-boxOrange/5 p-3 text-left space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-white">
+                            Enter Verification OTP
+                          </p>
+                          <p className="text-[9px] text-zinc-500 font-semibold">
+                            Get the 4-digit code from {mission.creator_name} to complete runway.
+                          </p>
+                          
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              maxLength={4}
+                              placeholder="0000"
+                              value={inputCodes[mission.id] || ""}
+                              onChange={(e) => setInputCodes({ ...inputCodes, [mission.id]: e.target.value.replace(/\D/g, "") })}
+                              className="h-9 w-24 rounded-lg border border-white/10 bg-black/40 text-center text-sm font-black tracking-widest text-white outline-none focus:border-boxOrange"
+                            />
+                            <button
+                              onClick={() => handleAttendance(mission.id, true)}
+                              disabled={submitting[mission.id]}
+                              className="flex-1 flex h-9 items-center justify-center gap-1.5 rounded-lg bg-boxGreen text-[10px] font-black uppercase tracking-wider text-black transition hover:bg-boxGreen/95 disabled:opacity-50"
+                            >
+                              <Check className="h-3.5 w-3.5 stroke-[3]" /> Verify & Check In
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {errors[mission.id] && (
+                        <p className="text-[10px] font-bold text-boxRed text-center animate-pulse">
+                          {errors[mission.id]}
+                        </p>
+                      )}
+
+                      {/* Creator control: can mark participant as missed */}
+                      {isCreator && due && (
+                        <button
+                          onClick={() => handleAttendance(mission.id, false, mission.participant_id)}
+                          disabled={submitting[mission.id]}
+                          className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-boxRed/30 bg-boxRed/5 text-[10px] font-black uppercase tracking-wider text-boxRed hover:bg-boxRed/10 transition disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5 stroke-[3]" /> Participant No-Show
+                        </button>
+                      )}
+
+                      {/* Participant self-report missed */}
+                      {!isCreator && due && (
+                        <button
+                          onClick={() => handleAttendance(mission.id, false)}
+                          disabled={submitting[mission.id]}
+                          className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-white/5 bg-zinc-900/10 text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-400 hover:bg-white/5 transition disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5 stroke-[2]" /> I missed this meetup
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Confirmed / Past Runway Footer: Chat Access */}
+                  {!isRequest && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => setChatMission(mission)}
+                        className="flex-1 flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/10 transition"
+                      >
+                        <MessageSquare className="h-4 w-4 text-boxOrange" />
+                        <span>Rendezvous Chat</span>
+                      </button>
+                    </div>
+                  )}
                 </motion.article>
               );
             })}

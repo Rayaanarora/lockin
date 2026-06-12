@@ -92,7 +92,7 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex flex-col bg-black/95 p-4 backdrop-blur-xl md:p-6"
+      className="absolute inset-0 z-50 flex flex-col bg-black/95 p-4 backdrop-blur-xl"
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
       exit={{ y: "100%" }}

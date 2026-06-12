@@ -19,6 +19,14 @@ export interface Mission {
   creator_department?: string;
   status?: string;
   showed_up?: boolean | null;
+  role?: "creator" | "participant";
+  participant_name?: string;
+  participant_id?: number;
+  participant_department?: string;
+  participant_reputation?: number;
+  verification_code?: string;
+  category_name?: string;
+  category_id?: number;
 }
 
 export interface Message {
