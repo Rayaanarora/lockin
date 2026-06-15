@@ -127,36 +127,39 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-md px-4 py-6 pb-24 space-y-5">
-      {/* ── Profile header ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-zinc-950/60 p-5">
+    <section className="mx-auto w-full max-w-md md:max-w-5xl px-4 py-6 pb-24 md:pb-6 space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        {/* Left Column: Profile Card */}
+        <div className="md:col-span-1">
+          {/* ── Profile header ── */}
+          <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-zinc-950/60 p-5 md:p-6.5">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg font-black text-white">
+          <div className="flex h-14 w-14 md:h-16 md:w-16 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg md:text-xl font-black text-white">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-black text-white leading-tight">{user.name}</h2>
-            <p className="text-[11px] text-zinc-500 font-semibold mt-0.5 truncate">{user.department}</p>
+            <h2 className="text-base md:text-xl font-black text-white leading-tight">{user.name}</h2>
+            <p className="text-[11px] md:text-xs text-zinc-500 font-semibold mt-1 truncate">{user.department}</p>
             {user.bio && (
-              <p className="text-[11px] text-zinc-400 mt-1 leading-snug line-clamp-2">{user.bio}</p>
+              <p className="text-[11px] md:text-xs text-zinc-400 mt-1.5 leading-snug line-clamp-2">{user.bio}</p>
             )}
           </div>
         </div>
 
         {/* Aura + location pills */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="flex items-center gap-1.5 rounded-lg border border-boxOrange/25 bg-boxOrange/8 px-2.5 py-1 text-[10px] font-black text-boxOrange uppercase tracking-wider">
-            <Zap className="h-3 w-3 fill-current" />
+        <div className="mt-4 md:mt-5 flex flex-wrap gap-2">
+          <span className="flex items-center gap-1.5 rounded-lg border border-boxOrange/25 bg-boxOrange/8 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-sans font-semibold text-boxOrange uppercase tracking-wider">
+            <img src="/aura-bolt.png" alt="Aura" className="h-3.5 w-3.5 object-contain shrink-0" />
             {aura} Aura
           </span>
           {user.location && (
-            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-semibold text-zinc-500">
+            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-zinc-500">
               <MapPin className="h-3 w-3" />
               {user.location}
             </span>
           )}
           {user.interests && (
-            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 truncate max-w-[160px]">
+            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-zinc-500 truncate max-w-[160px]">
               {user.interests}
             </span>
           )}
@@ -164,15 +167,15 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
 
         {/* Socials row */}
         {(user.instagram || user.github) && (
-          <div className="mt-3 flex gap-3">
+          <div className="mt-3.5 flex gap-3.5">
             {user.instagram && (
               <a
                 href={`https://instagram.com/${user.instagram}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 hover:text-white transition"
+                className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-zinc-500 hover:text-white transition"
               >
-                <Instagram className="h-3.5 w-3.5" />@{user.instagram}
+                <Instagram className="h-3.5 w-3.5 md:h-4 md:w-4" />@{user.instagram}
               </a>
             )}
             {user.github && (
@@ -180,35 +183,38 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                 href={`https://github.com/${user.github}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 hover:text-white transition"
+                className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-zinc-500 hover:text-white transition"
               >
-                <Github className="h-3.5 w-3.5" />@{user.github}
+                <Github className="h-3.5 w-3.5 md:h-4 md:w-4" />@{user.github}
               </a>
             )}
           </div>
         )}
 
         {/* Actions */}
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 md:mt-5 grid grid-cols-2 gap-2">
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-wider text-zinc-400 transition hover:text-white disabled:opacity-50"
+            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-zinc-400 transition hover:text-white disabled:opacity-50"
           >
             <Activity className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Syncing..." : "Sync"}
           </button>
           <button
             onClick={() => setShowEdit(true)}
-            className="flex h-9 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-wider text-zinc-400 transition hover:text-white"
+            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-zinc-400 transition hover:text-white"
           >
             Edit Profile
           </button>
         </div>
-      </div>
+          </div>
+        </div>
 
-      {/* ── Tab bar ── */}
-      <div className="relative flex gap-0 rounded-xl border border-white/8 bg-zinc-950/60 p-1">
+        {/* Right Column: Content */}
+        <div className="md:col-span-2 space-y-5">
+          {/* ── Tab bar ── */}
+          <div className="relative flex gap-0 rounded-xl border border-white/8 bg-zinc-950/60 p-1">
         <motion.div
           className="absolute top-1 bottom-1 rounded-lg bg-white/8 border border-white/10"
           animate={{ left: indicator.left, width: indicator.width }}
@@ -219,7 +225,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             key={tab}
             ref={(el) => { tabRefs.current[idx] = el; }}
             onClick={() => setActiveTab(tab)}
-            className={`relative z-10 flex-1 py-2 text-[11px] font-black uppercase tracking-wider transition ${
+            className={`relative z-10 flex-1 py-2 md:py-2.5 text-[11px] md:text-xs font-black uppercase tracking-wider transition ${
               activeTab === tab ? "text-white" : "text-zinc-600"
             }`}
           >
@@ -249,7 +255,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(100, (aura / 500) * 100)}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
-                  className="h-full rounded-full bg-gradient-to-r from-boxRed via-boxOrange to-boxGreen"
+                  className="h-full rounded-full bg-boxGreen"
                 />
               </div>
               <p className="text-[9px] text-zinc-700 uppercase tracking-widest">
@@ -407,6 +413,8 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
           </motion.div>
         )}
       </AnimatePresence>
+        </div>
+      </div>
 
       {/* ── Edit Profile Dialog ── */}
       <Dialog open={showEdit} onOpenChange={setShowEdit}>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
-import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle } from "lucide-react";
+import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -23,6 +23,20 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: "smooth" });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: "smooth" });
+    }
+  };
 
   // New Mission form state
   const [form, setForm] = useState({
@@ -149,60 +163,84 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-4 pb-24">
+    <section className="mx-auto flex w-full max-w-md md:max-w-xl flex-1 flex-col px-4 pt-4 pb-24 md:pb-6">
       {/* Title bar */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 md:mb-6 flex items-center justify-between border-b border-white/5 pb-4">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-boxRed">
+          <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-boxRed">
             Discovery
           </span>
-          <h2 className="text-xl font-bold text-white tracking-tight">Active Runways</h2>
+          <h2 className="text-xl md:text-3xl font-bold text-white tracking-tight mt-1">Active Runways</h2>
         </div>
 
         <button
           onClick={() => setShowCreate(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 transition"
+          className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 transition"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-5 w-5 md:h-6 md:w-6" />
         </button>
       </div>
 
       {/* Categories Bar */}
-      <div className="mb-4 flex gap-1.5 overflow-x-auto pb-2 scrollbar-none shrink-0 -mx-4 px-4">
+      <div className="relative mb-4 md:mb-6 group">
+        {/* Left scroll arrow */}
         <button
-          onClick={() => handleCategoryChange("all")}
-          className={`h-8 rounded-full border px-4 text-[10px] font-black uppercase tracking-wider transition shrink-0 ${
-            activeCategory === "all"
-              ? "border-boxOrange bg-boxOrange text-black"
-              : "border-white/5 bg-zinc-950/40 text-zinc-400 hover:text-zinc-200"
-          }`}
+          type="button"
+          onClick={scrollLeft}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-zinc-950/95 text-zinc-400 hover:text-white hover:bg-zinc-900 transition shadow-[0_4px_12px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100"
         >
-          All
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        {categories.map((c) => (
+
+        {/* Scrollable category list */}
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-1.5 md:gap-2.5 overflow-x-auto pb-2 scrollbar-none shrink-0 -mx-4 px-4 scroll-smooth"
+        >
           <button
-            key={c.id}
-            onClick={() => handleCategoryChange(String(c.id))}
-            className={`h-8 rounded-full border px-4 text-[10px] font-black uppercase tracking-wider transition shrink-0 ${
-              activeCategory === String(c.id)
+            onClick={() => handleCategoryChange("all")}
+            className={`h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0 ${
+              activeCategory === "all"
                 ? "border-boxOrange bg-boxOrange text-black"
                 : "border-white/5 bg-zinc-950/40 text-zinc-400 hover:text-zinc-200"
             }`}
           >
-            {c.categoryName}
+            All
           </button>
-        ))}
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => handleCategoryChange(String(c.id))}
+              className={`h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0 ${
+                activeCategory === String(c.id)
+                  ? "border-boxOrange bg-boxOrange text-black"
+                  : "border-white/5 bg-zinc-950/40 text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {c.categoryName}
+            </button>
+          ))}
+        </div>
+
+        {/* Right scroll arrow */}
+        <button
+          type="button"
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-zinc-950/95 text-zinc-400 hover:text-white hover:bg-zinc-900 transition shadow-[0_4px_12px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Soft Limit Warning Banner */}
       {locked && (
-        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-boxOrange/30 bg-boxOrange/5 p-3">
-          <AlertCircle className="h-4 w-4 text-boxOrange shrink-0 mt-0.5" />
+        <div className="mb-4 md:mb-6 flex items-start gap-2.5 md:gap-3.5 rounded-xl border border-boxOrange/30 bg-boxOrange/5 p-3.5 md:p-4.5">
+          <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-boxOrange shrink-0 mt-0.5" />
           <div className="text-left">
-            <h4 className="text-[10px] font-black uppercase tracking-wider text-white">
+            <h4 className="text-[10px] md:text-xs font-black uppercase tracking-wider text-white">
               Runway full (Locked)
             </h4>
-            <p className="text-[9px] font-semibold text-zinc-500 leading-normal">
+            <p className="text-[9px] md:text-xs font-semibold text-zinc-500 leading-normal mt-0.5">
               You already have 3 active accepted runs. Mark attendance or clear them to unlock.
             </p>
           </div>
@@ -210,10 +248,10 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
       )}
 
       {/* Card stack container */}
-      <div className="relative flex flex-1 items-center justify-center min-h-[440px]">
+      <div className="relative flex flex-1 items-center justify-center min-h-[440px] md:min-h-[500px]">
         {/* Background stack sheets */}
-        <div className="absolute inset-x-4 top-4 h-[420px] rounded-2xl border border-white/5 bg-zinc-950/20 scale-[0.93] translate-y-3 opacity-40 -z-20" />
-        <div className="absolute inset-x-2 top-2 h-[420px] rounded-2xl border border-white/5 bg-zinc-950/40 scale-[0.97] translate-y-1.5 opacity-60 -z-10" />
+        <div className="absolute inset-x-4 top-4 h-[420px] md:h-[480px] rounded-2xl border border-white/5 bg-zinc-950/20 scale-[0.93] translate-y-3 opacity-40 -z-20" />
+        <div className="absolute inset-x-2 top-2 h-[420px] md:h-[480px] rounded-2xl border border-white/5 bg-zinc-950/40 scale-[0.97] translate-y-1.5 opacity-60 -z-10" />
 
         <AnimatePresence mode="wait">
           {currentMission ? (
@@ -241,14 +279,14 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
               exit={{ opacity: 0, scale: 0.88, y: -20 }}
               whileDrag={{ scale: 1.01 }}
               transition={{ type: "spring", stiffness: 260, damping: 24 }}
-              className="relative flex h-[420px] w-full touch-none flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/60 p-6 shadow-2xl backdrop-blur-md"
+              className="relative flex h-[420px] md:h-[480px] w-full touch-none flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/60 p-6 md:p-8 shadow-2xl backdrop-blur-md"
             >
               {/* Swipe Overlays */}
               <motion.div
                 style={{ opacity: opacityAccept }}
                 className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-boxGreen/15 backdrop-blur-[1px]"
               >
-                <div className="rounded-xl border border-boxGreen bg-black/85 px-4 py-2 text-xs font-black tracking-widest text-boxGreen uppercase shadow-[0_0_20px_rgba(24,189,0,0.3)]">
+                <div className="rounded-xl border border-boxGreen bg-black/85 px-4 py-2 text-xs md:text-sm font-black tracking-widest text-boxGreen uppercase shadow-[0_0_20px_rgba(24,189,0,0.3)]">
                   Lock In
                 </div>
               </motion.div>
@@ -257,7 +295,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
                 style={{ opacity: opacityPass }}
                 className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-boxRed/15 backdrop-blur-[1px]"
               >
-                <div className="rounded-xl border border-boxRed bg-black/85 px-4 py-2 text-xs font-black tracking-widest text-boxRed uppercase shadow-[0_0_20px_rgba(239,68,68,0.3)]">
+                <div className="rounded-xl border border-boxRed bg-black/85 px-4 py-2 text-xs md:text-sm font-black tracking-widest text-boxRed uppercase shadow-[0_0_20px_rgba(239,68,68,0.3)]">
                   Pass
                 </div>
               </motion.div>
@@ -265,48 +303,48 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
               {/* Inside glow card */}
               <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(245,38,1,0.06),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(247,128,5,0.05),transparent_40%)]" />
 
-              <div className="space-y-4">
+              <div className="space-y-4 md:space-y-6">
                 {/* Creator info */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs font-black text-white">
+                  <div className="flex items-center gap-2.5 md:gap-3.5">
+                    <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs md:text-sm font-black text-white">
                       {initials(currentMission.creator_name)}
                     </div>
                     <div className="text-left">
-                      <h3 className="text-xs font-bold text-white leading-tight">
+                      <h3 className="text-xs md:text-sm font-bold text-white leading-tight">
                         {currentMission.creator_name}
                       </h3>
-                      <p className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wide">
+                      <p className="text-[9px] md:text-xs font-semibold text-zinc-500 uppercase tracking-wide mt-0.5">
                         {currentMission.creator_department || "Department"}
                       </p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[8px] font-black tracking-widest text-zinc-400 uppercase">
+                  <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 md:px-3 md:py-1 text-[8px] md:text-[10px] font-black tracking-widest text-zinc-400 uppercase">
                     {currentMission.category_name || "Coding"}
                   </span>
                 </div>
 
-                <div className="space-y-2 text-left">
-                  <h3 className="text-lg font-black text-white leading-snug tracking-tight">
+                <div className="space-y-2 md:space-y-3 text-left">
+                  <h3 className="text-lg md:text-xl lg:text-2xl font-black text-white leading-snug tracking-tight">
                     {currentMission.title}
                   </h3>
-                  <p className="text-xs font-medium leading-relaxed text-zinc-400 line-clamp-6">
+                  <p className="text-xs md:text-sm font-medium leading-relaxed text-zinc-400 line-clamp-6">
                     {currentMission.description}
                   </p>
                 </div>
               </div>
 
               {/* Timing & Location block */}
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-black/30 p-2.5">
-                  <CalendarClock className="h-4 w-4 text-boxOrange shrink-0 animate-pulse" />
-                  <span className="text-xs font-bold text-zinc-300">
+              <div className="space-y-2.5 md:space-y-3.5">
+                <div className="flex items-center gap-2.5 md:gap-3.5 rounded-xl border border-white/5 bg-black/30 p-2.5 md:p-3.5">
+                  <CalendarClock className="h-4 w-4 md:h-5 md:w-5 text-boxOrange shrink-0 animate-pulse" />
+                  <span className="text-xs md:text-sm font-bold text-zinc-300">
                     {formatDate(currentMission.datetime)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-black/30 p-2.5">
-                  <MapPin className="h-4 w-4 text-boxRed shrink-0" />
-                  <span className="text-xs font-bold text-zinc-300 truncate">
+                <div className="flex items-center gap-2.5 md:gap-3.5 rounded-xl border border-white/5 bg-black/30 p-2.5 md:p-3.5">
+                  <MapPin className="h-4 w-4 md:h-5 md:w-5 text-boxRed shrink-0" />
+                  <span className="text-xs md:text-sm font-bold text-zinc-300 truncate">
                     {currentMission.location}
                   </span>
                 </div>
@@ -316,13 +354,13 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex h-[420px] w-full flex-col items-center justify-center rounded-3xl border border-white/5 bg-zinc-950/20 p-6 text-center backdrop-blur-md"
+              className="flex h-[420px] md:h-[480px] w-full flex-col items-center justify-center rounded-3xl border border-white/5 bg-zinc-950/20 p-6 md:p-8 text-center backdrop-blur-md"
             >
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-boxGreen/20 bg-boxGreen/5 shadow-[0_0_20px_rgba(24,189,0,0.1)] mb-4">
                 <Flame className="h-6 w-6 text-boxGreen" />
               </div>
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">Feed Cleared</h3>
-              <p className="mt-2 text-xs font-semibold text-zinc-500 leading-relaxed max-w-[240px]">
+              <h3 className="text-sm md:text-base font-black text-white uppercase tracking-wider">Feed Cleared</h3>
+              <p className="mt-2 text-xs md:text-sm font-semibold text-zinc-500 leading-relaxed max-w-[240px] mx-auto">
                 No runways nearby. Launch one yourself or swap filters.
               </p>
             </motion.div>
@@ -331,30 +369,30 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
       </div>
 
       {error && (
-        <p className="mt-4 text-center text-xs font-bold text-boxRed animate-pulse">
+        <p className="mt-4 text-center text-xs md:text-sm font-bold text-boxRed animate-pulse">
           {error}
         </p>
       )}
 
       {/* Swipe buttons */}
       {currentMission && (
-        <div className="mt-5 grid grid-cols-2 gap-3 shrink-0">
+        <div className="mt-5 md:mt-7 grid grid-cols-2 gap-3 md:gap-5 shrink-0">
           <button
             onClick={() => handleAction("pass")}
-            className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 text-xs font-bold uppercase tracking-wider text-zinc-300 transition hover:bg-white/10 hover:text-white active:scale-[0.98]"
+            className="flex h-11 md:h-13 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 text-xs md:text-sm font-bold uppercase tracking-wider text-zinc-300 transition hover:bg-white/10 hover:text-white active:scale-[0.98]"
           >
-            <X className="h-4 w-4" /> Pass
+            <X className="h-4 w-4 md:h-5 md:w-5" /> Pass
           </button>
           <button
             onClick={() => !locked && handleAction("accept")}
             disabled={locked}
-            className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border text-xs font-black uppercase tracking-wider transition active:scale-[0.98] ${
+            className={`flex h-11 md:h-13 items-center justify-center gap-1.5 rounded-xl border text-xs md:text-sm font-black uppercase tracking-wider transition active:scale-[0.98] ${
               locked
                 ? "border-white/5 bg-zinc-900/40 text-zinc-600 cursor-not-allowed"
                 : "border-boxOrange bg-boxOrange text-black shadow-[0_0_20px_rgba(247,128,5,0.15)] hover:bg-boxOrange/90"
             }`}
           >
-            <Check className="h-4 w-4 stroke-[3]" /> Lock In
+            <Check className="h-4 w-4 md:h-5 md:w-5 stroke-[3]" /> Lock In
           </button>
         </div>
       )}

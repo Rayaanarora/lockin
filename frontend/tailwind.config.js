@@ -1,8 +1,14 @@
+const { fontFamily } = require("tailwindcss/defaultTheme");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}", "./lib/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["SF Pro Text", "-apple-system", "BlinkMacSystemFont", "var(--font-sans)", ...fontFamily.sans],
+        display: ["SF Pro Display", "-apple-system", "BlinkMacSystemFont", "var(--font-sans)", ...fontFamily.sans],
+      },
       colors: {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

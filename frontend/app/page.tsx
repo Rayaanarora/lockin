@@ -105,7 +105,7 @@ export default function Home() {
   }
 
   return (
-    <Shell>
+    <Shell tab={tab} setTab={setTab} user={user}>
       <Header user={user} />
       <AnimatePresence mode="wait">
         <motion.div

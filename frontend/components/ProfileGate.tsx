@@ -365,19 +365,19 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-        className="flex h-20 w-20 items-center justify-center rounded-3xl border border-boxRed/30 bg-boxRed/10 shadow-[0_0_50px_rgba(245,38,1,0.25)]"
+        className="flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/10 bg-black/60 p-2 shadow-[0_0_50px_rgba(255,255,255,0.08)] backdrop-blur-md"
       >
-        <Lock className="h-10 w-10 text-boxRed" />
+        <img src="/logo.png" alt="LOCKIN Logo" className="h-full w-full object-contain" />
       </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="space-y-3"
+        className="space-y-2"
       >
-        <h1 className="text-5xl font-black tracking-tighter text-white uppercase">LOCKIN</h1>
-        <p className="text-sm font-bold text-zinc-400 leading-relaxed max-w-[260px]">
+        <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight text-white">LOCKIN</h1>
+        <p className="text-sm font-sans font-normal text-zinc-400 leading-relaxed max-w-[260px]">
           Stop chatting. Start executing.
         </p>
       </motion.div>
@@ -402,7 +402,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
             className="flex items-center gap-3 rounded-xl border border-white/5 bg-zinc-900/60 px-4 py-3"
           >
             <Icon className={`h-4 w-4 shrink-0 ${color}`} />
-            <span className="text-xs font-semibold text-zinc-300">{text}</span>
+            <span className="text-xs font-sans font-normal text-zinc-300">{text}</span>
           </motion.div>
         ))}
       </motion.div>
@@ -412,13 +412,13 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.75 }}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/40 bg-boxOrange py-4 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_30px_rgba(247,128,5,0.3)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/20 bg-boxOrange py-4 text-sm font-sans font-medium text-black shadow-[0_0_30px_rgba(247,128,5,0.15)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
       >
         <Flame className="h-4 w-4 fill-current" />
         Let's Lock In
       </motion.button>
 
-      <p className="text-[10px] text-zinc-700">Campus-only. No randos. Just builders.</p>
+      <p className="text-[10px] font-sans font-normal text-zinc-700">Campus-only. No randos. Just builders.</p>
     </div>
   );
 }

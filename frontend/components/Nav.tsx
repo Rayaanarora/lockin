@@ -17,7 +17,7 @@ export default function Nav({ tab, setTab }: NavProps) {
   ] as const;
 
   return (
-    <nav className="safe-bottom absolute inset-x-0 bottom-6 z-40 mx-auto max-w-[340px] px-4">
+    <nav className="safe-bottom absolute inset-x-0 bottom-6 z-40 mx-auto max-w-[340px] px-4 md:hidden">
       <div className="relative flex items-center justify-between rounded-full border border-white/10 bg-black/80 p-1.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-lg">
         {items.map(({ key, label, icon: Icon, color }) => {
           const isActive = tab === key;
