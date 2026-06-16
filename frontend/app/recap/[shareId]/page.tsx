@@ -51,7 +51,7 @@ export default function PublicShareRecap() {
           >
             <img src="/logo.png" alt="LOCKIN" className="h-6 w-6 object-contain" />
           </motion.div>
-          <span className="text-xs font-black uppercase tracking-widest text-zinc-500 animate-pulse mt-2">
+          <span className="text-xs font-black uppercase tracking-widest text-zinc-500 mt-2">
             Loading achievement coordinates...
           </span>
         </div>

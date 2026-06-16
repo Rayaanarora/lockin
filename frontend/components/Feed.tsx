@@ -337,7 +337,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
               {/* Timing & Location block */}
               <div className="space-y-2.5 md:space-y-3.5">
                 <div className="flex items-center gap-2.5 md:gap-3.5 rounded-xl border border-white/5 bg-black/30 p-2.5 md:p-3.5">
-                  <CalendarClock className="h-4 w-4 md:h-5 md:w-5 text-boxOrange shrink-0 animate-pulse" />
+                  <CalendarClock className="h-4 w-4 md:h-5 md:w-5 text-boxOrange shrink-0" />
                   <span className="text-xs md:text-sm font-bold text-zinc-300">
                     {formatDate(currentMission.datetime)}
                   </span>
@@ -381,7 +381,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
       )}
 
       {error && (
-        <p className="mt-4 text-center text-xs md:text-sm font-bold text-boxRed animate-pulse">
+        <p className="mt-4 text-center text-xs md:text-sm font-bold text-boxRed">
           {error}
         </p>
       )}

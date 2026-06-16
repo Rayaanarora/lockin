@@ -151,7 +151,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             animate={{ opacity: 1, y: 0 }}
             className="flex items-start gap-3 rounded-xl border border-boxRed/35 bg-boxRed/5 p-3.5 md:p-4.5"
           >
-            <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-boxRed shrink-0 mt-0.5 animate-pulse" />
+            <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-boxRed shrink-0 mt-0.5" />
             <div>
               <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-wider leading-none">
                 {pendingRequests} Join Request{pendingRequests > 1 ? "s" : ""} Waiting
@@ -171,7 +171,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           animate={{ opacity: 1, y: 0 }}
           className="flex items-start gap-3 rounded-xl border border-boxOrange/35 bg-boxOrange/5 p-3.5 md:p-4.5"
         >
-          <ShieldAlert className="h-4 w-4 md:h-5 md:w-5 text-boxOrange shrink-0 mt-0.5 animate-pulse" />
+          <ShieldAlert className="h-4 w-4 md:h-5 md:w-5 text-boxOrange shrink-0 mt-0.5" />
           <div>
             <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-wider leading-none">
               Attendance check required
@@ -186,7 +186,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       {/* Queue items */}
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-20 text-xs md:text-sm font-bold text-zinc-600 uppercase tracking-widest animate-pulse">
+          <div className="text-center py-20 text-xs md:text-sm font-bold text-zinc-600 uppercase tracking-widest">
             Syncing queue...
           </div>
         ) : missions.length === 0 ? (
@@ -210,7 +210,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
               if (isRequest) {
                 statusLabel = "Request";
-                statusColor = "border-boxOrange/25 bg-boxOrange/10 text-boxOrange animate-pulse";
+                statusColor = "border-boxOrange/25 bg-boxOrange/10 text-boxOrange";
               } else if (active) {
                 statusLabel = "Active";
                 statusColor = "border-boxOrange/45 bg-boxOrange/5 text-boxOrange";
@@ -355,7 +355,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       )}
 
                       {errors[mission.id] && (
-                        <p className="text-[10px] md:text-xs font-bold text-boxRed text-center animate-pulse">
+                        <p className="text-[10px] md:text-xs font-bold text-boxRed text-center">
                           {errors[mission.id]}
                         </p>
                       )}

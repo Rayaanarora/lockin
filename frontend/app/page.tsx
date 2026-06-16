@@ -116,7 +116,7 @@ export default function Home() {
     return (
       <Shell>
         <div className="flex min-h-screen items-center justify-center">
-          <Flame className="h-10 w-10 animate-pulse text-boxOrange" />
+          <Flame className="h-10 w-10 text-boxOrange" />
         </div>
       </Shell>
     );
