@@ -164,7 +164,7 @@ export default function LockinRecapCard({
             ref={cardRef}
             className="p-8 sm:p-10 relative overflow-hidden rounded-[28px] border border-white/10 text-left select-none shadow-[0_24px_50px_rgba(0,0,0,0.9)]"
             style={{
-              background: "#080808",
+              background: "#1B1716",
               width: "100%",
               aspectRatio: "9/16",
               display: "flex",
@@ -173,42 +173,42 @@ export default function LockinRecapCard({
             }}
           >
             {/* Cyber red accent stripe on the left edge */}
-            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#F52601]" />
+            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#DE211E]" />
 
             {/* Ambient Background Grid Pattern */}
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                  style={{ 
-                   backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, transparent 1px)", 
+                   backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)", 
                    backgroundSize: "20px 20px", 
                    backgroundPosition: "0 0, 10px 10px" 
                  }} 
             />
 
             {/* Background Glow */}
-            <div className="absolute -right-20 -top-20 w-48 h-48 rounded-full bg-[#F52601]/10 blur-[60px] pointer-events-none" />
-            <div className="absolute -left-20 -bottom-20 w-48 h-48 rounded-full bg-[#ffffff]/4 blur-[60px] pointer-events-none" />
+            <div className="absolute -right-20 -top-20 w-48 h-48 rounded-full bg-[#AD1614]/15 blur-[60px] pointer-events-none" />
+            <div className="absolute -left-20 -bottom-20 w-48 h-48 rounded-full bg-[#EDEBDE]/4 blur-[60px] pointer-events-none" />
 
             {/* Runway graphic lines */}
             <svg className="absolute right-0 bottom-0 w-full h-[55%] opacity-10 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path d="M-10,100 L110,40" stroke="#F52601" strokeWidth="0.75" strokeDasharray="3 3" fill="none" />
-              <path d="M-10,110 L110,50" stroke="#F52601" strokeWidth="1.25" fill="none" />
-              <path d="M-10,90 L110,30" stroke="#ffffff" strokeWidth="0.5" fill="none" />
+              <path d="M-10,100 L110,40" stroke="#DE211E" strokeWidth="0.75" strokeDasharray="3 3" fill="none" />
+              <path d="M-10,110 L110,50" stroke="#DE211E" strokeWidth="1.25" fill="none" />
+              <path d="M-10,90 L110,30" stroke="#EDEBDE" strokeWidth="0.5" fill="none" />
               {/* Radar/sonar arcs */}
-              <circle cx="90" cy="90" r="30" stroke="#F52601" strokeWidth="0.5" fill="none" />
-              <circle cx="90" cy="90" r="60" stroke="#F52601" strokeWidth="0.5" fill="none" />
-              <circle cx="90" cy="90" r="90" stroke="#ffffff" strokeWidth="0.35" fill="none" strokeDasharray="2 2" />
+              <circle cx="90" cy="90" r="30" stroke="#DE211E" strokeWidth="0.5" fill="none" />
+              <circle cx="90" cy="90" r="60" stroke="#AD1614" strokeWidth="0.5" fill="none" />
+              <circle cx="90" cy="90" r="90" stroke="#EDEBDE" strokeWidth="0.35" fill="none" strokeDasharray="2 2" />
             </svg>
 
             {/* Top Row: Brand & Badge */}
             <div className="flex justify-between items-start z-10">
               <div className="flex items-center gap-2">
-                <div className="flex h-5 w-5 items-center justify-center rounded bg-[#F52601]/10 border border-[#F52601]/25">
+                <div className="flex h-5 w-5 items-center justify-center rounded bg-[#DE211E]/10 border border-[#DE211E]/25">
                   <img src="/logo.png" alt="Logo" className="h-3.5 w-3.5 object-contain" />
                 </div>
-                <span className="text-[11px] sm:text-[13px] font-black tracking-[0.25em] text-white">LOCKIN</span>
+                <span className="text-[11px] sm:text-[13px] font-black tracking-[0.25em] text-[#EDEBDE]">LOCKIN</span>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className="text-[#F52601] font-black text-[9px] sm:text-[10.5px] uppercase tracking-[0.2em] leading-none">
+                <span className="text-[#DE211E] font-black text-[9px] sm:text-[10.5px] uppercase tracking-[0.2em] leading-none">
                   {statusText}
                 </span>
                 <span className="text-[8px] sm:text-[9.5px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{date}</span>
@@ -242,7 +242,7 @@ export default function LockinRecapCard({
                   </>
                 )}
               </div>
-              <div className="text-[10px] sm:text-[11.5px] font-black tracking-[0.2em] text-[#F52601] uppercase">
+              <div className="text-[10px] sm:text-[11.5px] font-black tracking-[0.2em] text-[#DE211E] uppercase">
                 TOTAL EXECUTION TIME
               </div>
               <div className="text-[9.5px] sm:text-[11px] font-bold text-zinc-500 uppercase tracking-widest line-clamp-1">
@@ -299,7 +299,7 @@ export default function LockinRecapCard({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-[#F52601] hover:bg-[#D42000] text-white font-bold px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
+              className="bg-[#DE211E] hover:bg-[#AD1614] text-white font-bold px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
             >
               <Download size={13} />
               {saving ? "Exporting..." : "Export"}

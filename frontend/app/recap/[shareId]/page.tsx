@@ -85,22 +85,22 @@ export default function PublicShareRecap() {
   // Theme Configs
   const themeMap: { [key: string]: { border: string; glow: string; text: string; bg: string } } = {
     session: {
-      border: "border-red-600/30",
-      glow: "from-red-600/15 via-red-950/5 to-transparent",
-      text: "text-red-500",
-      bg: "bg-red-950/10"
+      border: "border-boxRed/30",
+      glow: "from-boxRed/15 via-boxMaroon/5 to-transparent",
+      text: "text-boxRed",
+      bg: "bg-boxMaroon/10"
     },
     weekly: {
-      border: "border-rose-500/30",
-      glow: "from-rose-500/15 via-red-950/5 to-transparent",
-      text: "text-rose-400",
-      bg: "bg-rose-950/10"
+      border: "border-boxOrange/30",
+      glow: "from-boxOrange/15 via-boxMaroon/5 to-transparent",
+      text: "text-boxOrange",
+      bg: "bg-boxMaroon/10"
     },
     monthly: {
-      border: "border-red-800/40",
-      glow: "from-red-800/15 via-red-950/5 to-transparent",
-      text: "text-red-600",
-      bg: "bg-red-950/20"
+      border: "border-boxMaroon/40",
+      glow: "from-boxMaroon/15 via-boxMaroon/5 to-transparent",
+      text: "text-boxMaroon",
+      bg: "bg-boxMaroon/20"
     },
     yearly: {
       border: "border-white/20",
@@ -109,10 +109,10 @@ export default function PublicShareRecap() {
       bg: "bg-white/5"
     },
     team: {
-      border: "border-red-500/35",
-      glow: "from-red-500/20 via-red-950/5 to-transparent",
-      text: "text-red-400",
-      bg: "bg-red-950/15"
+      border: "border-boxRed/35",
+      glow: "from-boxRed/20 via-boxMaroon/5 to-transparent",
+      text: "text-boxRed",
+      bg: "bg-boxMaroon/15"
     }
   };
 
@@ -260,7 +260,7 @@ export default function PublicShareRecap() {
         <div className="w-full space-y-3">
           <button
             onClick={() => router.push("/")}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-boxOrange text-xs font-black uppercase tracking-widest text-black shadow-lg hover:bg-boxOrange/90 transition active:scale-[0.98]"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-boxOrange text-xs font-black uppercase tracking-widest text-white shadow-lg hover:bg-boxOrange/90 transition active:scale-[0.98]"
           >
             Join LOCKIN Platform
             <ExternalLink className="h-4 w-4" />

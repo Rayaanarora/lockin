@@ -27,12 +27,15 @@ module.exports = {
         danger: "#FF335F",
         neonBlue: "#40C9FF",
         neonPurple: "#A855F7",
-        boxRed: "#F52601",
-        boxOrange: "#F52601",
+        boxRed: "#DE211E",
+        boxOrange: "#DE211E",
+        boxMaroon: "#AD1614",
+        boxCotton: "#EDEBDE",
+        boxNoir: "#1B1716",
         boxGreen: "#18BD00",
-        boxTrack: "#0A0A0A",
-        boxPit: "#151515",
-        boxLine: "#404040"
+        boxTrack: "#1B1716",
+        boxPit: "#221C1A",
+        boxLine: "#322B29"
       },
       boxShadow: {
         acid: "0 0 30px rgba(69,255,154,.35)",

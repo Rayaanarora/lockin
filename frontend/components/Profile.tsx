@@ -686,7 +686,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             <button
               type="submit"
               disabled={updating}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxRed/90 disabled:opacity-50"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-white transition hover:bg-boxRed/90 disabled:opacity-50"
             >
               <Flame className="h-3.5 w-3.5 fill-current" />
               {updating ? "Saving..." : "Save Changes"}

@@ -179,7 +179,7 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
           />
           <button
             type="submit"
-            className="flex h-12 w-12 items-center justify-center rounded-xl border border-boxOrange bg-boxOrange text-black shadow-[0_0_20px_rgba(247,128,5,0.2)] hover:bg-boxOrange/90 active:scale-[0.96] transition"
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-boxOrange bg-boxOrange text-white shadow-[0_0_20px_rgba(129,1,0,0.25)] hover:bg-boxOrange/90 active:scale-[0.96] transition"
           >
             <Send className="h-4 w-4" />
           </button>

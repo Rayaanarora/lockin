@@ -412,7 +412,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.75 }}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/20 bg-boxOrange py-4 text-sm font-sans font-medium text-black shadow-[0_0_30px_rgba(245,38,1,0.15)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/20 bg-boxOrange py-4 text-sm font-sans font-medium text-white shadow-[0_0_30px_rgba(129,1,0,0.2)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
       >
         <Flame className="h-4 w-4 fill-current" />
         Let's Lock In
@@ -849,7 +849,7 @@ function TutorialStep({
           animate={{ opacity: 1, y: 0 }}
           onClick={onSubmit}
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxRed/20 bg-boxRed py-4 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_30px_rgba(245,38,1,0.15)] transition-all hover:bg-boxRed/90 active:scale-[0.97] disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxRed/20 bg-boxRed py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(129,1,0,0.2)] transition-all hover:bg-boxRed/90 active:scale-[0.97] disabled:opacity-50"
         >
           <Flame className="h-4 w-4 fill-current" />
           {busy ? "Activating Pilot..." : "Initialize Lock-In"}
@@ -871,7 +871,7 @@ function NextButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/40 bg-boxOrange py-4 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_20px_rgba(247,128,5,0.2)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
+      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/40 bg-boxOrange py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(129,1,0,0.25)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
     >
       {label}
       <ChevronRight className="h-4 w-4" />

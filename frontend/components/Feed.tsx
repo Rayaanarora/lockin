@@ -201,7 +201,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
             onClick={() => handleCategoryChange("all")}
             className={`h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0 ${
               activeCategory === "all"
-                ? "border-boxOrange bg-boxOrange text-black"
+                ? "border-boxOrange bg-boxOrange text-white"
                 : "border-white/5 bg-zinc-950/40 text-zinc-400 hover:text-zinc-200"
             }`}
           >
@@ -213,7 +213,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
               onClick={() => handleCategoryChange(String(c.id))}
               className={`h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0 ${
                 activeCategory === String(c.id)
-                  ? "border-boxOrange bg-boxOrange text-black"
+                  ? "border-boxOrange bg-boxOrange text-white"
                   : "border-white/5 bg-zinc-950/40 text-zinc-400 hover:text-zinc-200"
               }`}
             >
@@ -401,7 +401,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
             className={`flex h-11 md:h-13 items-center justify-center gap-1.5 rounded-xl border text-xs md:text-sm font-black uppercase tracking-wider transition active:scale-[0.98] ${
               locked
                 ? "border-white/5 bg-zinc-900/40 text-zinc-600 cursor-not-allowed"
-                : "border-boxOrange bg-boxOrange text-black shadow-[0_0_20px_rgba(247,128,5,0.15)] hover:bg-boxOrange/90"
+                : "border-boxOrange bg-boxOrange text-white shadow-[0_0_20px_rgba(129,1,0,0.2)] hover:bg-boxOrange/90"
             }`}
           >
             <Check className="h-4 w-4 md:h-5 md:w-5 stroke-[3]" /> Lock In
@@ -504,7 +504,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(245,38,1,0.15)] hover:bg-boxRed/90 transition active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(129,1,0,0.2)] hover:bg-boxRed/90 transition active:scale-[0.98] disabled:opacity-50"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               {submitting ? "Launching..." : "Launch runway"}

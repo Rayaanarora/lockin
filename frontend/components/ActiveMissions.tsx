@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy } from "lucide-react";
 import { User, Mission } from "../app/types";
 import Chat from "./Chat";
 import RecapCard from "./RecapCard";
@@ -47,6 +47,16 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       await Promise.all([load(), refreshUser()]);
     } catch (err: any) {
       alert(err.message || "Failed to finish focus session.");
+    }
+  }
+
+  async function handleViewMissionRecap(missionId: number) {
+    try {
+      const result = await api(`/recaps/mission/${missionId}/user/${user.id}`);
+      setRecapData(result);
+      setShowRecapCard(true);
+    } catch (err: any) {
+      alert("No recap data saved for this past mission.");
     }
   }
 
@@ -287,7 +297,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       
                       <button
                         onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}
-                        className="flex h-9 md:h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-boxOrange text-[10px] md:text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxOrange/95"
+                        className="flex h-9 md:h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-boxOrange text-[10px] md:text-xs font-black uppercase tracking-wider text-white transition hover:bg-boxOrange/95"
                       >
                         <Check className="h-3.5 w-3.5 stroke-[3]" /> Approve Request
                       </button>
@@ -346,7 +356,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             <button
                               onClick={() => handleAttendance(mission.id, true)}
                               disabled={submitting[mission.id]}
-                              className="flex-1 flex h-9 md:h-11 items-center justify-center gap-1.5 rounded-lg bg-boxRed text-[10px] md:text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxRed/95 disabled:opacity-50"
+                              className="flex-1 flex h-9 md:h-11 items-center justify-center gap-1.5 rounded-lg bg-boxRed text-[10px] md:text-xs font-black uppercase tracking-wider text-white transition hover:bg-boxRed/95 disabled:opacity-50"
                             >
                               <Check className="h-3.5 w-3.5 stroke-[3]" /> Verify & Check In
                             </button>
@@ -413,7 +423,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
                         <button
                           onClick={() => handleFinishSession(mission.id, Number(tasksCompletedInput[mission.id] || 0))}
-                          className="w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-boxOrange text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxOrange/95"
+                          className="w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-boxOrange text-xs font-black uppercase tracking-wider text-white transition hover:bg-boxOrange/95"
                         >
                           Complete Focus Session
                         </button>
@@ -454,6 +464,16 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         <MessageSquare className="h-4 w-4 md:h-4.5 md:w-4.5 text-boxOrange" />
                         <span>Rendezvous Chat</span>
                       </button>
+
+                      {mission.status === "Completed" && (
+                        <button
+                          onClick={() => handleViewMissionRecap(mission.id)}
+                          className="flex-1 flex h-9 md:h-11 items-center justify-center gap-2.5 rounded-xl border border-boxOrange/30 bg-boxOrange/5 text-xs md:text-sm font-bold text-boxOrange hover:bg-boxOrange/10 transition"
+                        >
+                          <Trophy className="h-4 w-4 text-boxOrange" />
+                          <span>View Recap</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </motion.article>
