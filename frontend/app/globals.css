@@ -207,126 +207,135 @@ textarea {
 
 .light body {
   background:
-    radial-gradient(circle at 12% 8%, rgba(245, 38, 1, .06), transparent 30rem),
-    radial-gradient(circle at 85% 14%, rgba(245, 38, 1, .05), transparent 28rem),
-    linear-gradient(135deg, #ffffff, #fafafa) !important;
-  color: #000000 !important;
+    radial-gradient(circle at 12% 8%, rgba(245, 38, 1, .04), transparent 30rem),
+    radial-gradient(circle at 85% 14%, rgba(245, 38, 1, .03), transparent 28rem),
+    linear-gradient(135deg, #ffffff, #f9f9fb) !important;
+  color: #18181b !important;
 }
 
 .light .grid-noise {
   background-image:
-    linear-gradient(rgba(0, 0, 0, .03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 38, 1, .03) 1px, transparent 1px) !important;
+    linear-gradient(rgba(0, 0, 0, .02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 38, 1, .02) 1px, transparent 1px) !important;
   mix-blend-mode: multiply !important;
-  opacity: 0.4 !important;
+  opacity: 0.3 !important;
 }
 
 .light main {
   background-color: #ffffff !important;
-  color: #111111 !important;
+  color: #18181b !important;
 }
 
 .light aside {
-  background-color: #fafafa !important;
+  background-color: #f4f4f5 !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .light aside nav button {
-  color: #4b5563 !important;
+  color: #52525b !important;
 }
 
 .light aside nav button.border-white\/10 {
   background-color: rgba(0, 0, 0, 0.04) !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
-  color: #000000 !important;
+  color: #18181b !important;
 }
 
 .light aside .rounded-2xl {
-  background-color: #f3f4f6 !important;
-  border-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: #e4e4e7 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .light aside .rounded-2xl p {
-  color: #111111 !important;
+  color: #18181b !important;
 }
 
 .light .bg-zinc-950\/60,
 .light .bg-zinc-950\/40,
-.light .bg-zinc-950\/98 {
-  background-color: #ffffff !important;
+.light .bg-zinc-950,
+.light .bg-zinc-900\/60,
+.light .bg-zinc-900\/20,
+.light .bg-zinc-900,
+.light .bg-black\/40,
+.light .bg-black\/30 {
+  background-color: #f4f4f5 !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
-  color: #111111 !important;
+  color: #18181b !important;
 }
 
 .light h2, .light h3, .light h4, .light p, .light span:not(.text-boxOrange):not(.text-boxGreen):not(.text-boxRed) {
-  color: #111111 !important;
+  color: #18181b !important;
 }
 
 .light .text-white {
-  color: #000000 !important;
+  color: #18181b !important;
 }
 
 .light .text-zinc-300 {
-  color: #374151 !important;
+  color: #27272a !important;
 }
 
 .light .text-zinc-400 {
-  color: #4b5563 !important;
+  color: #3f3f46 !important;
 }
 
 .light .text-zinc-500 {
-  color: #6b7280 !important;
+  color: #52525b !important;
 }
 
 .light .text-zinc-600 {
-  color: #4b5563 !important;
+  color: #71717a !important;
 }
 
 .light .text-zinc-700 {
-  color: #374151 !important;
+  color: #a1a1aa !important;
 }
 
 .light .border-white\/5,
 .light .border-white\/8,
-.light .border-white\/10 {
+.light .border-white\/10,
+.light .border-white\/20 {
   border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .light .bg-white\/5,
 .light .bg-white\/4,
-.light .bg-white\/8 {
+.light .bg-white\/8,
+.light .bg-white\/10 {
   background-color: rgba(0, 0, 0, 0.04) !important;
-  color: #111111 !important;
+  color: #18181b !important;
 }
 
 .light button:not(.bg-boxOrange):not(.bg-\[\#F52601\]):not(.bg-boxGreen):not(.bg-boxRed) {
-  color: #1f2937;
+  color: #27272a;
 }
 
 .light button:hover:not(.bg-boxOrange):not(.bg-\[\#F52601\]):not(.bg-boxGreen):not(.bg-boxRed) {
   background-color: rgba(0, 0, 0, 0.06) !important;
-  color: #000000 !important;
+  color: #18181b !important;
 }
 
 .light input,
+.light textarea,
 .light select {
   background-color: #ffffff !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
-  color: #000000 !important;
+  color: #18181b !important;
 }
 
 .light .dialog-content,
 .light [role="dialog"],
-.light [data-radix-pointer-down-outside] {
+.light [data-radix-pointer-down-outside],
+.light .bg-zinc-950\/98 {
   background-color: #ffffff !important;
-  color: #000000 !important;
+  color: #18181b !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
 .light [role="dialog"] h2,
 .light [role="dialog"] h3,
 .light [role="dialog"] label {
-  color: #111111 !important;
+  color: #18181b !important;
 }
 
 .light article {
@@ -335,15 +344,9 @@ textarea {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
 }
 
-.light .bg-black\/40,
-.light .bg-black\/30 {
-  background-color: rgba(0, 0, 0, 0.02) !important;
-  border-color: rgba(0, 0, 0, 0.06) !important;
-}
-
 .light select option {
   background-color: #ffffff !important;
-  color: #000000 !important;
+  color: #18181b !important;
 }
 
 .light .bg-acid\/5, .light .border-acid\/20 {

@@ -63,22 +63,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   const [recapsList, setRecapsList] = useState<any[]>([]);
   const [loadingRecaps, setLoadingRecaps] = useState(false);
 
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
-  useEffect(() => {
-    const savedTheme = (localStorage.getItem("theme") as "dark" | "light") || "dark";
-    setTheme(savedTheme);
-  }, []);
-
-  const handleThemeChange = (newTheme: "dark" | "light") => {
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    if (newTheme === "light") {
-      document.documentElement.classList.add("light");
-    } else {
-      document.documentElement.classList.remove("light");
-    }
-  };
+  const [theme] = useState<"dark" | "light">("dark");
 
   // Gallery filters/sorters
   const [gallerySort, setGallerySort] = useState("newest");
@@ -693,35 +678,6 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
               </div>
             ))}
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
-                Theme Mode
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange("dark")}
-                  className={`flex-1 h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
-                    theme === "dark"
-                      ? "border-boxOrange bg-boxOrange/15 text-boxOrange"
-                      : "border-white/10 bg-black/40 text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  Dark Mode
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange("light")}
-                  className={`flex-1 h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
-                    theme === "light"
-                      ? "border-boxOrange bg-boxOrange/15 text-boxOrange"
-                      : "border-white/10 bg-black/40 text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  Light Mode
-                </button>
-              </div>
-            </div>
 
             {error && (
               <p className="text-[11px] font-bold text-boxRed">{error}</p>
