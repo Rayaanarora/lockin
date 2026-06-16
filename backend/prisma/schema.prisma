@@ -24,6 +24,7 @@ model User {
   missions         Mission[]       @relation("CreatedMissions")
   participations   Participation[]
   messages         Message[]
+  sessionRecaps    SessionRecap[]
 
   @@map("users")
 }
@@ -62,6 +63,7 @@ model Mission {
   campus           Campus?         @relation(fields: [campusId], references: [id], onDelete: SetNull)
   participations   Participation[]
   messages         Message[]
+  sessionRecaps    SessionRecap[]
 
   @@map("mission")
 }
@@ -101,4 +103,33 @@ model Message {
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+model SessionRecap {
+  id               Int      @id @default(autoincrement()) @map("recap_id")
+  userId           Int      @map("user_id")
+  missionId        Int?     @map("mission_id")
+  missionTitle     String?  @map("mission_title")
+  categoryId       Int?     @map("category_id")
+  categorySnapshot String?  @map("category_snapshot")
+  sessionDuration  Int      @map("session_duration")
+  tasksCompleted   Int      @map("tasks_completed")
+  streak           Int      @default(0)
+  missionRank      Int?     @map("mission_rank")
+  cardVersion      Int      @default(1) @map("card_version")
+  shareId          String   @unique @map("share_id")
+  recapType        String   @map("recap_type")
+  achievements     Json?
+  participantCount Int?     @map("participant_count")
+  aiInsight        String?  @map("ai_insight")
+  metadata         Json?
+  generatedAt      DateTime @default(now()) @map("generated_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission          Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, generatedAt])
+  @@index([userId, categorySnapshot, generatedAt])
+  @@index([shareId])
+  @@map("session_recap")
 }

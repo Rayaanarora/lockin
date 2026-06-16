@@ -14,11 +14,13 @@ import {
   Github,
   ChevronRight,
   Flame,
-  LayoutGrid
+  LayoutGrid,
+  Users
 } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import RecapCard from "./RecapCard";
 
 interface ProfileProps {
   user: User;
@@ -34,7 +36,7 @@ interface LeaderboardEntry {
   interests?: string;
 }
 
-const TABS = ["Stats", "Leaderboard", "Missions"] as const;
+const TABS = ["Stats", "Leaderboard", "Missions", "Gallery"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function Profile({ user, refreshUser, api }: ProfileProps) {
@@ -55,6 +57,97 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   });
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
+
+  const [recapData, setRecapData] = useState<any | null>(null);
+  const [showRecapCard, setShowRecapCard] = useState(false);
+  const [recapsList, setRecapsList] = useState<any[]>([]);
+  const [loadingRecaps, setLoadingRecaps] = useState(false);
+
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const savedTheme = (localStorage.getItem("theme") as "dark" | "light") || "dark";
+    setTheme(savedTheme);
+  }, []);
+
+  const handleThemeChange = (newTheme: "dark" | "light") => {
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    if (newTheme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  };
+
+  // Gallery filters/sorters
+  const [gallerySort, setGallerySort] = useState("newest");
+  const [galleryCategory, setGalleryCategory] = useState("all");
+  const [galleryYear, setGalleryYear] = useState("all");
+
+  async function loadRecaps() {
+    setLoadingRecaps(true);
+    try {
+      const list = await api(
+        `/recaps/user/${user.id}?sortBy=${gallerySort}&category=${galleryCategory}&year=${galleryYear}`
+      );
+      setRecapsList(list);
+    } catch (err) {
+      console.error(err);
+      setRecapsList([]);
+    } finally {
+      setLoadingRecaps(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "Gallery") {
+      loadRecaps();
+    }
+  }, [activeTab, gallerySort, galleryCategory, galleryYear]);
+
+  async function handleGenerateWrapped(recapType: "weekly" | "monthly" | "yearly") {
+    try {
+      const result = await api("/recaps/generate", {
+        method: "POST",
+        body: JSON.stringify({ userId: user.id, recapType })
+      });
+      setRecapData(result);
+      setShowRecapCard(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to generate Wrapped card.");
+    }
+  }
+
+  async function handleGenerateTeamSummary() {
+    try {
+      const list = await api(`/recaps/user/${user.id}`);
+      const teamRecap = list.find((r: any) => r.participantCount && r.participantCount > 1);
+      
+      if (!teamRecap) {
+        alert("No collaborative team focus runs found in your history.");
+        return;
+      }
+      
+      setRecapData({
+        ...teamRecap,
+        recapType: "team"
+      });
+      setShowRecapCard(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to generate team summary.");
+    }
+  }
+
+  async function handleViewMissionRecap(missionId: number) {
+    try {
+      const result = await api(`/recaps/mission/${missionId}/user/${user.id}`);
+      setRecapData(result);
+      setShowRecapCard(true);
+    } catch (err: any) {
+      alert("No recap data saved for this past mission.");
+    }
+  }
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
@@ -255,7 +348,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(100, (aura / 500) * 100)}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
-                  className="h-full rounded-full bg-boxGreen"
+                  className="h-full rounded-full bg-boxRed"
                 />
               </div>
               <p className="text-[9px] text-zinc-700 uppercase tracking-widest">
@@ -278,6 +371,39 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                   <span className="text-[11px] font-semibold text-zinc-300 max-w-[200px] truncate text-right">{item.value}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Wrapped Recaps Action Block */}
+            <div className="rounded-2xl border border-white/8 bg-zinc-950/60 p-4 space-y-4">
+              <span className="block text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                Wrapped Achievement Cards
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleGenerateWrapped("weekly")}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                >
+                  <Zap className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Weekly Wrapped
+                </button>
+                <button
+                  onClick={() => handleGenerateWrapped("monthly")}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                >
+                  <Trophy className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Monthly Wrapped
+                </button>
+                <button
+                  onClick={() => handleGenerateWrapped("yearly")}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                >
+                  <Activity className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Yearly Wrapped
+                </button>
+                <button
+                  onClick={handleGenerateTeamSummary}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                >
+                  <Users className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Team Summary
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -376,7 +502,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                     return (
                       <div key={`${m.id}-${m.role}`} className="flex items-center gap-3 px-4 py-3">
                         {done ? (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-boxGreen" />
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-white" />
                         ) : missed ? (
                           <XCircle className="h-4 w-4 shrink-0 text-boxRed" />
                         ) : (
@@ -393,10 +519,18 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                             })}
                           </p>
                         </div>
+                        {done && (
+                          <button
+                            onClick={() => handleViewMissionRecap(m.id)}
+                            className="text-[9px] font-black uppercase border border-boxOrange/30 bg-boxOrange/5 px-2.5 py-1 rounded-lg text-boxOrange hover:bg-boxOrange/10 transition mr-2"
+                          >
+                            View Recap
+                          </button>
+                        )}
                         <span
                           className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
                             done
-                              ? "border-boxGreen/25 bg-boxGreen/8 text-boxGreen"
+                              ? "border-white/20 bg-white/5 text-white"
                               : missed
                               ? "border-boxRed/25 bg-boxRed/8 text-boxRed"
                               : "border-white/10 text-zinc-600"
@@ -408,6 +542,117 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {activeTab === "Gallery" && (
+          <motion.div
+            key="gallery"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            {/* Filters bar */}
+            <div className="flex flex-wrap gap-2.5 items-center justify-between bg-zinc-950/60 p-3 rounded-2xl border border-white/5">
+              <div className="flex flex-1 gap-2 min-w-[200px]">
+                <select
+                  value={galleryCategory}
+                  onChange={(e) => setGalleryCategory(e.target.value)}
+                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-boxOrange"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="Programming">Programming</option>
+                  <option value="Study">Study</option>
+                  <option value="Design">Design</option>
+                  <option value="Writing">Writing</option>
+                  <option value="Research">Research</option>
+                  <option value="Fitness">Fitness</option>
+                  <option value="Other">Other</option>
+                </select>
+
+                <select
+                  value={galleryYear}
+                  onChange={(e) => setGalleryYear(e.target.value)}
+                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-boxOrange"
+                >
+                  <option value="all">All Years</option>
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                </select>
+              </div>
+
+              <select
+                value={gallerySort}
+                onChange={(e) => setGallerySort(e.target.value)}
+                className="h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-boxOrange"
+              >
+                <option value="newest">Newest First</option>
+                <option value="longest">Longest Session</option>
+                <option value="tasks">Most Tasks</option>
+              </select>
+            </div>
+
+            {/* Gallery Grid */}
+            {loadingRecaps ? (
+              <div className="py-12 text-center text-[11px] font-bold text-zinc-700 uppercase tracking-widest">
+                Loading recaps...
+              </div>
+            ) : recapsList.length === 0 ? (
+              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-12 text-center">
+                <LayoutGrid className="h-6 w-6 mx-auto text-zinc-700 mb-3" />
+                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">Gallery Empty</p>
+                <p className="text-[11px] text-zinc-700 mt-1">Complete focus runs to accumulate achievement cards.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {recapsList.map((recap) => {
+                  const durationHrs = Math.floor(recap.sessionDuration / 60);
+                  const durationMins = recap.sessionDuration % 60;
+                  const durationText = durationHrs > 0 ? `${durationHrs}h ${durationMins}m` : `${durationMins}m`;
+
+                  return (
+                    <motion.div
+                      key={recap.id}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => {
+                        setRecapData(recap);
+                        setShowRecapCard(true);
+                      }}
+                      className="cursor-pointer group relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-950/40 p-5 flex flex-col justify-between hover:border-boxOrange/30 transition shadow-sm"
+                    >
+                      <div className="flex justify-between items-start mb-2.5">
+                        <span className="rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-white/5 text-zinc-500 font-display">
+                          {recap.categorySnapshot || "Other"}
+                        </span>
+                        <span className="text-[8px] font-bold text-zinc-500 font-display">
+                          {new Date(recap.generatedAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric"
+                          })}
+                        </span>
+                      </div>
+                      
+                      <h4 className="text-xs font-black text-white line-clamp-1 group-hover:text-boxOrange transition">
+                        {recap.missionTitle || "Focus Sprint"}
+                      </h4>
+                      
+                      <div className="mt-4 flex items-center justify-between border-t border-white/4 pt-3 text-[10px] font-bold text-zinc-400 font-display">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-boxOrange" />
+                          <span>{durationText}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                          <span>{recap.tasksCompleted} Tasks</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </motion.div>
@@ -448,6 +693,36 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
               </div>
             ))}
 
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
+                Theme Mode
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleThemeChange("dark")}
+                  className={`flex-1 h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
+                    theme === "dark"
+                      ? "border-boxOrange bg-boxOrange/15 text-boxOrange"
+                      : "border-white/10 bg-black/40 text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  Dark Mode
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleThemeChange("light")}
+                  className={`flex-1 h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
+                    theme === "light"
+                      ? "border-boxOrange bg-boxOrange/15 text-boxOrange"
+                      : "border-white/10 bg-black/40 text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  Light Mode
+                </button>
+              </div>
+            </div>
+
             {error && (
               <p className="text-[11px] font-bold text-boxRed">{error}</p>
             )}
@@ -455,7 +730,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             <button
               type="submit"
               disabled={updating}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-boxGreen/40 bg-boxGreen text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxGreen/90 disabled:opacity-50"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxRed/90 disabled:opacity-50"
             >
               <Flame className="h-3.5 w-3.5 fill-current" />
               {updating ? "Saving..." : "Save Changes"}
@@ -463,6 +738,15 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Recap Card Modal */}
+      {recapData && (
+        <RecapCard
+          isOpen={showRecapCard}
+          onClose={() => setShowRecapCard(false)}
+          recapData={recapData}
+        />
+      )}
     </section>
   );
 }

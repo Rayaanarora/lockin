@@ -13,11 +13,11 @@ export default function Nav({ tab, setTab }: NavProps) {
   const items = [
     { key: "feed", label: "Missions", icon: Flame, color: "text-boxRed" },
     { key: "active", label: "Queue", icon: Activity, color: "text-boxOrange" },
-    { key: "profile", label: "Execution", icon: UserIcon, color: "text-boxGreen" }
+    { key: "profile", label: "Execution", icon: UserIcon, color: "text-boxRed" }
   ] as const;
 
   return (
-    <nav className="safe-bottom absolute inset-x-0 bottom-6 z-40 mx-auto max-w-[340px] px-4 md:hidden">
+    <nav className="safe-bottom fixed inset-x-0 bottom-6 z-40 mx-auto max-w-[340px] px-4 md:hidden">
       <div className="relative flex items-center justify-between rounded-full border border-white/10 bg-black/80 p-1.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-lg">
         {items.map(({ key, label, icon: Icon, color }) => {
           const isActive = tab === key;

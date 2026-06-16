@@ -63,25 +63,25 @@ const TUTORIAL_STEPS = [
   },
   {
     icon: Timer,
-    color: "text-boxOrange",
-    bg: "bg-boxOrange/10 border-boxOrange/30",
-    glow: "shadow-[0_0_30px_rgba(247,128,5,0.2)]",
+    color: "text-white",
+    bg: "bg-white/8 border-white/20",
+    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
     title: "Focus Lock",
     body: "Meet up. Creator shares a 4-digit OTP. Participant enters it to start a 15–90 min Focus Lock countdown. No distractions.",
   },
   {
     icon: Star,
-    color: "text-white",
-    bg: "bg-white/8 border-white/20",
-    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
+    color: "text-boxRed",
+    bg: "bg-boxRed/10 border-boxRed/30",
+    glow: "shadow-[0_0_30px_rgba(245,38,1,0.2)]",
     title: "Vibe Check",
     body: "Timer done? Rate each other's vibe. W Vibe earns +2 Aura. L Vibe costs -1. Honest vibes only.",
   },
   {
     icon: Trophy,
-    color: "text-boxGreen",
-    bg: "bg-boxGreen/10 border-boxGreen/30",
-    glow: "shadow-[0_0_30px_rgba(24,189,0,0.2)]",
+    color: "text-white",
+    bg: "bg-white/8 border-white/20",
+    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
     title: "Aura & Leaderboard",
     body: "Aura Points stack up with every completed mission. Climb your campus leaderboard. Reputation is earned, not claimed.",
   },
@@ -390,9 +390,9 @@ function SplashStep({ onNext }: { onNext: () => void }) {
       >
         {[
           { icon: Zap, color: "text-boxRed", text: "Accept missions from campus builders" },
-          { icon: Timer, color: "text-boxOrange", text: "Start Focus Lock — prove the work" },
-          { icon: Star, color: "text-yellow-400", text: "Rate the vibe, earn Aura Points" },
-          { icon: Trophy, color: "text-boxGreen", text: "Climb your campus leaderboard" },
+          { icon: Timer, color: "text-white", text: "Start Focus Lock — prove the work" },
+          { icon: Star, color: "text-boxRed", text: "Rate the vibe, earn Aura Points" },
+          { icon: Trophy, color: "text-white", text: "Climb your campus leaderboard" },
         ].map(({ icon: Icon, color, text }, i) => (
           <motion.div
             key={text}
@@ -412,7 +412,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.75 }}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/20 bg-boxOrange py-4 text-sm font-sans font-medium text-black shadow-[0_0_30px_rgba(247,128,5,0.15)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxOrange/20 bg-boxOrange py-4 text-sm font-sans font-medium text-black shadow-[0_0_30px_rgba(245,38,1,0.15)] transition-all hover:bg-boxOrange/90 active:scale-[0.97]"
       >
         <Flame className="h-4 w-4 fill-current" />
         Let's Lock In
@@ -776,7 +776,7 @@ function TutorialStep({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-boxGreen">
+          <span className="text-[10px] font-black uppercase tracking-widest text-boxRed">
             How it works
           </span>
           <h2 className="text-xl font-black tracking-tight text-white uppercase">
@@ -849,7 +849,7 @@ function TutorialStep({
           animate={{ opacity: 1, y: 0 }}
           onClick={onSubmit}
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxGreen/40 bg-boxGreen py-4 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_30px_rgba(24,189,0,0.25)] transition-all hover:bg-boxGreen/90 active:scale-[0.97] disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-boxRed/20 bg-boxRed py-4 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_30px_rgba(245,38,1,0.15)] transition-all hover:bg-boxRed/90 active:scale-[0.97] disabled:opacity-50"
         >
           <Flame className="h-4 w-4 fill-current" />
           {busy ? "Activating Pilot..." : "Initialize Lock-In"}

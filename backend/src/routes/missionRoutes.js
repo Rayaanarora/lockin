@@ -12,6 +12,7 @@ const {
   getCampuses,
   submitVibeCheck
 } = require("../controllers/missionController");
+const { finishSession } = require("../controllers/recapController");
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ router.get("/active/:userId", asyncHandler(getActiveMissions));
 router.post("/:id/accept", asyncHandler(acceptMission));
 router.post("/:id/pass", asyncHandler(passMission));
 router.post("/:id/attendance", asyncHandler(submitAttendance));
+router.post("/:id/finish", asyncHandler(finishSession));
 router.post("/:id/vibe-check", asyncHandler(submitVibeCheck));
 router.post("/:id/approve-participant", asyncHandler(approveParticipant));
 

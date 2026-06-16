@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles } from "lucide-react";
 import { User, Mission } from "../app/types";
 import Chat from "./Chat";
+import RecapCard from "./RecapCard";
 
 interface ActiveMissionsProps {
   user: User;
@@ -20,6 +21,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [inputCodes, setInputCodes] = useState<{ [missionId: number]: string }>({});
   const [errors, setErrors] = useState<{ [missionId: number]: string }>({});
   const [submitting, setSubmitting] = useState<{ [missionId: number]: boolean }>({});
+  const [tasksCompletedInput, setTasksCompletedInput] = useState<{ [missionId: number]: string }>({});
+  const [recapData, setRecapData] = useState<any | null>(null);
+  const [showRecapCard, setShowRecapCard] = useState(false);
 
   async function load() {
     try {
@@ -29,6 +33,33 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleFinishSession(missionId: number, tasksCompleted: number) {
+    try {
+      const result = await api(`/missions/${missionId}/finish`, {
+        method: "POST",
+        body: JSON.stringify({ userId: user.id, tasksCompleted })
+      });
+      setRecapData(result);
+      setShowRecapCard(true);
+      await Promise.all([load(), refreshUser()]);
+    } catch (err: any) {
+      alert(err.message || "Failed to finish focus session.");
+    }
+  }
+
+  async function handleVibeCheck(missionId: number, rating: "W" | "L") {
+    try {
+      await api(`/missions/${missionId}/vibe-check`, {
+        method: "POST",
+        body: JSON.stringify({ raterId: user.id, rating })
+      });
+      await Promise.all([load(), refreshUser()]);
+      alert("Vibe check submitted successfully!");
+    } catch (err: any) {
+      alert(err.message || "Failed to submit vibe check.");
     }
   }
 
@@ -103,7 +134,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           <span className="block text-[8px] md:text-[10px] font-black uppercase tracking-wider text-zinc-500">
             Completed
           </span>
-          <span className="text-sm md:text-lg font-black text-boxGreen">
+          <span className="text-sm md:text-lg font-black text-boxRed">
             {missions.filter((m) => m.status === "Completed").length}
           </span>
         </div>
@@ -183,9 +214,12 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
               } else if (active) {
                 statusLabel = "Active";
                 statusColor = "border-boxOrange/45 bg-boxOrange/5 text-boxOrange";
+              } else if (mission.status === "Executing") {
+                statusLabel = "LOCKED IN";
+                statusColor = "border-boxOrange/40 bg-boxOrange/5 text-boxOrange";
               } else if (mission.status === "Completed") {
                 statusLabel = "Completed";
-                statusColor = "border-boxGreen/25 bg-boxGreen/10 text-boxGreen shadow-[0_0_15px_rgba(24,189,0,0.06)]";
+                statusColor = "border-white/20 bg-white/5 text-white shadow-[0_0_15px_rgba(255,255,255,0.04)]";
               } else if (mission.status === "Missed") {
                 statusLabel = "Missed";
                 statusColor = "border-boxRed/25 bg-boxRed/10 text-boxRed";
@@ -246,7 +280,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             Dept: {mission.participant_department}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-boxGreen/20 bg-boxGreen/5 px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-black text-boxGreen flex items-center gap-1">
+                        <div className="rounded-lg border border-boxRed/20 bg-boxRed/5 px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-black text-boxRed flex items-center gap-1">
                           <Sparkles className="h-3 w-3" /> {mission.participant_reputation} Aura
                         </div>
                       </div>
@@ -277,14 +311,14 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     <div className="space-y-3">
                       {/* Creator Code display */}
                       {isCreator && due && (
-                        <div className="rounded-xl border border-boxGreen/20 bg-boxGreen/5 p-3.5 md:p-4.5 text-center">
+                        <div className="rounded-xl border border-boxRed/20 bg-boxRed/5 p-3.5 md:p-4.5 text-center">
                           <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-white">
                             Meetup Verification Code
                           </p>
                           <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-0.5">
                             Share this OTP with {mission.participant_name} to check in:
                           </p>
-                          <div className="mt-2.5 text-2xl md:text-3xl font-black tracking-widest text-boxGreen bg-black/40 rounded-lg py-1 md:py-2.5 max-w-[120px] md:max-w-[150px] mx-auto border border-boxGreen/20 shadow-[0_0_15px_rgba(24,189,0,0.1)]">
+                          <div className="mt-2.5 text-2xl md:text-3xl font-black tracking-widest text-boxRed bg-black/40 rounded-lg py-1 md:py-2.5 max-w-[120px] md:max-w-[150px] mx-auto border border-boxRed/20 shadow-[0_0_15px_rgba(245,38,1,0.1)]">
                             {mission.verification_code}
                           </div>
                         </div>
@@ -312,7 +346,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             <button
                               onClick={() => handleAttendance(mission.id, true)}
                               disabled={submitting[mission.id]}
-                              className="flex-1 flex h-9 md:h-11 items-center justify-center gap-1.5 rounded-lg bg-boxGreen text-[10px] md:text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxGreen/95 disabled:opacity-50"
+                              className="flex-1 flex h-9 md:h-11 items-center justify-center gap-1.5 rounded-lg bg-boxRed text-[10px] md:text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxRed/95 disabled:opacity-50"
                             >
                               <Check className="h-3.5 w-3.5 stroke-[3]" /> Verify & Check In
                             </button>
@@ -350,6 +384,66 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     </div>
                   )}
 
+                  {/* Executing Status Workspace */}
+                  {mission.status === "Executing" && (
+                    <div className="mt-3.5 space-y-3">
+                      <div className="rounded-xl border border-boxOrange/25 bg-boxOrange/5 p-3 text-center">
+                        <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-white">
+                          LOCKED IN & EXECUTING
+                        </p>
+                        <p className="text-[9px] md:text-xs text-zinc-400 font-semibold mt-1">
+                          You are currently focused on this mission. Complete your work below.
+                        </p>
+                      </div>
+
+                      {/* Checkout / Finish form */}
+                      <div className="rounded-xl border border-white/8 bg-black/40 p-4 space-y-3 text-left">
+                        <label className="block text-[9px] font-black uppercase tracking-wider text-zinc-500">
+                          Tasks Completed
+                        </label>
+                        <select
+                          value={tasksCompletedInput[mission.id] || "0"}
+                          onChange={(e) => setTasksCompletedInput({ ...tasksCompletedInput, [mission.id]: e.target.value })}
+                          className="h-10 w-full rounded-lg border border-white/10 bg-zinc-950 text-xs text-white outline-none focus:border-boxOrange px-2"
+                        >
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                            <option key={n} value={String(n)}>{n} Tasks Completed</option>
+                          ))}
+                        </select>
+
+                        <button
+                          onClick={() => handleFinishSession(mission.id, Number(tasksCompletedInput[mission.id] || 0))}
+                          className="w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-boxOrange text-xs font-black uppercase tracking-wider text-black transition hover:bg-boxOrange/95"
+                        >
+                          Complete Focus Session
+                        </button>
+                      </div>
+
+                      {/* Optional vibe check rating if they want extra aura */}
+                      {(!!mission.participant_name || !!mission.creator_name) && (
+                        <div className="rounded-xl border border-white/5 bg-zinc-900/10 p-3.5 space-y-2">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-zinc-500 text-left">
+                            Optional: Rate Partner's Vibe
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleVibeCheck(mission.id, "W")}
+                              className="flex-1 flex h-8 items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 text-[10px] font-bold text-white hover:bg-white/10 transition"
+                            >
+                              W Vibe (+2 Aura)
+                            </button>
+                            <button
+                              onClick={() => handleVibeCheck(mission.id, "L")}
+                              className="flex-1 flex h-8 items-center justify-center gap-1 rounded-lg border border-boxRed/20 bg-boxRed/5 text-[10px] font-bold text-boxRed hover:bg-boxRed/10 transition"
+                            >
+                              L Vibe (-1 Aura)
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Confirmed / Past Runway Footer: Chat Access */}
                   {!isRequest && (
                     <div className="mt-3.5 flex gap-2">
@@ -381,6 +475,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           />
         )}
       </AnimatePresence>
+
+      {/* Recap Card Modal */}
+      {recapData && (
+        <RecapCard
+          isOpen={showRecapCard}
+          onClose={() => setShowRecapCard(false)}
+          recapData={recapData}
+        />
+      )}
     </section>
   );
 }

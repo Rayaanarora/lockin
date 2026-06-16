@@ -34,8 +34,8 @@ body {
   min-height: 100%;
   background:
     radial-gradient(circle at 12% 8%, rgba(245, 38, 1, .18), transparent 30rem),
-    radial-gradient(circle at 85% 14%, rgba(247, 128, 5, .16), transparent 28rem),
-    radial-gradient(circle at 78% 82%, rgba(24, 189, 0, .12), transparent 28rem),
+    radial-gradient(circle at 85% 14%, rgba(245, 38, 1, .12), transparent 28rem),
+    radial-gradient(circle at 78% 82%, rgba(255, 255, 255, .04), transparent 28rem),
     linear-gradient(135deg, rgba(0, 0, 0, .98), rgba(18, 18, 18, .98)),
     hsl(var(--background));
   color: hsl(var(--foreground));
@@ -55,8 +55,8 @@ textarea {
 
 .grid-noise {
   background-image:
-    linear-gradient(rgba(125, 211, 252, .07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(247, 128, 5, .06) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, .04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 38, 1, .04) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .7), transparent 74%);
 }
@@ -80,7 +80,7 @@ textarea {
 
 .race-stripe {
   background:
-    linear-gradient(110deg, transparent 0 12px, #f52601 12px 56px, transparent 56px 68px, #f78005 68px 112px, transparent 112px 124px, #ffffff 124px 168px, transparent 168px 180px, #18bd00 180px 224px, transparent 224px);
+    linear-gradient(110deg, transparent 0 12px, #f52601 12px 56px, transparent 56px 68px, #ffffff 68px 112px, transparent 112px 124px, #f52601 124px 168px, transparent 168px 180px, #ffffff 180px 224px, transparent 224px);
 }
 
 @layer base {
@@ -198,4 +198,170 @@ textarea {
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Light Mode Overrides (Strictly Black, White, and Red) */
+.light {
+  color-scheme: light;
+}
+
+.light body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(245, 38, 1, .06), transparent 30rem),
+    radial-gradient(circle at 85% 14%, rgba(245, 38, 1, .05), transparent 28rem),
+    linear-gradient(135deg, #ffffff, #fafafa) !important;
+  color: #000000 !important;
+}
+
+.light .grid-noise {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, .03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 38, 1, .03) 1px, transparent 1px) !important;
+  mix-blend-mode: multiply !important;
+  opacity: 0.4 !important;
+}
+
+.light main {
+  background-color: #ffffff !important;
+  color: #111111 !important;
+}
+
+.light aside {
+  background-color: #fafafa !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light aside nav button {
+  color: #4b5563 !important;
+}
+
+.light aside nav button.border-white\/10 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #000000 !important;
+}
+
+.light aside .rounded-2xl {
+  background-color: #f3f4f6 !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.light aside .rounded-2xl p {
+  color: #111111 !important;
+}
+
+.light .bg-zinc-950\/60,
+.light .bg-zinc-950\/40,
+.light .bg-zinc-950\/98 {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #111111 !important;
+}
+
+.light h2, .light h3, .light h4, .light p, .light span:not(.text-boxOrange):not(.text-boxGreen):not(.text-boxRed) {
+  color: #111111 !important;
+}
+
+.light .text-white {
+  color: #000000 !important;
+}
+
+.light .text-zinc-300 {
+  color: #374151 !important;
+}
+
+.light .text-zinc-400 {
+  color: #4b5563 !important;
+}
+
+.light .text-zinc-500 {
+  color: #6b7280 !important;
+}
+
+.light .text-zinc-600 {
+  color: #4b5563 !important;
+}
+
+.light .text-zinc-700 {
+  color: #374151 !important;
+}
+
+.light .border-white\/5,
+.light .border-white\/8,
+.light .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light .bg-white\/5,
+.light .bg-white\/4,
+.light .bg-white\/8 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  color: #111111 !important;
+}
+
+.light button:not(.bg-boxOrange):not(.bg-\[\#F52601\]):not(.bg-boxGreen):not(.bg-boxRed) {
+  color: #1f2937;
+}
+
+.light button:hover:not(.bg-boxOrange):not(.bg-\[\#F52601\]):not(.bg-boxGreen):not(.bg-boxRed) {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  color: #000000 !important;
+}
+
+.light input,
+.light select {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #000000 !important;
+}
+
+.light .dialog-content,
+.light [role="dialog"],
+.light [data-radix-pointer-down-outside] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.light [role="dialog"] h2,
+.light [role="dialog"] h3,
+.light [role="dialog"] label {
+  color: #111111 !important;
+}
+
+.light article {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+.light .bg-black\/40,
+.light .bg-black\/30 {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.light select option {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.light .bg-acid\/5, .light .border-acid\/20 {
+  background-color: rgba(245, 38, 1, 0.05) !important;
+  border-color: rgba(245, 38, 1, 0.15) !important;
+}
+
+.light .bg-neonPurple\/5, .light .border-neonPurple\/20 {
+  background-color: rgba(245, 38, 1, 0.05) !important;
+  border-color: rgba(245, 38, 1, 0.15) !important;
+}
+
+.light .bg-yellow-400\/5, .light .border-yellow-400\/20 {
+  background-color: rgba(245, 38, 1, 0.05) !important;
+  border-color: rgba(245, 38, 1, 0.15) !important;
+}
+
+.light .bg-neonBlue\/5, .light .border-neonBlue\/20 {
+  background-color: rgba(245, 38, 1, 0.05) !important;
+  border-color: rgba(245, 38, 1, 0.15) !important;
 }

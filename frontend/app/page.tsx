@@ -50,6 +50,14 @@ export default function Home() {
   }
 
   useEffect(() => {
+    // Sync theme on mount
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    if (savedTheme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+
     const id = localStorage.getItem("lockin_user_id");
     if (!id) {
       setLoading(false);

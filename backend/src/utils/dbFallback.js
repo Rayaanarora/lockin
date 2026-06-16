@@ -26,6 +26,7 @@ function isDbUnavailable(error) {
     message.includes("Environment variable not found") ||
     message.includes("DATABASE_URL") ||
     message.includes("Can't reach database server") ||
+    message.includes("Authentication failed") ||
     message.includes("ECONNREFUSED") ||
     message.includes("Initialization error")
   ) {

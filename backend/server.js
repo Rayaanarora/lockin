@@ -9,6 +9,7 @@ const { Server } = require("socket.io");
 const userRoutes = require("./src/routes/userRoutes");
 const missionRoutes = require("./src/routes/missionRoutes");
 const messageRoutes = require("./src/routes/messageRoutes");
+const recapRoutes = require("./src/routes/recapRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
 
 const app = express();
@@ -45,6 +46,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/users", userRoutes);
 app.use("/api/missions", missionRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/recaps", recapRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

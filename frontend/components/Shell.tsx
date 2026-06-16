@@ -51,7 +51,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="pointer-events-none absolute right-1/4 bottom-10 h-80 w-80 rounded-full bg-boxGreen/8 blur-[100px]"
+          className="pointer-events-none absolute right-1/4 bottom-10 h-80 w-80 rounded-full bg-boxRed/4 blur-[100px]"
           animate={{
             opacity: [0.2, 0.4, 0.2]
           }}
@@ -82,7 +82,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
                 {[
                   { key: "feed", label: "Missions Feed", icon: Flame, color: "text-boxRed" },
                   { key: "active", label: "Active Queue", icon: Activity, color: "text-boxOrange" },
-                  { key: "profile", label: "Execution Center", icon: UserIcon, color: "text-boxGreen" }
+                  { key: "profile", label: "Execution Center", icon: UserIcon, color: "text-boxRed" }
                 ].map((item) => {
                   const isActive = tab === item.key;
                   const Icon = item.icon;

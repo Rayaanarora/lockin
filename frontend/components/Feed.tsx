@@ -284,9 +284,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
               {/* Swipe Overlays */}
               <motion.div
                 style={{ opacity: opacityAccept }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-boxGreen/15 backdrop-blur-[1px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/5 backdrop-blur-[1px]"
               >
-                <div className="rounded-xl border border-boxGreen bg-black/85 px-4 py-2 text-xs md:text-sm font-black tracking-widest text-boxGreen uppercase shadow-[0_0_20px_rgba(24,189,0,0.3)]">
+                <div className="rounded-xl border border-white/20 bg-black/85 px-4 py-2 text-xs md:text-sm font-black tracking-widest text-white uppercase shadow-[0_0_20px_rgba(255,255,255,0.15)]">
                   Lock In
                 </div>
               </motion.div>
@@ -356,8 +356,8 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
               animate={{ opacity: 1, scale: 1 }}
               className="flex h-[420px] md:h-[480px] w-full flex-col items-center justify-center rounded-3xl border border-white/5 bg-zinc-950/20 p-6 md:p-8 text-center backdrop-blur-md"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-boxGreen/20 bg-boxGreen/5 shadow-[0_0_20px_rgba(24,189,0,0.1)] mb-4">
-                <Flame className="h-6 w-6 text-boxGreen" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-boxRed/20 bg-boxRed/5 shadow-[0_0_20px_rgba(245,38,1,0.1)] mb-4">
+                <Flame className="h-6 w-6 text-boxRed" />
               </div>
               <h3 className="text-sm md:text-base font-black text-white uppercase tracking-wider">Feed Cleared</h3>
               <p className="mt-2 text-xs md:text-sm font-semibold text-zinc-500 leading-relaxed max-w-[240px] mx-auto">
@@ -492,7 +492,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-boxGreen/40 bg-boxGreen text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(24,189,0,0.15)] hover:bg-boxGreen/90 transition active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(245,38,1,0.15)] hover:bg-boxRed/90 transition active:scale-[0.98] disabled:opacity-50"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               {submitting ? "Launching..." : "Launch runway"}

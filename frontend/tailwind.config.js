@@ -28,7 +28,7 @@ module.exports = {
         neonBlue: "#40C9FF",
         neonPurple: "#A855F7",
         boxRed: "#F52601",
-        boxOrange: "#F78005",
+        boxOrange: "#F52601",
         boxGreen: "#18BD00",
         boxTrack: "#0A0A0A",
         boxPit: "#151515",
