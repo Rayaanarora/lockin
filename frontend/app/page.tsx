@@ -18,15 +18,29 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
 
 async function api(path: string, options: RequestInit = {}) {
-  const response = await fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const response = await fetch(`${API}${path}`, {
+      headers: { 
+        "Content-Type": "application/json", 
+        "bypass-tunnel-reminder": "true",
+        ...(options.headers || {}) 
+      },
+      signal: controller.signal,
+      ...options
+    });
+    clearTimeout(timeoutId);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Request failed");
+    }
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
   }
-  return data;
 }
 
 export default function Home() {

@@ -368,6 +368,18 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
         </AnimatePresence>
       </div>
 
+      {/* Swipe guides */}
+      {currentMission && (
+        <div className="flex justify-between items-center w-full px-2 mt-4 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 select-none pointer-events-none">
+          <div className="flex items-center gap-1 opacity-70">
+            <span>← Swipe Left to Pass</span>
+          </div>
+          <div className="flex items-center gap-1 text-boxRed/85">
+            <span>Swipe Right to Lock In →</span>
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="mt-4 text-center text-xs md:text-sm font-bold text-boxRed animate-pulse">
           {error}

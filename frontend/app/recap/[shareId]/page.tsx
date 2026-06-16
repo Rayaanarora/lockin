@@ -21,7 +21,9 @@ export default function PublicShareRecap() {
   useEffect(() => {
     if (!shareId) return;
 
-    fetch(`${API}/recaps/share/${shareId}`)
+    fetch(`${API}/recaps/share/${shareId}`, {
+      headers: { "bypass-tunnel-reminder": "true" }
+    })
       .then((res) => {
         if (!res.ok) {
           throw new Error("Recap card not found or has expired.");
