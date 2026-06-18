@@ -835,9 +835,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                   )}
 
                   {/* Confirmed / Past Runway Footer: Chat Access */}
-                  {!isRequest && (
+                  {!isRequest && (!isSolo && mission.status !== "Pending" || mission.status === "Completed") && (
                     <div className="mt-3.5 flex gap-2">
-                      {!isSolo && (
+                      {!isSolo && mission.status !== "Pending" && (
                         <button
                           onClick={() => setChatMission(mission)}
                           className="flex-1 flex h-9 md:h-11 items-center justify-center gap-2.5 rounded-xl border border-luxuryMaroon/20 bg-luxuryMaroon/5 text-xs md:text-sm font-bold text-cotton/80 hover:text-cotton hover:bg-luxuryMaroon/15 transition"

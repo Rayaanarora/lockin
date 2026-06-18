@@ -266,6 +266,19 @@ async function getActiveMissions(req, res) {
       }
     });
 
+    // 3. Fetch all group missions created by this user to catch those with 0 active/pending participations
+    const createdMissions = await prisma.mission.findMany({
+      where: {
+        createdBy: numericUserId,
+        missionType: "group"
+      },
+      include: {
+        category: true,
+        creator: true,
+        participations: true
+      }
+    });
+
     const acceptedRows = accepted
       .filter((p) => p.status !== "Rejected")
       .map((p) => {
@@ -323,7 +336,39 @@ async function getActiveMissions(req, res) {
       })
       .filter(Boolean);
 
-    const rows = [...acceptedRows, ...hostedRows];
+    const pendingRows = createdMissions
+      .filter((m) => {
+        // Only include if there is NO participation with status: Accepted, Executing, Completed, Missed, Requested
+        const hasActiveOrPending = m.participations.some((p) =>
+          ["Accepted", "Executing", "Completed", "Missed", "Requested"].includes(p.status)
+        );
+        return !hasActiveOrPending;
+      })
+      .map((m) => ({
+        id: m.id,
+        creator_id: m.createdBy,
+        title: m.title,
+        description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
+        location: m.location,
+        datetime: m.datetime ? m.datetime.toISOString() : null,
+        status: "Pending",
+        showed_up: null,
+        creator_name: m.creator?.name || "Me",
+        role: "creator",
+        participant_name: "Waiting for requests...",
+        participant_id: null,
+        participant_department: "",
+        participant_reputation: 0,
+        verification_code: m.verificationCode,
+        focus_duration: m.focusDuration,
+        work_started_at: null,
+        work_duration: null,
+        creator_vibe_rating: null,
+        participant_vibe_rating: null,
+        mission_type: m.missionType
+      }));
+
+    const rows = [...acceptedRows, ...hostedRows, ...pendingRows];
 
     // Sort: showed_up = null first, then datetime
     rows.sort((a, b) => {
