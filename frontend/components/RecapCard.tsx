@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Share2, Check } from "lucide-react";
+import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote } from "lucide-react";
 import { toPng } from "html-to-image";
 
 interface RecapProps {
@@ -24,6 +24,8 @@ interface RecapProps {
     missionsCompleted?: number;
     longestSession?: number;
     generatedAt?: string;
+    reflectionText?: string;
+    lessonsLearned?: string;
   };
 }
 
@@ -35,12 +37,15 @@ export default function LockinRecapCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
 
   const {
     recapType = "session",
     sessionDuration = 0,
     tasksCompleted = 0,
     generatedAt,
+    reflectionText,
+    lessonsLearned,
   } = recapData;
 
   const streakVal = recapData.streak !== undefined ? recapData.streak : (recapData.currentStreak !== undefined ? recapData.currentStreak : 0);
@@ -87,11 +92,102 @@ export default function LockinRecapCard({
       year: "numeric",
     });
 
+  // Calculate tier details
+  let tier = "bronze";
+  let tierName = "Bronze";
+  let tierColor = "#A8705C"; // Bronze/Copper
+  let cardBg = "radial-gradient(circle at 50% 30%, #291a14 0%, #0d0806 100%)";
+  let accentColor = "text-[#A8705C]";
+  let borderStyle = "border-[#A8705C]/35";
+  let glowColor = "rgba(168, 112, 92, 0.12)";
+  let badgeBg = "bg-[#A8705C]/10 border-[#A8705C]/30 text-[#E6C3B3]";
+
+  if (recapType === "session") {
+    if (sessionDuration >= 120) {
+      tier = "legendary";
+      tierName = "Legendary Red";
+      tierColor = "#DE211E"; // Red
+      cardBg = "radial-gradient(circle at 50% 30%, #300c0a 0%, #0d0302 100%)";
+      accentColor = "text-[#DE211E]";
+      borderStyle = "border-[#DE211E]/40";
+      glowColor = "rgba(222, 33, 30, 0.25)";
+      badgeBg = "bg-[#DE211E]/10 border-[#DE211E]/30 text-[#EDEBDE]";
+    } else if (sessionDuration >= 60) {
+      tier = "gold";
+      tierName = "Gold";
+      tierColor = "#C5A880"; // Gold
+      cardBg = "radial-gradient(circle at 50% 30%, #261e13 0%, #0d0a06 100%)";
+      accentColor = "text-[#C5A880]";
+      borderStyle = "border-[#C5A880]/35";
+      glowColor = "rgba(197, 168, 128, 0.22)";
+      badgeBg = "bg-[#C5A880]/15 border-[#C5A880]/30 text-[#F3E5AB]";
+    } else if (sessionDuration >= 30) {
+      tier = "silver";
+      tierName = "Silver";
+      tierColor = "#A8B2C1"; // Silver
+      cardBg = "radial-gradient(circle at 50% 30%, #202226 0%, #0b0c0d 100%)";
+      accentColor = "text-[#A8B2C1]";
+      borderStyle = "border-[#A8B2C1]/30";
+      glowColor = "rgba(168, 178, 193, 0.15)";
+      badgeBg = "bg-[#A8B2C1]/10 border-[#A8B2C1]/25 text-[#F5F5F5]";
+    }
+  } else {
+    // Wrapped types logic
+    if (recapType === "weekly") {
+      const focusHrs = sessionDuration / 60;
+      if (focusHrs >= 10) {
+        tier = "gold";
+        tierName = "Gold";
+        tierColor = "#C5A880";
+        cardBg = "radial-gradient(circle at 50% 30%, #261e13 0%, #0d0a06 100%)";
+        accentColor = "text-[#C5A880]";
+        borderStyle = "border-[#C5A880]/35";
+        glowColor = "rgba(197, 168, 128, 0.22)";
+        badgeBg = "bg-[#C5A880]/15 border-[#C5A880]/30 text-[#F3E5AB]";
+      } else {
+        tier = "silver";
+        tierName = "Silver";
+        tierColor = "#A8B2C1";
+        cardBg = "radial-gradient(circle at 50% 30%, #202226 0%, #0b0c0d 100%)";
+        accentColor = "text-[#A8B2C1]";
+        borderStyle = "border-[#A8B2C1]/30";
+        glowColor = "rgba(168, 178, 193, 0.15)";
+        badgeBg = "bg-[#A8B2C1]/10 border-[#A8B2C1]/25 text-[#F5F5F5]";
+      }
+    } else if (recapType === "monthly") {
+      tier = "gold";
+      tierName = "Gold";
+      tierColor = "#C5A880";
+      cardBg = "radial-gradient(circle at 50% 30%, #261e13 0%, #0d0a06 100%)";
+      accentColor = "text-[#C5A880]";
+      borderStyle = "border-[#C5A880]/35";
+      glowColor = "rgba(197, 168, 128, 0.22)";
+      badgeBg = "bg-[#C5A880]/15 border-[#C5A880]/30 text-[#F3E5AB]";
+    } else {
+      // yearly or team
+      tier = "legendary";
+      tierName = "Legendary Red";
+      tierColor = "#DE211E";
+      cardBg = "radial-gradient(circle at 50% 30%, #300c0a 0%, #0d0302 100%)";
+      accentColor = "text-[#DE211E]";
+      borderStyle = "border-[#DE211E]/40";
+      glowColor = "rgba(222, 33, 30, 0.25)";
+      badgeBg = "bg-[#DE211E]/10 border-[#DE211E]/30 text-[#EDEBDE]";
+    }
+  }
+
+  // Handle export (we force capturing the Front card flat)
   const handleSave = useCallback(async () => {
     if (!cardRef.current || saving) return;
 
     try {
       setSaving(true);
+      // Temporarily ensure card is facing front for image export
+      const wasFlipped = isFlipped;
+      if (wasFlipped) {
+        setIsFlipped(false);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
 
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: 2.2,
@@ -102,13 +198,18 @@ export default function LockinRecapCard({
       link.download = `lockin-recap-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
+
+      // Restore flip state
+      if (wasFlipped) {
+        setIsFlipped(true);
+      }
     } catch (err: any) {
       console.error("Failed to export card image:", err);
       alert(err.message || "Failed to export PNG image of the recap. Please try again.");
     } finally {
       setSaving(false);
     }
-  }, [saving]);
+  }, [saving, isFlipped]);
 
   const handleShare = useCallback(async () => {
     if (!recapData.shareId) {
@@ -145,176 +246,327 @@ export default function LockinRecapCard({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center p-4 overflow-y-auto"
+        className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-4 overflow-y-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
+          initial={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          exit={{ scale: 0.92, opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[340px] sm:max-w-[420px] my-auto"
+          className="w-full max-w-[340px] sm:max-w-[380px] my-auto flex flex-col items-center"
         >
-          {/* Card Frame */}
-          <div
-            ref={cardRef}
-            className="p-8 sm:p-10 relative overflow-hidden rounded-[28px] border border-white/10 text-left select-none shadow-[0_24px_50px_rgba(0,0,0,0.9)]"
+          {/* Card perspective container */}
+          <div 
+            onClick={() => setIsFlipped(!isFlipped)}
+            className="cursor-pointer relative w-full select-none animate-fade-in"
             style={{
-              background: "#1B1716",
-              width: "100%",
+              perspective: "1200px",
               aspectRatio: "9/16",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
+              height: "auto",
             }}
           >
-            {/* Cyber red accent stripe on the left edge */}
-            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#DE211E]" />
+            {/* Rotating Flipper element */}
+            <div
+              style={{
+                transformStyle: "preserve-3d",
+                transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                position: "absolute",
+                width: "100%",
+                height: "100%",
+              }}
+            >
+              {/* ───────────────── FRONT SIDE ───────────────── */}
+              <div
+                ref={cardRef}
+                className={`p-7 sm:p-9 rounded-[28px] border text-left flex flex-col justify-between shadow-2xl relative overflow-hidden ${borderStyle}`}
+                style={{
+                  background: cardBg,
+                  position: "absolute",
+                  inset: 0,
+                  backfaceVisibility: "hidden",
+                  transform: "rotateY(0deg)",
+                }}
+              >
+                {/* Accent stripe on the left edge */}
+                <div 
+                  className="absolute left-0 top-0 bottom-0 w-[3px]" 
+                  style={{ backgroundColor: tierColor }}
+                />
 
-            {/* Ambient Background Grid Pattern */}
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-                 style={{ 
-                   backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)", 
-                   backgroundSize: "20px 20px", 
-                   backgroundPosition: "0 0, 10px 10px" 
-                 }} 
-            />
+                {/* Ambient Background Grid Pattern */}
+                <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
+                     style={{ 
+                       backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)", 
+                       backgroundSize: "20px 20px", 
+                       backgroundPosition: "0 0, 10px 10px" 
+                     }} 
+                />
 
-            {/* Background Glow */}
-            <div className="absolute -right-20 -top-20 w-48 h-48 rounded-full bg-[#AD1614]/15 blur-[60px] pointer-events-none" />
-            <div className="absolute -left-20 -bottom-20 w-48 h-48 rounded-full bg-[#EDEBDE]/4 blur-[60px] pointer-events-none" />
+                {/* Ambient glow orbs */}
+                <div 
+                  className="absolute -right-24 -top-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none" 
+                  style={{ backgroundColor: glowColor }}
+                />
+                <div 
+                  className="absolute -left-24 -bottom-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none" 
+                  style={{ backgroundColor: glowColor }}
+                />
 
-            {/* Runway graphic lines */}
-            <svg className="absolute right-0 bottom-0 w-full h-[55%] opacity-10 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path d="M-10,100 L110,40" stroke="#DE211E" strokeWidth="0.75" strokeDasharray="3 3" fill="none" />
-              <path d="M-10,110 L110,50" stroke="#DE211E" strokeWidth="1.25" fill="none" />
-              <path d="M-10,90 L110,30" stroke="#EDEBDE" strokeWidth="0.5" fill="none" />
-              {/* Radar/sonar arcs */}
-              <circle cx="90" cy="90" r="30" stroke="#DE211E" strokeWidth="0.5" fill="none" />
-              <circle cx="90" cy="90" r="60" stroke="#AD1614" strokeWidth="0.5" fill="none" />
-              <circle cx="90" cy="90" r="90" stroke="#EDEBDE" strokeWidth="0.35" fill="none" strokeDasharray="2 2" />
-            </svg>
+                {/* Instrument lines */}
+                <svg className="absolute right-0 bottom-0 w-full h-[55%] opacity-10 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <path d="M-10,100 L110,40" stroke={tierColor} strokeWidth="0.75" strokeDasharray="3 3" fill="none" />
+                  <path d="M-10,110 L110,50" stroke={tierColor} strokeWidth="1.25" fill="none" />
+                  <path d="M-10,90 L110,30" stroke="#EDEBDE" strokeWidth="0.5" fill="none" />
+                  <circle cx="90" cy="90" r="30" stroke={tierColor} strokeWidth="0.5" fill="none" />
+                  <circle cx="90" cy="90" r="60" stroke={tierColor} strokeWidth="0.5" fill="none" />
+                </svg>
 
-            {/* Top Row: Brand & Badge */}
-            <div className="flex justify-between items-start z-10">
-              <div className="flex items-center gap-2">
-                <div className="flex h-5 w-5 items-center justify-center rounded bg-[#DE211E]/10 border border-[#DE211E]/25">
-                  <img src="/logo.png" alt="Logo" className="h-3.5 w-3.5 object-contain" />
-                </div>
-                <span className="text-[11px] sm:text-[13px] font-black tracking-[0.25em] text-[#EDEBDE]">LOCKIN</span>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-[#DE211E] font-black text-[9px] sm:text-[10.5px] uppercase tracking-[0.2em] leading-none">
-                  {statusText}
-                </span>
-                <span className="text-[8px] sm:text-[9.5px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{date}</span>
-              </div>
-            </div>
-
-            {/* Middle Row: Hero Stats */}
-            <div className="space-y-1.5 z-10">
-              <div className="flex items-baseline gap-1">
-                {hours > 0 ? (
-                  <>
-                    <span className="text-7xl sm:text-8xl font-black tracking-tight text-white leading-none">
-                      {hours}
+                {/* Top Row: Brand & Badge */}
+                <div className="flex justify-between items-start z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-5 w-5 items-center justify-center rounded bg-black/40 border border-white/10 p-0.5">
+                      <img src="/logo.png" alt="Logo" className="h-3.5 w-3.5 object-contain" />
+                    </div>
+                    <span className="text-[10px] sm:text-[12px] font-black tracking-[0.25em] text-[#EDEBDE]">LOCKIN</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span 
+                      className="font-black text-[9px] sm:text-[10px] uppercase tracking-[0.2em] leading-none"
+                      style={{ color: tierColor }}
+                    >
+                      {statusText}
                     </span>
-                    <span className="text-3xl sm:text-4xl font-black text-white leading-none mr-2">h</span>
-                    {mins > 0 && (
+                    <span className="text-[8px] sm:text-[9px] font-black tracking-wider text-zinc-500 uppercase">{date}</span>
+                  </div>
+                </div>
+
+                {/* Middle Row: Hero Duration Stats */}
+                <div className="space-y-1 z-10">
+                  <div className="flex items-baseline gap-0.5">
+                    {hours > 0 ? (
                       <>
-                        <span className="text-7xl sm:text-8xl font-black tracking-tight text-white leading-none">
+                        <span className="text-6xl sm:text-7xl font-black tracking-tighter text-white leading-none">
+                          {hours}
+                        </span>
+                        <span className="text-2xl sm:text-3xl font-black text-white leading-none mr-2">h</span>
+                        {mins > 0 && (
+                          <>
+                            <span className="text-6xl sm:text-7xl font-black tracking-tighter text-white leading-none">
+                              {mins}
+                            </span>
+                            <span className="text-2xl sm:text-3xl font-black text-white leading-none">m</span>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-6xl sm:text-7xl font-black tracking-tighter text-white leading-none">
                           {mins}
                         </span>
-                        <span className="text-3xl sm:text-4xl font-black text-white leading-none">m</span>
+                        <span className="text-2xl sm:text-3xl font-black text-white leading-none">m</span>
                       </>
                     )}
-                  </>
-                ) : (
-                  <>
-                    <span className="text-7xl sm:text-8xl font-black tracking-tight text-white leading-none">
-                      {mins}
-                    </span>
-                    <span className="text-3xl sm:text-4xl font-black text-white leading-none">m</span>
-                  </>
-                )}
-              </div>
-              <div className="text-[10px] sm:text-[11.5px] font-black tracking-[0.2em] text-[#DE211E] uppercase">
-                TOTAL EXECUTION TIME
-              </div>
-              <div className="text-[9.5px] sm:text-[11px] font-bold text-zinc-500 uppercase tracking-widest line-clamp-1">
-                {isPeriod ? "YOUR WEEK IN REVIEW" : subtitleText}
-              </div>
-            </div>
-
-            {/* Bottom Row: Stats Grid with instrument lines */}
-            <div className="z-10">
-              <div className="grid grid-cols-2 border-t border-white/10">
-                {/* Cell 1: Top Left */}
-                <div className="border-r border-b border-white/10 py-4 sm:py-5.5 pr-2 text-left">
-                  <div className="text-[8px] sm:text-[9.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">TASKS COMPLETED</div>
-                  <div className="text-[14px] sm:text-[16px] font-black text-white mt-1 leading-tight uppercase">{tasksCompleted} Done</div>
-                </div>
-
-                {/* Cell 2: Top Right */}
-                <div className="border-b border-white/10 py-4 sm:py-5.5 pl-4 sm:pl-6 text-left">
-                  <div className="text-[8px] sm:text-[9.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">
-                    {isPeriod ? "MISSIONS RUN" : "CURRENT STREAK"}
                   </div>
-                  <div className="text-[14px] sm:text-[16px] font-black text-white mt-1 leading-tight uppercase">
-                    {isPeriod ? `${recapData.missionsCompleted ?? 0} Completed` : `${streakVal} Days`}
+                  <div 
+                    className="text-[9px] sm:text-[10px] font-black tracking-[0.2em] uppercase mt-1"
+                    style={{ color: tierColor }}
+                  >
+                    {tierName} TIER FOCUS RUNWAY
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] font-bold text-zinc-500 uppercase tracking-widest line-clamp-1">
+                    {isPeriod ? "YOUR PERIOD SUMMARY" : subtitleText}
                   </div>
                 </div>
 
-                {/* Cell 3: Bottom Left */}
-                <div className="border-r border-white/10 py-4 sm:py-5.5 pr-2 text-left">
-                  <div className="text-[8px] sm:text-[9.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">TOP CATEGORY</div>
-                  <div className="text-[14px] sm:text-[16px] font-black text-white mt-1 leading-tight uppercase truncate">{categoryVal}</div>
+                {/* Bottom Row: Stats Grid */}
+                <div className="z-10">
+                  <div className="grid grid-cols-2 border-t border-white/10">
+                    <div className="border-r border-b border-white/10 py-3.5 sm:py-4.5 pr-2">
+                      <div className="text-[7.5px] sm:text-[8.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">TASKS COMPLETED</div>
+                      <div className="text-[13px] sm:text-[15px] font-black text-white mt-1 leading-none uppercase">{tasksCompleted} Done</div>
+                    </div>
+                    <div className="border-b border-white/10 py-3.5 sm:py-4.5 pl-4 sm:pl-5">
+                      <div className="text-[7.5px] sm:text-[8.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">
+                        {isPeriod ? "MISSIONS RUN" : "CURRENT STREAK"}
+                      </div>
+                      <div className="text-[13px] sm:text-[15px] font-black text-white mt-1 leading-none uppercase">
+                        {isPeriod ? `${recapData.missionsCompleted ?? 0} Completed` : `${streakVal} Days`}
+                      </div>
+                    </div>
+                    <div className="border-r border-white/10 py-3.5 sm:py-4.5 pr-2">
+                      <div className="text-[7.5px] sm:text-[8.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">TOP CATEGORY</div>
+                      <div className="text-[13px] sm:text-[15px] font-black text-white mt-1 leading-none uppercase truncate">{categoryVal}</div>
+                    </div>
+                    <div className="py-3.5 sm:py-4.5 pl-4 sm:pl-5">
+                      <div className="text-[7.5px] sm:text-[8.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">
+                        {isPeriod ? "LONGEST LOCK" : "MISSION RANK"}
+                      </div>
+                      <div className="text-[13px] sm:text-[15px] font-black text-white mt-1 leading-none uppercase">
+                        {isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Cell 4: Bottom Right */}
-                <div className="py-4 sm:py-5.5 pl-4 sm:pl-6 text-left">
-                  <div className="text-[8px] sm:text-[9.5px] font-bold tracking-[0.15em] text-zinc-500 uppercase">
-                    {isPeriod ? "LONGEST LOCK" : "MISSION RANK"}
+                {/* Footer Branding */}
+                <div className="border-t border-white/10 pt-3 sm:pt-4 flex justify-between text-[7px] sm:text-[8px] font-black text-zinc-500 tracking-[0.2em] uppercase z-10">
+                  <span>{tierName} Runway Card</span>
+                  <span className="animate-pulse">Click card to Flip</span>
+                </div>
+              </div>
+
+              {/* ───────────────── BACK SIDE ───────────────── */}
+              <div
+                className={`p-7 sm:p-9 rounded-[28px] border text-left flex flex-col justify-between shadow-2xl relative overflow-hidden ${borderStyle}`}
+                style={{
+                  background: cardBg,
+                  position: "absolute",
+                  inset: 0,
+                  backfaceVisibility: "hidden",
+                  transform: "rotateY(180deg)",
+                }}
+              >
+                {/* Ambient glow orbs */}
+                <div 
+                  className="absolute -right-24 -bottom-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none" 
+                  style={{ backgroundColor: glowColor }}
+                />
+                
+                {/* Circuit Grid pattern */}
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+                     style={{ 
+                       backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)", 
+                       backgroundSize: "24px 24px", 
+                       backgroundPosition: "0 0, 12px 12px" 
+                     }} 
+                />
+
+                {/* Accent stripe on the right edge */}
+                <div 
+                  className="absolute right-0 top-0 bottom-0 w-[3px]" 
+                  style={{ backgroundColor: tierColor }}
+                />
+
+                {/* Top Row: Brand & Tier Badge */}
+                <div className="flex justify-between items-start z-10">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] sm:text-[12px] font-black tracking-[0.25em] text-[#EDEBDE]">COORDINATES</span>
                   </div>
-                  <div className="text-[14px] sm:text-[16px] font-black text-white mt-1 leading-tight uppercase">
-                    {isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`}
+                  <div className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider border" style={{ borderColor: `${tierColor}50`, color: tierColor }}>
+                    {tierName} TIER
+                  </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 my-6 flex flex-col justify-center space-y-4.5 z-10">
+                  {reflectionText || lessonsLearned ? (
+                    // Show reflection if present
+                    <div className="space-y-3.5">
+                      {reflectionText && (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-zinc-500">
+                            <Quote className="h-3.5 w-3.5 shrink-0" style={{ color: tierColor }} />
+                            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Session Reflection</span>
+                          </div>
+                          <div className="rounded-xl border border-white/5 bg-black/40 p-3 max-h-[110px] overflow-y-auto scrollbar-none">
+                            <p className="text-[10.5px] sm:text-[12px] font-semibold text-cotton/90 italic leading-relaxed">
+                              "{reflectionText}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {lessonsLearned && (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-zinc-500">
+                            <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: tierColor }} />
+                            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Lessons Logged</span>
+                          </div>
+                          <div className="rounded-xl border border-white/5 bg-black/40 p-3 max-h-[90px] overflow-y-auto scrollbar-none">
+                            <p className="text-[10px] sm:text-[11px] font-medium text-zinc-400 leading-relaxed">
+                              {lessonsLearned}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Holographic logo back if no reflection
+                    <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                      <div 
+                        className="p-5.5 rounded-3xl border border-white/10 bg-black/30 relative overflow-hidden group shadow-inner"
+                        style={{ boxShadow: `inset 0 0 20px ${glowColor}` }}
+                      >
+                        <Flame 
+                          className="h-14 w-14 animate-pulse" 
+                          style={{ 
+                            color: tierColor,
+                            filter: `drop-shadow(0 0 16px ${tierColor}70)` 
+                          }} 
+                        />
+                      </div>
+                      <div className="text-center space-y-1">
+                        <p className="text-[11px] sm:text-[12px] font-black tracking-[0.15em] text-white uppercase">
+                          MOMENTUM CONFIRMED
+                        </p>
+                        <p className="text-[8.5px] sm:text-[9.5px] font-semibold text-zinc-500 uppercase tracking-widest max-w-[200px] leading-relaxed">
+                          Verify coordinates on the LOCKIN discovery dashboard.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Row stats summary / verification details */}
+                <div className="z-10 space-y-3">
+                  <div className="rounded-xl bg-black/30 border border-white/5 p-3 flex justify-between items-center text-left">
+                    <div>
+                      <span className="block text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-zinc-500 leading-none">STREAK LOG</span>
+                      <span className="text-[12px] sm:text-[13.5px] font-black text-white mt-1 leading-none inline-block uppercase">
+                        {streakVal} Days
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="block text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-zinc-500 leading-none">AURA SCORE</span>
+                      <span className="text-[12px] sm:text-[13.5px] font-black text-white mt-1 leading-none inline-block uppercase" style={{ color: tierColor }}>
+                        +{isPeriod ? (recapData.missionsCompleted ?? 0) * 15 : 10} AURA
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Footer Back */}
+                  <div className="border-t border-white/10 pt-3 flex justify-between text-[7px] sm:text-[8px] font-black text-zinc-500 tracking-with-gap uppercase">
+                    <span>SECURITY HASH: #{recapData.shareId ? recapData.shareId.slice(0, 8) : "LOCKIN"}</span>
+                    <span>Tap to flip</span>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Footer Branding */}
-            <div className="border-t border-white/10 pt-3 sm:pt-4.5 flex justify-between text-[7px] sm:text-[8.5px] font-black text-zinc-500 tracking-[0.25em] uppercase z-10">
-              <span>LOCKIN RUNWAY</span>
-              <span>SCREENSHOT TO SHARE</span>
             </div>
           </div>
 
-          {/* Action Row below the mockup card */}
-          <div className="flex gap-2 mt-4 justify-center">
+          {/* Action Row */}
+          <div className="flex gap-2 mt-4 justify-center w-full">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-[#DE211E] hover:bg-[#AD1614] text-white font-bold px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
+              className="flex-1 hover:brightness-95 text-black font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
+              style={{ backgroundColor: tierColor, color: tier === "gold" || tier === "silver" ? "#120F0D" : "#EDEBDE" }}
             >
               <Download size={13} />
-              {saving ? "Exporting..." : "Export"}
+              {saving ? "Exporting..." : "Export Card"}
             </button>
 
             <button
               onClick={handleShare}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center border transition ${
-                copied
-                  ? "bg-boxRed/10 border-boxRed text-boxRed"
-                  : "bg-zinc-950 border-white/8 text-zinc-400 hover:text-white hover:bg-zinc-900"
-              }`}
+              className="w-10 h-10 rounded-xl flex items-center justify-center border transition bg-zinc-950 border-white/8 text-zinc-400 hover:text-cotton hover:bg-zinc-900 shrink-0"
               title={copied ? "Copied!" : "Share Link"}
             >
-              {copied ? <Check size={14} /> : <Share2 size={14} />}
+              {copied ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
             </button>
           </div>
         </motion.div>
