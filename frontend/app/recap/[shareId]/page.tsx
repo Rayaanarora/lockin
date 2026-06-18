@@ -47,7 +47,7 @@ export default function PublicShareRecap() {
           <motion.div
             animate={{ scale: [1, 1.15, 1] }}
             transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-boxOrange bg-boxOrange/10"
+            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-luxuryGold bg-luxuryGold/10"
           >
             <img src="/logo.png" alt="LOCKIN" className="h-6 w-6 object-contain" />
           </motion.div>
@@ -85,22 +85,22 @@ export default function PublicShareRecap() {
   // Theme Configs
   const themeMap: { [key: string]: { border: string; glow: string; text: string; bg: string } } = {
     session: {
-      border: "border-boxRed/30",
-      glow: "from-boxRed/15 via-boxMaroon/5 to-transparent",
-      text: "text-boxRed",
-      bg: "bg-boxMaroon/10"
+      border: "border-cherryRed/30",
+      glow: "from-cherryRed/15 via-luxuryMaroon/5 to-transparent",
+      text: "text-cherryRed",
+      bg: "bg-luxuryMaroon/10"
     },
     weekly: {
-      border: "border-boxOrange/30",
-      glow: "from-boxOrange/15 via-boxMaroon/5 to-transparent",
-      text: "text-boxOrange",
-      bg: "bg-boxMaroon/10"
+      border: "border-luxuryGold/30",
+      glow: "from-luxuryGold/15 via-luxuryMaroon/5 to-transparent",
+      text: "text-luxuryGold",
+      bg: "bg-luxuryMaroon/10"
     },
     monthly: {
-      border: "border-boxMaroon/40",
-      glow: "from-boxMaroon/15 via-boxMaroon/5 to-transparent",
-      text: "text-boxMaroon",
-      bg: "bg-boxMaroon/20"
+      border: "border-luxuryMaroon/40",
+      glow: "from-luxuryMaroon/15 via-luxuryMaroon/5 to-transparent",
+      text: "text-luxuryMaroon",
+      bg: "bg-luxuryMaroon/20"
     },
     yearly: {
       border: "border-white/20",
@@ -109,10 +109,10 @@ export default function PublicShareRecap() {
       bg: "bg-white/5"
     },
     team: {
-      border: "border-boxRed/35",
-      glow: "from-boxRed/20 via-boxMaroon/5 to-transparent",
-      text: "text-boxRed",
-      bg: "bg-boxMaroon/15"
+      border: "border-cherryRed/35",
+      glow: "from-cherryRed/20 via-luxuryMaroon/5 to-transparent",
+      text: "text-cherryRed",
+      bg: "bg-luxuryMaroon/15"
     }
   };
 
@@ -120,11 +120,11 @@ export default function PublicShareRecap() {
   const isCollaborative = recap.participantCount && recap.participantCount > 1;
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden selection:bg-boxOrange selection:text-black">
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden selection:bg-luxuryGold selection:text-black">
       
       {/* Background radial overlays */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-boxOrange/10 to-transparent blur-[120px]" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-luxuryGold/10 to-transparent blur-[120px]" />
       </div>
 
       <div className="relative z-10 max-w-md w-full flex flex-col items-center space-y-6">
@@ -260,7 +260,7 @@ export default function PublicShareRecap() {
         <div className="w-full space-y-3">
           <button
             onClick={() => router.push("/")}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-boxOrange text-xs font-black uppercase tracking-widest text-white shadow-lg hover:bg-boxOrange/90 transition active:scale-[0.98]"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-luxuryGold text-xs font-black uppercase tracking-widest text-black shadow-lg shadow-[0_0_20px_rgba(197,168,128,0.25)] hover:bg-luxuryGold/95 transition active:scale-[0.98]"
           >
             Join LOCKIN Platform
             <ExternalLink className="h-4 w-4" />

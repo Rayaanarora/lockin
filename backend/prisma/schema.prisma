@@ -25,6 +25,10 @@ model User {
   participations   Participation[]
   messages         Message[]
   sessionRecaps    SessionRecap[]
+  dailyActivities  DailyActivity[]
+  following        Follow[]        @relation("Following")
+  followers        Follow[]        @relation("Followers")
+  feedItems        FeedItem[]
 
   @@map("users")
 }
@@ -51,21 +55,36 @@ model Mission {
   id               Int             @id @default(autoincrement()) @map("mission_id")
   title            String          @map("mission_title") @db.VarChar(100)
   description      String          @default("") @db.Text
-  datetime         DateTime        @map("mission_time")
+  datetime         DateTime?       @map("mission_time")
   location         String?         @db.VarChar(100)
   categoryId       Int?            @map("category_id")
   createdBy        Int?            @map("created_by")
   campusId         Int?            @map("campus_id")
   focusDuration    Int             @default(25) @map("focus_duration")
   verificationCode String?         @map("verification_code") @db.VarChar(10)
+  missionType      String          @default("group") @map("mission_type") @db.VarChar(20)
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   creator          User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
   campus           Campus?         @relation(fields: [campusId], references: [id], onDelete: SetNull)
   participations   Participation[]
   messages         Message[]
   sessionRecaps    SessionRecap[]
+  tasks            Task[]
 
   @@map("mission")
+}
+
+model Task {
+  id          Int       @id @default(autoincrement()) @map("task_id")
+  title       String    @db.VarChar(200)
+  completed   Boolean   @default(false)
+  position    Int       @default(0)
+  missionId   Int       @map("mission_id")
+  mission     Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("task")
 }
 
 model Skill {
@@ -122,6 +141,9 @@ model SessionRecap {
   achievements     Json?
   participantCount Int?     @map("participant_count")
   aiInsight        String?  @map("ai_insight")
+  reflectionText   String?  @map("reflection_text") @db.Text
+  lessonsLearned   String?  @map("lessons_learned") @db.Text
+  isPublic         Boolean  @default(true) @map("is_public")
   metadata         Json?
   generatedAt      DateTime @default(now()) @map("generated_at")
 
@@ -132,4 +154,45 @@ model SessionRecap {
   @@index([userId, categorySnapshot, generatedAt])
   @@index([shareId])
   @@map("session_recap")
+}
+
+model DailyActivity {
+  id                Int      @id @default(autoincrement()) @map("activity_id")
+  userId            Int      @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date              DateTime @db.Date
+  missionsCompleted Int      @default(0) @map("missions_completed")
+  focusMinutes      Int      @default(0) @map("focus_minutes")
+  tasksCompleted    Int      @default(0) @map("tasks_completed")
+  auraEarned        Int      @default(0) @map("aura_earned")
+
+  @@unique([userId, date])
+  @@map("daily_activity")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement()) @map("follow_id")
+  followerId  Int      @map("follower_id")
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId Int      @map("following_id")
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([followerId, followingId])
+  @@map("follow")
+}
+
+model FeedItem {
+  id          Int      @id @default(autoincrement()) @map("feed_item_id")
+  userId      Int      @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   @db.VarChar(30)
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  metadata    Json     @default("{}")
+  recapId     Int?     @map("recap_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("feed_item")
 }

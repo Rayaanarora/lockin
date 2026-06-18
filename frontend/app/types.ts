@@ -32,6 +32,7 @@ export interface Mission {
   verification_code?: string;
   category_name?: string;
   category_id?: number;
+  mission_type?: string;
 }
 
 export interface Message {

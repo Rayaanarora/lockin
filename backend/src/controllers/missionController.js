@@ -11,8 +11,10 @@ function assertUserId(userId, res) {
 }
 
 async function createMission(req, res) {
-  const { creator_id, title, description, location, datetime, categoryId, focusDuration } = req.body;
-  if (!creator_id || !title || !description || !location || !datetime) {
+  const { creator_id, title, description, location, datetime, categoryId, focusDuration, missionType } = req.body;
+  const isSolo = missionType === "solo";
+
+  if (!creator_id || !title || !description || (!isSolo && (!location || !datetime))) {
     return res.status(400).json({ error: "creator_id, title, description, location, and datetime are required." });
   }
 
@@ -20,10 +22,11 @@ async function createMission(req, res) {
     creator_id: Number(creator_id),
     title: title.trim(),
     description: description.trim(),
-    location: location.trim(),
-    datetime: new Date(datetime),
+    location: location ? location.trim() : "Solo",
+    datetime: datetime ? new Date(datetime) : null,
     categoryId: categoryId ? Number(categoryId) : 1,
-    focusDuration: focusDuration ? Number(focusDuration) : 25
+    focusDuration: focusDuration ? Number(focusDuration) : 25,
+    missionType: isSolo ? "solo" : "group"
   };
 
   try {
@@ -43,7 +46,8 @@ async function createMission(req, res) {
         createdBy: payload.creator_id,
         campusId: creatorUser ? creatorUser.campusId : null,
         focusDuration: payload.focusDuration,
-        verificationCode: verificationCode
+        verificationCode: verificationCode,
+        missionType: payload.missionType
       },
       include: {
         creator: {
@@ -52,17 +56,29 @@ async function createMission(req, res) {
       }
     });
 
+    if (payload.missionType === "solo") {
+      // Auto-create participation as Accepted for solo missions
+      await prisma.participation.create({
+        data: {
+          userId: payload.creator_id,
+          missionId: mission.id,
+          status: "Accepted"
+        }
+      });
+    }
+
     res.status(201).json({
       id: mission.id,
       creator_id: mission.createdBy,
       title: mission.title,
       description: mission.description,
       location: mission.location,
-      datetime: mission.datetime.toISOString(),
+      datetime: mission.datetime ? mission.datetime.toISOString() : null,
       creator_name: mission.creator?.name || "Unknown",
       creator_department: mission.creator?.department || "Creator",
       verification_code: mission.verificationCode,
-      focus_duration: mission.focusDuration
+      focus_duration: mission.focusDuration,
+      mission_type: mission.missionType
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -89,6 +105,7 @@ async function getMissionFeed(req, res) {
       createdBy: { not: numericUserId },
       datetime: { gte: twelveHoursAgo },
       campusId: activeUser ? activeUser.campusId : null,
+      missionType: { not: "solo" }, // Exclude solo missions from feed
       participations: {
         none: {
           userId: numericUserId
@@ -115,12 +132,13 @@ async function getMissionFeed(req, res) {
       title: m.title,
       description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
       location: m.location,
-      datetime: m.datetime.toISOString(),
+      datetime: m.datetime ? m.datetime.toISOString() : null,
       creator_name: m.creator?.name || "Unknown",
       creator_department: m.creator?.department || "Creator",
       category_name: m.category?.categoryName || "Coding",
       category_id: m.categoryId,
-      focus_duration: m.focusDuration
+      focus_duration: m.focusDuration,
+      mission_type: m.missionType
     }));
 
     res.json(rows);
@@ -204,9 +222,14 @@ async function getActiveMissions(req, res) {
   const { userId } = req.params;
   const numericUserId = Number(userId);
   try {
-    // 1. Fetch missions accepted by this user (where they are participant)
+    // 1. Fetch missions accepted by this user (exclude solo to prevent duplicates)
     const accepted = await prisma.participation.findMany({
-      where: { userId: numericUserId },
+      where: {
+        userId: numericUserId,
+        mission: {
+          missionType: { not: "solo" }
+        }
+      },
       include: {
         user: { select: { name: true } },
         mission: {
@@ -218,7 +241,7 @@ async function getActiveMissions(req, res) {
       }
     });
 
-    // 2. Fetch participations on missions hosted by this user (where they are creator)
+    // 2. Fetch participations on missions hosted/created by this user (including solo)
     const hosted = await prisma.participation.findMany({
       where: {
         mission: {
@@ -253,7 +276,7 @@ async function getActiveMissions(req, res) {
           title: p.mission.title,
           description: p.mission.description || `Category: ${p.mission.category?.categoryName || "Coding"}. Meet at ${p.mission.location} and execute the mission.`,
           location: p.mission.location,
-          datetime: p.mission.datetime.toISOString(),
+          datetime: p.mission.datetime ? p.mission.datetime.toISOString() : null,
           status: p.status,
           showed_up: p.showedUp,
           creator_name: p.mission.creator?.name || "Unknown",
@@ -263,7 +286,8 @@ async function getActiveMissions(req, res) {
           work_started_at: p.workStartedAt ? p.workStartedAt.toISOString() : null,
           work_duration: p.workDuration,
           creator_vibe_rating: p.creatorVibeRating,
-          participant_vibe_rating: p.participantVibeRating
+          participant_vibe_rating: p.participantVibeRating,
+          mission_type: p.mission.missionType
         };
       })
       .filter(Boolean);
@@ -272,27 +296,29 @@ async function getActiveMissions(req, res) {
       .filter((p) => p.status !== "Rejected")
       .map((p) => {
         if (!p.mission) return null;
+        const isSolo = p.mission.missionType === "solo";
         return {
           id: p.mission.id,
           creator_id: p.mission.createdBy,
           title: p.mission.title,
           description: p.mission.description || `Category: ${p.mission.category?.categoryName || "Coding"}. Meet at ${p.mission.location} and execute the mission.`,
           location: p.mission.location,
-          datetime: p.mission.datetime.toISOString(),
+          datetime: p.mission.datetime ? p.mission.datetime.toISOString() : null,
           status: p.status,
           showed_up: p.showedUp,
           creator_name: p.mission.creator?.name || "Me",
-          role: "creator",
-          participant_name: p.user?.name || "Unknown",
-          participant_id: p.userId,
-          participant_department: p.user?.department || "Student",
-          participant_reputation: p.user?.reputationScore || 0,
+          role: isSolo ? "solo" : "creator",
+          participant_name: isSolo ? "Me" : (p.user?.name || "Unknown"),
+          participant_id: isSolo ? p.userId : p.userId,
+          participant_department: isSolo ? (p.mission.creator?.department || "Student") : (p.user?.department || "Student"),
+          participant_reputation: isSolo ? (p.mission.creator?.reputationScore || 0) : (p.user?.reputationScore || 0),
           verification_code: p.mission.verificationCode,
           focus_duration: p.mission.focusDuration,
           work_started_at: p.workStartedAt ? p.workStartedAt.toISOString() : null,
           work_duration: p.workDuration,
           creator_vibe_rating: p.creatorVibeRating,
-          participant_vibe_rating: p.participantVibeRating
+          participant_vibe_rating: p.participantVibeRating,
+          mission_type: p.mission.missionType
         };
       })
       .filter(Boolean);
@@ -303,6 +329,9 @@ async function getActiveMissions(req, res) {
     rows.sort((a, b) => {
       if (a.showed_up === null && b.showed_up !== null) return -1;
       if (a.showed_up !== null && b.showed_up === null) return 1;
+      if (!a.datetime && b.datetime) return 1;
+      if (a.datetime && !b.datetime) return -1;
+      if (!a.datetime && !b.datetime) return 0;
       return new Date(a.datetime) - new Date(b.datetime);
     });
 
@@ -342,8 +371,10 @@ async function submitAttendance(req, res) {
       }
 
       if (showedUp) {
-        if (!code || String(code).trim() !== String(participant.mission.verificationCode).trim()) {
-          throw new Error("INVALID_CODE");
+        if (participant.mission.missionType !== "solo") {
+          if (!code || String(code).trim() !== String(participant.mission.verificationCode).trim()) {
+            throw new Error("INVALID_CODE");
+          }
         }
 
         const updated = await tx.participation.update({

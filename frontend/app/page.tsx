@@ -13,6 +13,7 @@ import ProfileGate from "../components/ProfileGate";
 import Feed from "../components/Feed";
 import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
+import ActivityFeed from "../components/ActivityFeed";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
@@ -93,6 +94,9 @@ export default function Home() {
         />
       );
     }
+    if (tab === "discover") {
+      return <ActivityFeed user={user} api={api} />;
+    }
     if (tab === "profile") {
       return <Profile user={user} refreshUser={refreshUser} api={api} />;
     }
@@ -111,7 +115,7 @@ export default function Home() {
     return (
       <Shell>
         <div className="flex min-h-screen items-center justify-center">
-          <Flame className="h-10 w-10 text-boxOrange" />
+          <Flame className="h-10 w-10 text-luxuryGold animate-pulse" />
         </div>
       </Shell>
     );

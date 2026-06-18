@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { Flame, Activity, User as UserIcon } from "lucide-react";
+import { Flame, Activity, User as UserIcon, Sparkles } from "lucide-react";
 import { User } from "../app/types";
 
 interface ShellProps {
@@ -15,13 +15,13 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
   const isDesktopDashboard = !!user && !!tab && !!setTab;
 
   return (
-    <div className="min-h-screen w-full bg-[#030303] flex items-center justify-center p-0 overflow-hidden">
+    <div className="min-h-screen w-full bg-[#120F0D] flex items-center justify-center p-0 overflow-hidden">
       {/* Main Content Box */}
       <main 
-        className={`relative flex text-white antialiased bg-black overflow-hidden
+        className={`relative flex text-white antialiased bg-noirBlack overflow-hidden
           ${isDesktopDashboard 
             ? "h-screen w-full md:flex-row" 
-            : "h-screen w-full md:h-[850px] md:max-w-[420px] md:flex-col md:rounded-[40px] md:border md:border-white/10 md:shadow-[0_24px_80px_rgba(0,0,0,0.85)] md:ring-1 md:ring-white/5"
+            : "h-screen w-full md:h-[850px] md:max-w-[420px] md:flex-col md:rounded-[40px] md:border md:border-luxuryMaroon/20 md:shadow-[0_24px_80px_rgba(0,0,0,0.95)] md:ring-1 md:ring-white/5"
           }
         `}
       >
@@ -29,38 +29,38 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
         <div className="grid-noise pointer-events-none absolute inset-0 opacity-[0.85] mix-blend-overlay" />
 
         {/* Cyber/Race Stripe */}
-        <div className="race-stripe pointer-events-none absolute left-0 right-0 top-0 h-[3px] opacity-100 shadow-[0_1px_10px_rgba(245,38,1,0.5)] z-50" />
+        <div className="race-stripe pointer-events-none absolute left-0 right-0 top-0 h-[3px] opacity-100 shadow-[0_1px_10px_rgba(129,1,0,0.4)] z-50" />
 
         {/* Glow Orbs */}
         <motion.div
-          className="pointer-events-none absolute -right-36 top-12 h-96 w-96 rounded-full bg-boxRed/15 blur-[120px]"
+          className="pointer-events-none absolute -right-36 top-12 h-96 w-96 rounded-full bg-cherryRed/12 blur-[120px]"
           animate={{
             y: [0, 30, 0],
-            opacity: [0.4, 0.8, 0.4],
+            opacity: [0.4, 0.7, 0.4],
             scale: [1, 1.1, 1]
           }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="pointer-events-none absolute -left-24 bottom-32 h-[450px] w-[450px] rounded-full bg-boxOrange/12 blur-[140px]"
+          className="pointer-events-none absolute -left-24 bottom-32 h-[450px] w-[450px] rounded-full bg-luxuryMaroon/10 blur-[140px]"
           animate={{
             y: [0, -40, 0],
-            opacity: [0.3, 0.6, 0.3],
+            opacity: [0.3, 0.5, 0.3],
             scale: [1, 1.05, 1]
           }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="pointer-events-none absolute right-1/4 bottom-10 h-80 w-80 rounded-full bg-boxRed/4 blur-[100px]"
+          className="pointer-events-none absolute right-1/4 bottom-10 h-80 w-80 rounded-full bg-luxuryGold/6 blur-[100px]"
           animate={{
-            opacity: [0.2, 0.4, 0.2]
+            opacity: [0.2, 0.3, 0.2]
           }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
         />
 
         {/* Desktop Sidebar */}
         {isDesktopDashboard && (
-          <aside className="hidden md:flex w-80 shrink-0 flex-col justify-between border-r border-white/10 bg-zinc-950/40 p-8 backdrop-blur-xl z-20">
+          <aside className="hidden md:flex w-80 shrink-0 flex-col justify-between border-r border-luxuryMaroon/20 bg-noirBlack/50 p-8 backdrop-blur-xl z-20">
             <div className="space-y-10 text-left">
               {/* Logo / Brand */}
               <div className="flex items-center gap-3">
@@ -80,9 +80,10 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
               {/* Navigation Menu */}
               <nav className="space-y-2">
                 {[
-                  { key: "feed", label: "Missions Feed", icon: Flame, color: "text-boxRed" },
-                  { key: "active", label: "Active Queue", icon: Activity, color: "text-boxOrange" },
-                  { key: "profile", label: "Execution Center", icon: UserIcon, color: "text-boxRed" }
+                  { key: "feed", label: "Missions Feed", icon: Flame, color: "text-cherryRed" },
+                  { key: "discover", label: "Discover Feed", icon: Sparkles, color: "text-luxuryGold" },
+                  { key: "active", label: "Active Queue", icon: Activity, color: "text-[#C5A880]" },
+                  { key: "profile", label: "Execution Center", icon: UserIcon, color: "text-cotton" }
                 ].map((item) => {
                   const isActive = tab === item.key;
                   const Icon = item.icon;
@@ -106,14 +107,14 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
             </div>
 
             {/* User Details Widget */}
-            <div className="rounded-2xl border border-white/5 bg-zinc-900/35 p-5 text-left">
+            <div className="rounded-2xl border border-luxuryMaroon/15 bg-luxuryMaroon/5 p-5 text-left">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-black text-white">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-black text-cotton">
                   {user.name ? user.name.split(" ").map(p => p[0]).join("").slice(0,2).toUpperCase() : "??"}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs md:text-sm font-sans font-semibold text-white truncate">{user.name}</p>
-                  <p className="text-[9px] md:text-xs font-sans font-medium text-boxOrange mt-1 flex items-center gap-1 leading-none">
+                  <p className="text-xs md:text-sm font-sans font-semibold text-cotton truncate">{user.name}</p>
+                  <p className="text-[9px] md:text-xs font-sans font-medium text-luxuryGold mt-1 flex items-center gap-1 leading-none">
                     <img src="/aura-bolt.png" alt="Aura" className="h-3.5 w-3.5 object-contain shrink-0" />
                     <span>{user.reputation_score ?? 0} Aura</span>
                   </p>

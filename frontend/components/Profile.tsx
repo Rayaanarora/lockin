@@ -15,12 +15,16 @@ import {
   ChevronRight,
   Flame,
   LayoutGrid,
-  Users
+  Users,
+  ListTodo,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import RecapCard from "./RecapCard";
+import HeatMap from "./HeatMap";
+import PublicProfile from "./PublicProfile";
 
 interface ProfileProps {
   user: User;
@@ -69,6 +73,33 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   const [gallerySort, setGallerySort] = useState("newest");
   const [galleryCategory, setGalleryCategory] = useState("all");
   const [galleryYear, setGalleryYear] = useState("all");
+
+  // V2 stats & public profiles
+  const [profileStats, setProfileStats] = useState<any | null>(null);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const [selectedLeaderboardUserId, setSelectedLeaderboardUserId] = useState<number | null>(null);
+  const [leaderboardProfileOpen, setLeaderboardProfileOpen] = useState(false);
+
+  async function loadProfileStats() {
+    setLoadingStats(true);
+    try {
+      const data = await api(`/users/${user.id}/public`);
+      setProfileStats(data.stats);
+      setFollowersCount(data.followersCount);
+      setFollowingCount(data.followingCount);
+    } catch (err) {
+      console.error("Failed to load profile stats:", err);
+    } finally {
+      setLoadingStats(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProfileStats();
+  }, [user.id]);
 
   async function loadRecaps() {
     setLoadingRecaps(true);
@@ -178,6 +209,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
     setSyncing(true);
     try {
       await refreshUser();
+      await loadProfileStats();
     } catch {}
     setTimeout(() => setSyncing(false), 800);
   }
@@ -196,6 +228,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
         body: JSON.stringify(form),
       });
       await refreshUser();
+      await loadProfileStats();
       setShowEdit(false);
     } catch (err: any) {
       setError(err.message || "Failed to update profile.");
@@ -210,23 +243,23 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
         {/* Left Column: Profile Card */}
         <div className="md:col-span-1">
           {/* ── Profile header ── */}
-          <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-zinc-950/60 p-5 md:p-6.5">
+          <div className="relative overflow-hidden rounded-2xl border border-luxuryMaroon/15 bg-noirBlack/60 p-5 md:p-6.5">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 md:h-16 md:w-16 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg md:text-xl font-black text-white">
+          <div className="flex h-14 w-14 md:h-16 md:w-16 shrink-0 items-center justify-center rounded-2xl border border-cherryRed/35 bg-cherryRed/5 text-lg md:text-xl font-black text-cotton shadow-[0_0_24px_rgba(129,1,0,0.15)]">
             {initials}
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base md:text-xl font-black text-white leading-tight">{user.name}</h2>
+          <div className="flex-1 min-w-0 text-left">
+            <h2 className="text-base md:text-xl font-black text-cotton leading-tight">{user.name}</h2>
             <p className="text-[11px] md:text-xs text-zinc-500 font-semibold mt-1 truncate">{user.department}</p>
             {user.bio && (
-              <p className="text-[11px] md:text-xs text-zinc-400 mt-1.5 leading-snug line-clamp-2">{user.bio}</p>
+              <p className="text-[11px] md:text-xs text-cotton/70 mt-1.5 leading-snug line-clamp-2">{user.bio}</p>
             )}
           </div>
         </div>
 
         {/* Aura + location pills */}
         <div className="mt-4 md:mt-5 flex flex-wrap gap-2">
-          <span className="flex items-center gap-1.5 rounded-lg border border-boxOrange/25 bg-boxOrange/8 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-sans font-semibold text-boxOrange uppercase tracking-wider">
+          <span className="flex items-center gap-1.5 rounded-lg border border-luxuryGold/25 bg-luxuryGold/5 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-sans font-semibold text-luxuryGold uppercase tracking-wider">
             <img src="/aura-bolt.png" alt="Aura" className="h-3.5 w-3.5 object-contain shrink-0" />
             {aura} Aura
           </span>
@@ -241,6 +274,17 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
               {user.interests}
             </span>
           )}
+        </div>
+
+        {/* Follow counts */}
+        <div className="mt-2.5 flex gap-2.5 text-[10px] font-bold text-zinc-500 bg-noirBlack/40 px-3 py-1.5 rounded-lg border border-white/5 w-fit">
+          <div>
+            <span className="text-cotton font-black mr-0.5">{followersCount}</span> Followers
+          </div>
+          <div className="w-px bg-white/10" />
+          <div>
+            <span className="text-cotton font-black mr-0.5">{followingCount}</span> Following
+          </div>
         </div>
 
         {/* Socials row */}
@@ -274,14 +318,14 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-zinc-400 transition hover:text-white disabled:opacity-50"
+            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/25 bg-luxuryMaroon/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-cotton transition hover:bg-luxuryMaroon/15 hover:text-cotton disabled:opacity-50"
           >
             <Activity className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Syncing..." : "Sync"}
           </button>
           <button
             onClick={() => setShowEdit(true)}
-            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-zinc-400 transition hover:text-white"
+            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/25 bg-luxuryMaroon/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-cotton transition hover:bg-luxuryMaroon/15 hover:text-cotton"
           >
             Edit Profile
           </button>
@@ -292,9 +336,9 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
         {/* Right Column: Content */}
         <div className="md:col-span-2 space-y-5">
           {/* ── Tab bar ── */}
-          <div className="relative flex gap-0 rounded-xl border border-white/8 bg-zinc-950/60 p-1">
+          <div className="relative flex gap-0 rounded-xl border border-luxuryMaroon/15 bg-noirBlack/60 p-1">
         <motion.div
-          className="absolute top-1 bottom-1 rounded-lg bg-white/8 border border-white/10"
+          className="absolute top-1 bottom-1 rounded-lg bg-cherryRed/10 border border-cherryRed/20"
           animate={{ left: indicator.left, width: indicator.width }}
           transition={{ type: "spring", stiffness: 400, damping: 35 }}
         />
@@ -304,7 +348,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             ref={(el) => { tabRefs.current[idx] = el; }}
             onClick={() => setActiveTab(tab)}
             className={`relative z-10 flex-1 py-2 md:py-2.5 text-[11px] md:text-xs font-black uppercase tracking-wider transition ${
-              activeTab === tab ? "text-white" : "text-zinc-600"
+              activeTab === tab ? "text-cotton" : "text-zinc-600"
             }`}
           >
             {tab}
@@ -323,20 +367,20 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             className="space-y-4"
           >
             {/* Aura bar */}
-            <div className="rounded-2xl border border-white/8 bg-zinc-950/60 p-4 space-y-3">
+            <div className="rounded-2xl border border-luxuryMaroon/15 bg-noirBlack/60 p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aura Points</span>
-                <span className="text-sm font-black text-boxOrange">{aura}</span>
+                <span className="text-sm font-black text-luxuryGold">{aura}</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-900">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[#1B1716] border border-white/5">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(100, (aura / 500) * 100)}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
-                  className="h-full rounded-full bg-boxRed"
+                  className="h-full rounded-full bg-gradient-to-r from-cherryRed via-luxuryMaroon to-luxuryGold"
                 />
               </div>
-              <p className="text-[9px] text-zinc-700 uppercase tracking-widest">
+              <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold text-left">
                 {aura < 100 ? "Initiate" : aura < 250 ? "Executor" : aura < 500 ? "Specialist" : "Elite"}
                 {" — "}{Math.max(0, 500 - aura)} Aura to Elite
               </p>
@@ -350,43 +394,74 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-xl border border-white/5 bg-zinc-950/40 px-4 py-3 flex justify-between items-center"
+                  className="rounded-xl border border-luxuryMaroon/10 bg-noirBlack/40 px-4 py-3 flex justify-between items-center"
                 >
                   <span className="text-[9px] font-black uppercase tracking-wider text-zinc-600">{item.label}</span>
-                  <span className="text-[11px] font-semibold text-zinc-300 max-w-[200px] truncate text-right">{item.value}</span>
+                  <span className="text-[11px] font-semibold text-cotton max-w-[200px] truncate text-right">{item.value}</span>
                 </div>
               ))}
             </div>
 
+            {/* Execution Metrics Grid */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left pl-1">
+                Execution Metrics
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { label: "Missions Completed", value: profileStats?.totalMissions ?? 0, icon: Flame, color: "text-cherryRed" },
+                  { label: "Focus Hours", value: `${profileStats?.focusHours ?? 0}h`, icon: Clock, color: "text-luxuryGold" },
+                  { label: "Completion Rate", value: `${profileStats?.completionRate ?? 100}%`, icon: CheckCircle2, color: "text-emerald-500" },
+                  { label: "Current Streak", value: `${profileStats?.currentStreak ?? 0}d`, icon: Zap, color: "text-amber-500" },
+                  { label: "Tasks Completed", value: profileStats?.tasksCompleted ?? 0, icon: ListTodo, color: "text-cotton" },
+                  { label: "Active Days", value: profileStats?.activeDays ?? 0, icon: CalendarIcon, color: "text-sky-500" },
+                ].map((stat) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={stat.label} className="rounded-xl border border-luxuryMaroon/10 bg-noirBlack/40 p-3 flex flex-col justify-between space-y-2 text-left">
+                      <div className="flex justify-between items-start">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500 leading-tight">{stat.label}</span>
+                        <Icon className={`h-3.5 w-3.5 ${stat.color}`} />
+                      </div>
+                      <span className="text-lg font-black text-cotton leading-none">{stat.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* LOCKIN Heatmap */}
+            <HeatMap userId={user.id} api={api} />
+
             {/* Wrapped Recaps Action Block */}
-            <div className="rounded-2xl border border-white/8 bg-zinc-950/60 p-4 space-y-4">
-              <span className="block text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="rounded-2xl border border-luxuryMaroon/15 bg-noirBlack/60 p-4 space-y-4">
+              <span className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">
                 Wrapped Achievement Cards
               </span>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => handleGenerateWrapped("weekly")}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/20 bg-noirBlack/50 text-xs font-black uppercase tracking-wider text-cotton/80 hover:text-cotton hover:bg-luxuryMaroon/10 hover:border-luxuryMaroon/30 transition group"
                 >
-                  <Zap className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Weekly Wrapped
+                  <Zap className="h-3.5 w-3.5 text-luxuryGold transition-colors duration-200 group-hover:text-cherryRed" /> Weekly Wrapped
                 </button>
                 <button
                   onClick={() => handleGenerateWrapped("monthly")}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/20 bg-noirBlack/50 text-xs font-black uppercase tracking-wider text-cotton/80 hover:text-cotton hover:bg-luxuryMaroon/10 hover:border-luxuryMaroon/30 transition group"
                 >
-                  <Trophy className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Monthly Wrapped
+                  <Trophy className="h-3.5 w-3.5 text-luxuryGold transition-colors duration-200 group-hover:text-cherryRed" /> Monthly Wrapped
                 </button>
                 <button
                   onClick={() => handleGenerateWrapped("yearly")}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/20 bg-noirBlack/50 text-xs font-black uppercase tracking-wider text-cotton/80 hover:text-cotton hover:bg-luxuryMaroon/10 hover:border-luxuryMaroon/30 transition group"
                 >
-                  <Activity className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Yearly Wrapped
+                  <Activity className="h-3.5 w-3.5 text-luxuryGold transition-colors duration-200 group-hover:text-cherryRed" /> Yearly Wrapped
                 </button>
                 <button
                   onClick={handleGenerateTeamSummary}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:border-white/20 transition group"
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/20 bg-noirBlack/50 text-xs font-black uppercase tracking-wider text-cotton/80 hover:text-cotton hover:bg-luxuryMaroon/10 hover:border-luxuryMaroon/30 transition group"
                 >
-                  <Users className="h-3.5 w-3.5 text-zinc-500 transition-colors duration-200 group-hover:text-red-500" /> Team Summary
+                  <Users className="h-3.5 w-3.5 text-luxuryGold transition-colors duration-200 group-hover:text-cherryRed" /> Team Summary
                 </button>
               </div>
             </div>
@@ -419,7 +494,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             ) : (
               <div className="rounded-2xl border border-white/8 bg-zinc-950/60 overflow-hidden">
                 <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
-                  <Trophy className="h-3.5 w-3.5 text-boxOrange" />
+                  <Trophy className="h-3.5 w-3.5 text-luxuryGold" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Campus Leaderboard</span>
                 </div>
                 <div className="divide-y divide-white/4">
@@ -427,7 +502,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                     const isYou = entry.id === user.id;
                     const rankColor =
                       idx === 0
-                        ? "text-boxOrange font-black"
+                        ? "text-luxuryGold font-black"
                         : idx === 1
                         ? "text-zinc-300 font-black"
                         : idx === 2
@@ -436,20 +511,28 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                     return (
                       <div
                         key={entry.id}
-                        className={`flex items-center gap-3 px-4 py-3 ${isYou ? "bg-boxOrange/5" : ""}`}
+                        onClick={() => {
+                          if (!isYou) {
+                            setSelectedLeaderboardUserId(entry.id);
+                            setLeaderboardProfileOpen(true);
+                          }
+                        }}
+                        className={`flex items-center gap-3 px-4 py-3 ${
+                          isYou ? "bg-luxuryGold/5" : "cursor-pointer hover:bg-white/2"
+                        }`}
                       >
                         <span className={`w-5 text-xs shrink-0 text-right ${rankColor}`}>
                           {idx === 0 ? "①" : idx === 1 ? "②" : idx === 2 ? "③" : `${idx + 1}`}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-bold truncate ${isYou ? "text-boxOrange" : "text-white"}`}>
+                          <p className={`text-xs font-bold truncate ${isYou ? "text-luxuryGold" : "text-white"}`}>
                             {entry.name} {isYou && <span className="text-[9px] text-zinc-600">(you)</span>}
                           </p>
                           <p className="text-[10px] text-zinc-600 truncate">{entry.department}</p>
                         </div>
                         <span className="text-xs font-black text-white shrink-0">
                           {entry.reputation_score}
-                          <span className="text-[9px] text-zinc-600 ml-0.5 font-normal">AP</span>
+                          <span className="text-[9px] text-zinc-600 ml-0.5 font-normal">Aura</span>
                         </span>
                       </div>
                     );
@@ -507,7 +590,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                         {done && (
                           <button
                             onClick={() => handleViewMissionRecap(m.id)}
-                            className="text-[9px] font-black uppercase border border-boxOrange/30 bg-boxOrange/5 px-2.5 py-1 rounded-lg text-boxOrange hover:bg-boxOrange/10 transition mr-2"
+                            className="text-[9px] font-black uppercase border border-luxuryGold/30 bg-luxuryGold/5 px-2.5 py-1 rounded-lg text-luxuryGold hover:bg-luxuryGold/10 transition mr-2"
                           >
                             View Recap
                           </button>
@@ -517,7 +600,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                             done
                               ? "border-white/20 bg-white/5 text-white"
                               : missed
-                              ? "border-boxRed/25 bg-boxRed/8 text-boxRed"
+                              ? "border-cherryRed/25 bg-cherryRed/8 text-cherryRed"
                               : "border-white/10 text-zinc-600"
                           }`}
                         >
@@ -546,7 +629,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                 <select
                   value={galleryCategory}
                   onChange={(e) => setGalleryCategory(e.target.value)}
-                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-boxOrange"
+                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-luxuryGold"
                 >
                   <option value="all">All Categories</option>
                   <option value="Programming">Programming</option>
@@ -561,7 +644,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                 <select
                   value={galleryYear}
                   onChange={(e) => setGalleryYear(e.target.value)}
-                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-boxOrange"
+                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-luxuryGold"
                 >
                   <option value="all">All Years</option>
                   <option value="2026">2026</option>
@@ -572,7 +655,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
               <select
                 value={gallerySort}
                 onChange={(e) => setGallerySort(e.target.value)}
-                className="h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-boxOrange"
+                className="h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-luxuryGold"
               >
                 <option value="newest">Newest First</option>
                 <option value="longest">Longest Session</option>
@@ -606,7 +689,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                         setRecapData(recap);
                         setShowRecapCard(true);
                       }}
-                      className="cursor-pointer group relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-950/40 p-5 flex flex-col justify-between hover:border-boxOrange/30 transition shadow-sm"
+                      className="cursor-pointer group relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-950/40 p-5 flex flex-col justify-between hover:border-luxuryGold/30 transition shadow-sm"
                     >
                       <div className="flex justify-between items-start mb-2.5">
                         <span className="rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-white/5 text-zinc-500 font-display">
@@ -621,13 +704,13 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                         </span>
                       </div>
                       
-                      <h4 className="text-xs font-black text-white line-clamp-1 group-hover:text-boxOrange transition">
+                      <h4 className="text-xs font-black text-white line-clamp-1 group-hover:text-luxuryGold transition">
                         {recap.missionTitle || "Focus Sprint"}
                       </h4>
                       
                       <div className="mt-4 flex items-center justify-between border-t border-white/4 pt-3 text-[10px] font-bold text-zinc-400 font-display">
                         <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-boxOrange" />
+                          <Clock className="h-3 w-3 text-luxuryGold" />
                           <span>{durationText}</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -673,14 +756,14 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                     setForm((f) => ({ ...f, [key]: e.target.value }))
                   }
                   placeholder={placeholder}
-                  className="h-10 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-boxOrange"
+                  className="h-10 border-white/10 bg-black/40 text-xs text-cotton placeholder-zinc-700 focus:border-luxuryGold focus:ring-1 focus:ring-luxuryGold/10"
                 />
               </div>
             ))}
 
 
             {error && (
-              <p className="text-[11px] font-bold text-boxRed">{error}</p>
+              <p className="text-[11px] font-bold text-cherryRed">{error}</p>
             )}
 
             <button
@@ -701,6 +784,20 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
           isOpen={showRecapCard}
           onClose={() => setShowRecapCard(false)}
           recapData={recapData}
+        />
+      )}
+
+      {/* Leaderboard Public Profile Overlay */}
+      {selectedLeaderboardUserId && (
+        <PublicProfile
+          userId={selectedLeaderboardUserId}
+          viewerId={user.id}
+          isOpen={leaderboardProfileOpen}
+          onClose={() => {
+            setLeaderboardProfileOpen(false);
+            setSelectedLeaderboardUserId(null);
+          }}
+          api={api}
         />
       )}
     </section>

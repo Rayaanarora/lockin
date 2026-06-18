@@ -153,7 +153,7 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
                       <div
                         className={`rounded-2xl border px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
                           isSelf
-                            ? "rounded-tr-none border-boxOrange/30 bg-boxOrange/10 text-white"
+                            ? "rounded-tr-none border-cherryRed/30 bg-cherryRed/10 text-cotton"
                             : "rounded-tl-none border-white/5 bg-zinc-950 text-zinc-200"
                         }`}
                       >
@@ -173,13 +173,13 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Type coordinates or updates..."
-            className="h-12 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-600 transition focus:border-boxOrange focus:ring-2 focus:ring-boxOrange/10"
+            className="h-12 border-white/10 bg-black/40 text-sm text-cotton placeholder-zinc-600 transition focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
             required
             autoComplete="off"
           />
           <button
             type="submit"
-            className="flex h-12 w-12 items-center justify-center rounded-xl border border-boxOrange bg-boxOrange text-white shadow-[0_0_20px_rgba(129,1,0,0.25)] hover:bg-boxOrange/90 active:scale-[0.96] transition"
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-cherryRed bg-cherryRed text-cotton shadow-[0_0_20px_rgba(129,1,0,0.25)] hover:bg-cherryRed/90 active:scale-[0.96] transition"
           >
             <Send className="h-4 w-4" />
           </button>

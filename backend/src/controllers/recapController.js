@@ -43,7 +43,7 @@ function calculateStreak(recapDates) {
 // POST /api/missions/:id/finish
 async function finishSession(req, res) {
   const missionId = Number(req.params.id);
-  const { userId, tasksCompleted } = req.body;
+  const { userId, tasksCompleted, reflection } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: "userId is required." });
@@ -97,8 +97,10 @@ async function finishSession(req, res) {
 
     // 4. Calculate total participants
     let participantCount = 1;
-    if (mission.createdBy && mission.participations.length > 0) {
-      // Creator + all accepted participants
+    if (mission.missionType === "solo") {
+      participantCount = 1;
+    } else if (mission.createdBy && mission.participations.length > 0) {
+      // Creator + all accepted participants (excluding solo records if any)
       const activeParticipants = mission.participations.filter(p => p.status === "Accepted" || p.status === "Executing" || p.status === "Completed").length;
       participantCount = 1 + activeParticipants;
     }
@@ -171,7 +173,17 @@ async function finishSession(req, res) {
 
     const unlockedAchievements = checkAchievements(achievementStats);
 
-    // 8. Create SessionRecap database record
+    // 8. If solo mission, award 10 Aura immediately
+    if (mission.missionType === "solo") {
+      await prisma.user.update({
+        where: { id: numericUserId },
+        data: {
+          reputationScore: { increment: 10 }
+        }
+      });
+    }
+
+    // 9. Create SessionRecap database record
     const shareId = crypto.randomUUID();
     const recap = await prisma.sessionRecap.create({
       data: {
@@ -189,11 +201,58 @@ async function finishSession(req, res) {
         achievements: unlockedAchievements,
         participantCount: participantCount,
         recapType: "session",
+        reflectionText: reflection?.reflectionText || null,
+        lessonsLearned: reflection?.lessonsLearned || null,
+        isPublic: reflection?.isPublic !== undefined ? reflection.isPublic : true,
         metadata: {
           isNewLongestSession,
           isNewMostTasks,
           isNewLongestStreak
         }
+      }
+    });
+
+    // 10. Upsert DailyActivity for user
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await prisma.dailyActivity.upsert({
+      where: {
+        userId_date: {
+          userId: numericUserId,
+          date: today
+        }
+      },
+      update: {
+        missionsCompleted: { increment: 1 },
+        focusMinutes: { increment: sessionDuration },
+        tasksCompleted: { increment: tasksCompleted || 0 },
+        auraEarned: { increment: 10 }
+      },
+      create: {
+        userId: numericUserId,
+        date: today,
+        missionsCompleted: 1,
+        focusMinutes: sessionDuration,
+        tasksCompleted: tasksCompleted || 0,
+        auraEarned: 10
+      }
+    });
+
+    // 11. Create a FeedItem
+    await prisma.feedItem.create({
+      data: {
+        userId: numericUserId,
+        type: "mission_completed",
+        title: `Completed: ${mission.title}`,
+        description: reflection?.reflectionText || null,
+        metadata: {
+          sessionDuration,
+          tasksCompleted: tasksCompleted || 0,
+          category: mission.category?.categoryName || "Other",
+          missionType: mission.missionType || "group",
+          participantCount
+        },
+        recapId: recap.id
       }
     });
 
@@ -509,6 +568,8 @@ async function getPublicShareRecap(req, res) {
       participantCount: recap.participantCount,
       generatedAt: recap.generatedAt,
       metadata: recap.metadata,
+      reflectionText: recap.isPublic ? recap.reflectionText : null,
+      lessonsLearned: recap.isPublic ? recap.lessonsLearned : null,
       creator: {
         name: recap.user.name,
         department: recap.user.department,

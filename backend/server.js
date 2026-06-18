@@ -10,6 +10,9 @@ const userRoutes = require("./src/routes/userRoutes");
 const missionRoutes = require("./src/routes/missionRoutes");
 const messageRoutes = require("./src/routes/messageRoutes");
 const recapRoutes = require("./src/routes/recapRoutes");
+const taskRoutes = require("./src/routes/taskRoutes");
+const followRoutes = require("./src/routes/followRoutes");
+const feedRoutes = require("./src/routes/feedRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
 
 const app = express();
@@ -47,6 +50,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/missions", missionRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/recaps", recapRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/follow", followRoutes);
+app.use("/api/feed", feedRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
