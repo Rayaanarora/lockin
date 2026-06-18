@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, CheckSquare, Square, FileText } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, CheckSquare, Square, FileText, Flame, Play, Pause } from "lucide-react";
 import { User, Mission } from "../app/types";
 import Chat from "./Chat";
 import RecapCard from "./RecapCard";
@@ -38,6 +38,112 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [lessonsLearned, setLessonsLearned] = useState("");
   const [isPublicReflection, setIsPublicReflection] = useState(true);
   const [submittingReflection, setSubmittingReflection] = useState(false);
+
+  // Timer V2 states
+  const [activeFocusMission, setActiveFocusMission] = useState<Mission | null>(null);
+  const [activeTimerDuration, setActiveTimerDuration] = useState<number>(1500); // default 25 min
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(1500);
+  const [timerRunning, setTimerRunning] = useState<boolean>(false);
+  const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);
+
+  // Timer Tick Effect
+  useEffect(() => {
+    let interval: any = null;
+    if (timerRunning && activeFocusMission) {
+      interval = setInterval(() => {
+        setTimeLeftSeconds((prev) => {
+          if (activeTimerDuration > 0) {
+            // Countdown
+            if (prev <= 1) {
+              setTimerRunning(false);
+              clearInterval(interval);
+              // Simple audio beep
+              if (typeof window !== "undefined") {
+                try {
+                  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                  const osc = ctx.createOscillator();
+                  osc.type = "sine";
+                  osc.frequency.setValueAtTime(800, ctx.currentTime);
+                  osc.connect(ctx.destination);
+                  osc.start();
+                  osc.stop(ctx.currentTime + 0.2);
+                } catch (e) {
+                  console.warn("AudioContext block", e);
+                }
+              }
+              return 0;
+            }
+            return prev - 1;
+          } else {
+            // Stopwatch
+            return prev + 1;
+          }
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timerRunning, activeFocusMission, activeTimerDuration]);
+
+  // Sync to/from localStorage
+  useEffect(() => {
+    if (!user) return;
+    const key = `lockin_timer_${user.id}`;
+    if (activeFocusMission) {
+      localStorage.setItem(key, JSON.stringify({
+        missionId: activeFocusMission.id,
+        duration: activeTimerDuration,
+        timeLeft: timeLeftSeconds,
+        running: timerRunning,
+        lastSaved: Date.now()
+      }));
+    } else {
+      localStorage.removeItem(key);
+    }
+  }, [activeFocusMission, activeTimerDuration, timeLeftSeconds, timerRunning, user]);
+
+  // Restore timer state on load
+  useEffect(() => {
+    if (!user || loading) return;
+    const key = `lockin_timer_${user.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        const mission = missions.find(m => m.id === state.missionId);
+        if (mission && mission.status === "Executing") {
+          setActiveFocusMission(mission);
+          setActiveTimerDuration(state.duration);
+          
+          let nextTime = state.timeLeft;
+          if (state.running) {
+            const elapsed = Math.floor((Date.now() - state.lastSaved) / 1000);
+            if (state.duration > 0) {
+              nextTime = Math.max(0, state.timeLeft - elapsed);
+            } else {
+              nextTime = state.timeLeft + elapsed;
+            }
+          }
+          setTimeLeftSeconds(nextTime);
+          setTimerRunning(nextTime > 0 || state.duration === 0 ? state.running : false);
+        } else {
+          localStorage.removeItem(key);
+        }
+      } catch (err) {
+        console.error("Failed to restore timer state", err);
+      }
+    }
+  }, [missions, user, loading]);
+
+  const formatTime = (totalSecs: number) => {
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (hrs > 0) {
+      return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    }
+    return `${pad(mins)}:${pad(secs)}`;
+  };
 
   async function load() {
     try {
@@ -128,6 +234,8 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       setRecapData(result);
       setShowRecapCard(true);
       setActiveReflectionMission(null);
+      setActiveFocusMission(null);
+      setTimerRunning(false);
       await Promise.all([load(), refreshUser()]);
     } catch (err: any) {
       alert(err.message || "Failed to finish focus session.");
@@ -199,7 +307,24 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         method: "POST",
         body: JSON.stringify({ userId: pId, showedUp, code })
       });
-      await Promise.all([load(), refreshUser()]);
+      const updatedList = await api(`/missions/active/${user.id}`);
+      setMissions(updatedList);
+      await refreshUser();
+
+      // Automatically enter fullscreen focus mode if session is now executing
+      if (showedUp) {
+        const currentM = updatedList.find((m: any) => m.id === missionId);
+        if (currentM && currentM.status === "Executing") {
+          setActiveFocusMission(currentM);
+          if (showTimerSelector === missionId) {
+            setTimerRunning(true);
+          } else {
+            setActiveTimerDuration(0);
+            setTimeLeftSeconds(0);
+            setTimerRunning(true);
+          }
+        }
+      }
     } catch (err: any) {
       setErrors((prev) => ({ ...prev, [missionId]: err.message || "Failed to submit." }));
     } finally {
@@ -429,16 +554,53 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton">
                             SOLO RUNWAY READY
                           </p>
-                          <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-1">
-                            Ready to lock in? Start your focus session now.
-                          </p>
-                          <button
-                            onClick={() => handleAttendance(mission.id, true)}
-                            disabled={submitting[mission.id]}
-                            className="mt-3.5 w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-xs font-black uppercase tracking-wider text-cotton shadow-[0_0_15px_rgba(129,1,0,0.15)] hover:bg-[#810100]/95 transition active:scale-[0.98]"
-                          >
-                            <Check className="h-4 w-4 stroke-[3]" /> Start Focus Session
-                          </button>
+                          {showTimerSelector === mission.id ? (
+                            <div className="mt-3.5 space-y-3 text-left">
+                              <label className="block text-[9px] font-black uppercase tracking-wider text-zinc-500">
+                                Choose Focus Session Duration:
+                              </label>
+                              <div className="grid grid-cols-2 gap-2 text-xs font-black uppercase tracking-wider text-cotton">
+                                {[
+                                  { label: "25 Min", value: 25 },
+                                  { label: "50 Min", value: 50 },
+                                  { label: "90 Min", value: 90 },
+                                  { label: "Stopwatch", value: 0 },
+                                ].map((opt) => (
+                                  <button
+                                    key={opt.label}
+                                    onClick={async () => {
+                                      setActiveTimerDuration(opt.value * 60);
+                                      setTimeLeftSeconds(opt.value * 60);
+                                      setShowTimerSelector(null);
+                                      await handleAttendance(mission.id, true);
+                                    }}
+                                    className="h-10 rounded-lg border border-luxuryMaroon/20 bg-[#1B1716]/40 hover:bg-luxuryMaroon/10 hover:border-luxuryMaroon/30 transition text-center"
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => setShowTimerSelector(null)}
+                                className="w-full h-8 text-[9px] font-black uppercase tracking-wider text-zinc-500 text-center hover:text-cotton transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-1">
+                                Ready to lock in? Choose your focus timer and start.
+                              </p>
+                              <button
+                                onClick={() => setShowTimerSelector(mission.id)}
+                                disabled={submitting[mission.id]}
+                                className="mt-3.5 w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-xs font-black uppercase tracking-wider text-cotton shadow-[0_0_15px_rgba(129,1,0,0.15)] hover:bg-[#810100]/95 transition active:scale-[0.98]"
+                              >
+                                <Check className="h-4 w-4 stroke-[3]" /> Start Focus Session
+                              </button>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <>
@@ -529,6 +691,19 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-1">
                           You are currently focused on this mission. Complete your work below.
                         </p>
+                        <button
+                          onClick={() => {
+                            setActiveFocusMission(mission);
+                            if (activeFocusMission?.id !== mission.id) {
+                              setActiveTimerDuration(0);
+                              setTimeLeftSeconds(0);
+                              setTimerRunning(true);
+                            }
+                          }}
+                          className="mt-3 w-full flex h-9 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-xs font-black uppercase tracking-wider text-cotton shadow-[0_0_15px_rgba(129,1,0,0.15)] hover:bg-[#810100]/95 transition active:scale-[0.98]"
+                        >
+                          <Flame className="h-4 w-4 stroke-[3]" /> Open Fullscreen Focus
+                        </button>
                       </div>
 
                       {/* Checklist Tasks */}
@@ -788,6 +963,134 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Fullscreen Focus Overlay */}
+      {activeFocusMission && (
+        <div 
+          className="fixed inset-0 bg-[#120F0D] z-[990] flex flex-col justify-between p-6 sm:p-10 select-none overflow-y-auto text-cotton"
+          style={{ backgroundImage: "linear-gradient(135deg, #1B1716 0%, #120F0D 100%)" }}
+        >
+          {/* Top navigation */}
+          <div className="flex justify-between items-center border-b border-white/5 pb-4 text-left">
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-cherryRed">
+                Focus Runway Active
+              </span>
+              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider mt-0.5">
+                {activeFocusMission.title}
+              </h2>
+            </div>
+            
+            <button
+              onClick={() => setActiveFocusMission(null)}
+              className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white hover:bg-white/10 transition"
+            >
+              Minimize
+            </button>
+          </div>
+
+          {/* Center Timer section */}
+          <div className="my-auto py-10 flex flex-col items-center justify-center text-center space-y-8">
+            <div className="relative flex items-center justify-center">
+              {/* Circular progress glow ring */}
+              <div 
+                className="absolute h-56 w-56 sm:h-64 sm:w-64 rounded-full border border-cherryRed/10 animate-pulse pointer-events-none"
+                style={{
+                  boxShadow: `0 0 40px ${
+                    activeTimerDuration > 0
+                      ? "rgba(197, 168, 128, 0.15)"
+                      : "rgba(129, 1, 0, 0.15)"
+                  }`,
+                  borderColor: activeTimerDuration > 0 ? "rgba(197, 168, 128, 0.15)" : "rgba(129, 1, 0, 0.15)"
+                }}
+              />
+              
+              <div className="flex flex-col items-center justify-center h-48 w-48 sm:h-56 sm:w-56 rounded-full bg-[#1B1716]/60 border border-white/5 shadow-2xl backdrop-blur-xl">
+                <span className="text-4xl sm:text-5xl font-black text-white tracking-widest tabular-nums leading-none">
+                  {formatTime(timeLeftSeconds)}
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mt-2">
+                  {activeTimerDuration > 0 ? "Countdown" : "Elapsed Time"}
+                </span>
+              </div>
+            </div>
+
+            {/* Checklist Tasks in Fullscreen */}
+            <div className="w-full max-w-sm space-y-3 bg-black/40 border border-white/5 p-4 sm:p-5 rounded-2xl">
+              <div className="flex justify-between items-center text-left">
+                <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Runway Checklist</span>
+                <span className="text-[9px] font-black text-luxuryGold">
+                  {(missionTasks[activeFocusMission.id] || []).filter(t => t.completed).length} / {(missionTasks[activeFocusMission.id] || []).length} Done
+                </span>
+              </div>
+              
+              {/* Add checklist item */}
+              <div className="flex gap-2">
+                <Input
+                  value={newTaskTitles[activeFocusMission.id] || ""}
+                  onChange={(e) => setNewTaskTitles(prev => ({ ...prev, [activeFocusMission.id]: e.target.value }))}
+                  placeholder="Add checklist item..."
+                  className="h-8 border-white/5 bg-[#1B1716]/40 text-[10px] text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddTask(activeFocusMission.id);
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => handleAddTask(activeFocusMission.id)}
+                  className="h-8 px-3 rounded-lg bg-luxuryMaroon/20 border border-luxuryMaroon/40 text-[9px] text-cotton font-black hover:bg-luxuryMaroon/40 transition shrink-0"
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Tasks list */}
+              <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-left">
+                {(missionTasks[activeFocusMission.id] || []).length === 0 ? (
+                  <p className="text-[9px] text-zinc-600 font-semibold text-center py-2">No tasks added.</p>
+                ) : (
+                  (missionTasks[activeFocusMission.id] || []).map((t) => (
+                    <div key={t.id} className="flex justify-between items-center bg-zinc-950/40 p-2 rounded-lg border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleTask(activeFocusMission.id, t.id)}
+                        className="flex items-center gap-2 text-[10.5px] font-semibold text-cotton/90 truncate flex-1 text-left"
+                      >
+                        {t.completed ? (
+                          <CheckSquare className="h-3.5 w-3.5 text-luxuryGold shrink-0" />
+                        ) : (
+                          <Square className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
+                        )}
+                        <span className={t.completed ? "line-through text-zinc-500" : ""}>{t.title}</span>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom control row */}
+          <div className="flex flex-col gap-3.5 border-t border-white/5 pt-5 max-w-sm mx-auto w-full">
+            <div className="flex gap-3">
+              <button
+                onClick={() => setTimerRunning(!timerRunning)}
+                className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 text-xs font-black uppercase tracking-wider text-cotton hover:bg-white/10 transition"
+              >
+                {timerRunning ? "Pause Focus" : "Resume Focus"}
+              </button>
+              <button
+                onClick={() => initiateFinishSession(activeFocusMission)}
+                className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-luxuryGold text-xs font-black uppercase tracking-wider text-black hover:bg-luxuryGold/95 transition shadow-[0_0_15px_rgba(197,168,128,0.15)]"
+              >
+                Complete Runway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

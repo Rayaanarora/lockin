@@ -14,9 +14,10 @@ interface FeedProps {
   locked: boolean;
   setLocked: (locked: boolean) => void;
   api: (path: string, options?: RequestInit) => Promise<any>;
+  setTab?: (tab: string) => void;
 }
 
-export default function Feed({ user, refreshUser, locked, setLocked, api }: FeedProps) {
+export default function Feed({ user, refreshUser, locked, setLocked, api, setTab }: FeedProps) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -106,6 +107,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
           body: JSON.stringify({ userId: user.id })
         });
         await refreshUser();
+        setTab?.("active");
       } else {
         await api(`/missions/${currentMission.id}/pass`, { method: "POST" });
         const key = `lockin_passed_${user.id}`;
@@ -154,6 +156,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api }: Feed
       }
 
       setShowCreate(false);
+      setTab?.("active");
       setForm({
         title: "",
         description: "",

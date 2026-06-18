@@ -107,6 +107,7 @@ export default function Home() {
         locked={locked}
         setLocked={setLocked}
         api={api}
+        setTab={setTab}
       />
     );
   }, [tab, user, locked]);
