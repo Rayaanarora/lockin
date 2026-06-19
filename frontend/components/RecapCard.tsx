@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote } from "lucide-react";
+import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote, Trash2 } from "lucide-react";
 import { toPng } from "html-to-image";
 
 interface RecapProps {
@@ -26,6 +26,12 @@ interface RecapProps {
     generatedAt?: string;
     reflectionText?: string;
     lessonsLearned?: string;
+    metadata?: {
+      isFailed?: boolean;
+      screenshot?: string | null;
+      link?: string | null;
+      [key: string]: any;
+    };
   };
 }
 
@@ -38,6 +44,7 @@ export default function LockinRecapCard({
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isTrashing, setIsTrashing] = useState(false);
 
   const {
     recapType = "session",
@@ -48,15 +55,27 @@ export default function LockinRecapCard({
     lessonsLearned,
   } = recapData;
 
+  const isFailed = recapData.metadata?.isFailed || false;
+  const screenshot = recapData.metadata?.screenshot || null;
+  const link = recapData.metadata?.link || null;
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsTrashing(false);
+    }
+  }, [isOpen]);
+
   const streakVal = recapData.streak !== undefined ? recapData.streak : (recapData.currentStreak !== undefined ? recapData.currentStreak : 0);
   const categoryVal = recapData.categorySnapshot || recapData.topCategory || "None";
   
   const isPeriod = recapType !== "session";
   
-  let statusText = "LOCKED IN";
+  let statusText = isFailed ? "RUNWAY CRASHED" : "LOCKED IN";
   let subtitleText = recapData.missionTitle || recapData.missionName || "Focus Session";
   
-  if (isPeriod) {
+  if (isFailed) {
+    statusText = "RUNWAY CRASHED";
+  } else if (isPeriod) {
     if (recapType === "weekly") {
       statusText = "WEEKLY WRAPPED";
       subtitleText = "Weekly Progress Run";
@@ -102,7 +121,16 @@ export default function LockinRecapCard({
   let glowColor = "rgba(168, 112, 92, 0.12)";
   let badgeBg = "bg-[#A8705C]/10 border-[#A8705C]/30 text-[#E6C3B3]";
 
-  if (recapType === "session") {
+  if (isFailed) {
+    tier = "crashed";
+    tierName = "Crashed";
+    tierColor = "#DE211E"; // Red
+    cardBg = "radial-gradient(circle at 50% 30%, #1a0303 0%, #080000 100%)";
+    accentColor = "text-[#DE211E]";
+    borderStyle = "border-[#DE211E]/40";
+    glowColor = "rgba(222, 33, 30, 0.2)";
+    badgeBg = "bg-[#DE211E]/10 border-[#DE211E]/30 text-[#EDEBDE]";
+  } else if (recapType === "session") {
     if (sessionDuration >= 120) {
       tier = "legendary";
       tierName = "Legendary Red";
@@ -254,9 +282,15 @@ export default function LockinRecapCard({
       >
         <motion.div
           initial={{ scale: 0.92, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+          animate={isTrashing ? { y: 800, rotate: 360, scale: 0.1, opacity: 0 } : { scale: 1, opacity: 1 }}
           exit={{ scale: 0.92, opacity: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          transition={isTrashing ? { duration: 0.8, ease: "backIn" } : { duration: 0.3, ease: "easeOut" }}
+          onAnimationComplete={() => {
+            if (isTrashing) {
+              onClose();
+              setIsTrashing(false);
+            }
+          }}
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-[340px] sm:max-w-[380px] my-auto flex flex-col items-center"
         >
@@ -298,6 +332,30 @@ export default function LockinRecapCard({
                   className="absolute left-0 top-0 bottom-0 w-[3px]" 
                   style={{ backgroundColor: tierColor }}
                 />
+
+                {/* Cracked card glass effect overlay */}
+                {isFailed && (
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40 z-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M 0 30 L 25 35 L 35 20 L 50 35 L 55 55 L 45 70 L 60 85 L 50 100" stroke="#DE211E" strokeWidth="0.5" strokeLinecap="round" fill="none" />
+                    <path d="M 35 20 L 45 10 L 65 5 L 80 15" stroke="#DE211E" strokeWidth="0.5" strokeLinecap="round" fill="none" />
+                    <path d="M 55 55 L 75 50 L 90 65 L 100 60" stroke="#DE211E" strokeWidth="0.5" strokeLinecap="round" fill="none" />
+                    <path d="M 25 35 L 15 50 L 0 55" stroke="#DE211E" strokeWidth="0.5" strokeLinecap="round" fill="none" />
+                    <path d="M 45 70 L 30 80 L 15 75 L 0 90" stroke="#DE211E" strokeWidth="0.5" strokeLinecap="round" fill="none" />
+                    <path d="M 60 85 L 80 90 L 100 80" stroke="#DE211E" strokeWidth="0.5" strokeLinecap="round" fill="none" />
+                  </svg>
+                )}
+
+                {/* RUNWAY CRASHED Stamp */}
+                {isFailed && (
+                  <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-[12deg] z-30 border-4 border-cherryRed bg-black/90 px-5 py-2.5 rounded-xl text-center select-none shadow-[0_0_25px_rgba(222,33,30,0.5)] pointer-events-none">
+                    <span className="text-xl sm:text-2xl font-black tracking-widest text-cherryRed animate-pulse">
+                      RUNWAY CRASHED
+                    </span>
+                    <span className="block text-[8px] font-black uppercase text-cherryRed/80 tracking-widest mt-0.5">
+                      -5 Aura Penalty
+                    </span>
+                  </div>
+                )}
 
                 {/* Ambient Background Grid Pattern */}
                 <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
@@ -465,61 +523,92 @@ export default function LockinRecapCard({
 
                 {/* Main Content Area */}
                 <div className="flex-1 my-6 flex flex-col justify-center space-y-4.5 z-10">
-                  {reflectionText || lessonsLearned ? (
-                    // Show reflection if present
-                    <div className="space-y-3.5">
-                      {reflectionText && (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-zinc-500">
-                            <Quote className="h-3.5 w-3.5 shrink-0" style={{ color: tierColor }} />
-                            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Session Reflection</span>
-                          </div>
-                          <div className="rounded-xl border border-white/5 bg-black/40 p-3 max-h-[110px] overflow-y-auto scrollbar-none">
-                            <p className="text-[10.5px] sm:text-[12px] font-semibold text-cotton/90 italic leading-relaxed">
-                              "{reflectionText}"
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      {lessonsLearned && (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-zinc-500">
-                            <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: tierColor }} />
-                            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Lessons Logged</span>
-                          </div>
-                          <div className="rounded-xl border border-white/5 bg-black/40 p-3 max-h-[90px] overflow-y-auto scrollbar-none">
-                            <p className="text-[10px] sm:text-[11px] font-medium text-zinc-400 leading-relaxed">
-                              {lessonsLearned}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // Holographic logo back if no reflection
-                    <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                      <div 
-                        className="p-5.5 rounded-3xl border border-white/10 bg-black/30 relative overflow-hidden group shadow-inner"
-                        style={{ boxShadow: `inset 0 0 20px ${glowColor}` }}
-                      >
-                        <Flame 
-                          className="h-14 w-14 animate-pulse" 
-                          style={{ 
-                            color: tierColor,
-                            filter: `drop-shadow(0 0 16px ${tierColor}70)` 
-                          }} 
-                        />
-                      </div>
-                      <div className="text-center space-y-1">
-                        <p className="text-[11px] sm:text-[12px] font-black tracking-[0.15em] text-white uppercase">
-                          MOMENTUM CONFIRMED
-                        </p>
-                        <p className="text-[8.5px] sm:text-[9.5px] font-semibold text-zinc-500 uppercase tracking-widest max-w-[200px] leading-relaxed">
-                          Verify coordinates on the LOCKIN discovery dashboard.
+                  <div className="flex-1 my-3 flex flex-col justify-start overflow-y-auto pr-1 scrollbar-none space-y-3 max-h-[280px]">
+                    {isFailed && (
+                      <div className="rounded-xl border border-cherryRed/35 bg-cherryRed/5 p-3 text-center">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-cherryRed">Runway Crash logged</span>
+                        <p className="text-[9px] text-zinc-500 font-semibold mt-0.5">
+                          Timer exited early. 5 Aura deducted.
                         </p>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {reflectionText && (
+                      <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-1.5 text-zinc-500">
+                          <Quote className="h-3.5 w-3.5 shrink-0" style={{ color: tierColor }} />
+                          <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Session Reflection</span>
+                        </div>
+                        <div className="rounded-xl border border-white/5 bg-black/40 p-3">
+                          <p className="text-[10.5px] sm:text-[11.5px] font-semibold text-cotton/90 italic leading-relaxed">
+                            "{reflectionText}"
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {lessonsLearned && (
+                      <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-1.5 text-zinc-500">
+                          <BookOpen className="h-3.5 w-3.5 shrink-0" style={{ color: tierColor }} />
+                          <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Lessons Logged</span>
+                        </div>
+                        <div className="rounded-xl border border-white/5 bg-black/40 p-3">
+                          <p className="text-[9.5px] sm:text-[10.5px] font-medium text-zinc-400 leading-relaxed">
+                            {lessonsLearned}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {screenshot && (
+                      <div className="space-y-1 text-left">
+                        <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-zinc-500">
+                          Progress Attachment
+                        </div>
+                        <div className="rounded-xl border border-white/5 bg-black/40 overflow-hidden relative aspect-video w-full">
+                          <img src={screenshot} alt="Runway Screenshot" className="object-cover w-full h-full animate-fade-in" />
+                        </div>
+                      </div>
+                    )}
+                    {link && (
+                      <div className="space-y-1 text-left">
+                        <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-zinc-500">
+                          Project Link
+                        </div>
+                        <a 
+                          href={link.startsWith("http") ? link : `https://${link}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded-xl border border-white/5 bg-black/40 px-3 py-2 text-[10px] sm:text-[11px] font-bold text-luxuryGold hover:bg-white/5 transition truncate"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="truncate">{link}</span>
+                        </a>
+                      </div>
+                    )}
+                    {!reflectionText && !lessonsLearned && !screenshot && !link && (
+                      <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                        <div 
+                          className="p-5.5 rounded-3xl border border-white/10 bg-black/30 relative overflow-hidden group shadow-inner"
+                          style={{ boxShadow: `inset 0 0 20px ${glowColor}` }}
+                        >
+                          <Flame 
+                            className="h-14 w-14 animate-pulse" 
+                            style={{ 
+                              color: tierColor,
+                              filter: `drop-shadow(0 0 16px ${tierColor}70)` 
+                            }} 
+                          />
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-[11px] sm:text-[12px] font-black tracking-[0.15em] text-white uppercase">
+                            MOMENTUM CONFIRMED
+                          </p>
+                          <p className="text-[8.5px] sm:text-[9.5px] font-semibold text-zinc-500 uppercase tracking-widest max-w-[200px] leading-relaxed">
+                            Verify coordinates on the LOCKIN discovery dashboard.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Bottom Row stats summary / verification details */}
@@ -551,15 +640,25 @@ export default function LockinRecapCard({
 
           {/* Action Row */}
           <div className="flex gap-2 mt-4 justify-center w-full">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-1 hover:brightness-95 text-black font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
-              style={{ backgroundColor: tierColor, color: tier === "gold" || tier === "silver" ? "#120F0D" : "#EDEBDE" }}
-            >
-              <Download size={13} />
-              {saving ? "Exporting..." : "Export Card"}
-            </button>
+            {isFailed ? (
+              <button
+                onClick={() => setIsTrashing(true)}
+                className="flex-1 bg-[#810100] text-white font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-cherryRed tracking-wider uppercase shadow-[0_0_15px_rgba(222,33,30,0.3)]"
+              >
+                <Trash2 size={13} />
+                Trash Card
+              </button>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 hover:brightness-95 text-black font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
+                style={{ backgroundColor: tierColor, color: tier === "gold" || tier === "silver" ? "#120F0D" : "#EDEBDE" }}
+              >
+                <Download size={13} />
+                {saving ? "Exporting..." : "Export Card"}
+              </button>
+            )}
 
             <button
               onClick={handleShare}

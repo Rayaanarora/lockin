@@ -38,6 +38,12 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [lessonsLearned, setLessonsLearned] = useState("");
   const [isPublicReflection, setIsPublicReflection] = useState(true);
   const [submittingReflection, setSubmittingReflection] = useState(false);
+  
+  // V2 reflection attachments & exit states
+  const [reflectionDuration, setReflectionDuration] = useState<number>(25);
+  const [isFailedRun, setIsFailedRun] = useState<boolean>(false);
+  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [attachLink, setAttachLink] = useState<string>("");
 
   // Timer V2 states
   const [activeFocusMission, setActiveFocusMission] = useState<Mission | null>(null);
@@ -204,10 +210,43 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   }
 
   function initiateFinishSession(mission: Mission) {
+    let elapsed = 0;
+    if (activeFocusMission && activeFocusMission.id === mission.id) {
+      elapsed = activeTimerDuration > 0 ? activeTimerDuration - timeLeftSeconds : timeLeftSeconds;
+    } else {
+      elapsed = (mission.focus_duration || 25) * 60;
+    }
+    const actualMins = Math.max(1, Math.round(elapsed / 60));
+
+    let failed = false;
+    if (activeFocusMission && activeFocusMission.id === mission.id && activeTimerDuration > 0) {
+      const tasksList = missionTasks[mission.id] || [];
+      const tasksCompleted = tasksList.filter(t => t.completed).length;
+      const underHalf = elapsed < (activeTimerDuration * 0.5);
+      const noTasks = tasksCompleted === 0;
+      const underThreeMins = elapsed < 180;
+      if ((underHalf && noTasks) || underThreeMins) {
+        failed = true;
+      }
+    }
+
+    if (activeFocusMission && activeFocusMission.id === mission.id && activeTimerDuration > 0 && timeLeftSeconds > 0) {
+      const confirmEnd = window.confirm(
+        "Are you sure you want to end before the target time?\n\n" +
+        `You have only focused for ${actualMins} minute(s).\n` +
+        (failed ? "WARNING: This will count as a RUNWAY CRASH (5 Aura penalty)." : "")
+      );
+      if (!confirmEnd) return;
+    }
+
+    setReflectionDuration(actualMins);
+    setIsFailedRun(failed);
     setActiveReflectionMission(mission);
     setReflectionText("");
     setLessonsLearned("");
     setIsPublicReflection(true);
+    setScreenshotBase64(null);
+    setAttachLink("");
   }
 
   async function submitFinishSession() {
@@ -216,17 +255,23 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     try {
       const missionId = activeReflectionMission.id;
       const tasksList = missionTasks[missionId] || [];
-      const tasksCompleted = tasksList.filter(t => t.completed).length;
+      const tasksCompleted = tasksList.length > 0
+        ? tasksList.filter(t => t.completed).length
+        : Number(tasksCompletedInput[missionId] || 0);
 
       const result = await api(`/missions/${missionId}/finish`, {
         method: "POST",
         body: JSON.stringify({
           userId: user.id,
           tasksCompleted,
+          sessionDuration: reflectionDuration,
+          isFailed: isFailedRun,
           reflection: {
             reflectionText: reflectionText.trim() || null,
             lessonsLearned: lessonsLearned.trim() || null,
-            isPublic: isPublicReflection
+            isPublic: isPublicReflection,
+            screenshot: screenshotBase64,
+            link: attachLink.trim() || null
           }
         })
       });
@@ -933,6 +978,62 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                 onChange={(e) => setLessonsLearned(e.target.value)}
                 placeholder="What did you learn or what will you optimize next session?"
                 className="min-h-20 border-white/10 bg-black/40 text-xs text-white resize-none"
+              />
+            </div>
+
+            {/* Screenshot attachment */}
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                Attach Screenshot / Progress Image
+              </label>
+              
+              {screenshotBase64 ? (
+                <div className="relative rounded-xl border border-white/10 bg-black/40 overflow-hidden aspect-video w-full flex items-center justify-center">
+                  <img src={screenshotBase64} alt="Attached Preview" className="object-cover w-full h-full" />
+                  <button
+                    type="button"
+                    onClick={() => setScreenshotBase64(null)}
+                    className="absolute top-2 right-2 rounded-full bg-black/75 p-1 text-zinc-400 hover:text-white transition"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-black/40 h-20 cursor-pointer hover:bg-white/5 transition">
+                  <Plus className="h-5 w-5 text-zinc-500 mb-1" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Upload Image
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setScreenshotBase64(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Project Link attachment */}
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                Project Link
+              </label>
+              <Input
+                type="text"
+                placeholder="e.g. github.com/user/repo"
+                value={attachLink}
+                onChange={(e) => setAttachLink(e.target.value)}
+                className="h-9 border-white/10 bg-black/40 text-xs text-white"
               />
             </div>
 

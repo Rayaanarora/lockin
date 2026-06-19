@@ -193,6 +193,31 @@ async function acceptMission(req, res) {
       return participation;
     });
 
+    // Real-time Push Notification to Host
+    try {
+      const mission = await prisma.mission.findUnique({
+        where: { id: Number(id) },
+        select: { createdBy: true, title: true }
+      });
+      const applicant = await prisma.user.findUnique({
+        where: { id: Number(userId) },
+        select: { name: true }
+      });
+      if (mission && mission.createdBy && req.activeSockets) {
+        const hostSocket = req.activeSockets.get(Number(mission.createdBy));
+        if (hostSocket) {
+          hostSocket.emit("push_notification", {
+            title: "New Join Request!",
+            message: `${applicant?.name || "Someone"} requested to join your runway: "${mission.title}"`,
+            type: "join_request",
+            missionId: Number(id)
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error sending join request notification:", err);
+    }
+
     res.status(201).json({
       mission_id: result.missionId,
       user_id: result.userId,
@@ -539,6 +564,31 @@ async function approveParticipant(req, res) {
 
       return approved;
     });
+
+    // Real-time Push Notification to Participant
+    try {
+      const mission = await prisma.mission.findUnique({
+        where: { id: Number(id) },
+        select: { title: true }
+      });
+      const host = await prisma.user.findUnique({
+        where: { id: Number(creatorId) },
+        select: { name: true }
+      });
+      if (mission && req.activeSockets) {
+        const participantSocket = req.activeSockets.get(Number(participantId));
+        if (participantSocket) {
+          participantSocket.emit("push_notification", {
+            title: "Request Approved!",
+            message: `${host?.name || "Host"} approved your request to join: "${mission.title}"`,
+            type: "request_approved",
+            missionId: Number(id)
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error sending approval notification:", err);
+    }
 
     res.json({
       mission_id: Number(id),

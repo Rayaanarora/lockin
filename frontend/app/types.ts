@@ -33,6 +33,7 @@ export interface Mission {
   category_name?: string;
   category_id?: number;
   mission_type?: string;
+  focus_duration?: number;
 }
 
 export interface Message {

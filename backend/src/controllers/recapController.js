@@ -43,7 +43,7 @@ function calculateStreak(recapDates) {
 // POST /api/missions/:id/finish
 async function finishSession(req, res) {
   const missionId = Number(req.params.id);
-  const { userId, tasksCompleted, reflection } = req.body;
+  const { userId, tasksCompleted, reflection, sessionDuration: requestedDuration, isFailed = false } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: "userId is required." });
@@ -75,8 +75,8 @@ async function finishSession(req, res) {
       return res.status(403).json({ error: "You are not part of this mission." });
     }
 
-    // Actual completed duration in minutes is the mission focus duration
-    const sessionDuration = mission.focusDuration || 25;
+    // Use requested actual focus duration, otherwise fallback to mission focus duration
+    const sessionDuration = requestedDuration !== undefined ? Number(requestedDuration) : (mission.focusDuration || 25);
 
     // 2. Mark participation status to Completed on database
     if (participation && participation.status !== "Completed") {
@@ -173,8 +173,15 @@ async function finishSession(req, res) {
 
     const unlockedAchievements = checkAchievements(achievementStats);
 
-    // 8. If solo mission, award 10 Aura immediately
-    if (mission.missionType === "solo") {
+    // 8. If crashed, deduct 5 Aura. If successful solo, award 10 Aura.
+    if (isFailed) {
+      await prisma.user.update({
+        where: { id: numericUserId },
+        data: {
+          reputationScore: { decrement: 5 }
+        }
+      });
+    } else if (mission.missionType === "solo") {
       await prisma.user.update({
         where: { id: numericUserId },
         data: {
@@ -207,7 +214,10 @@ async function finishSession(req, res) {
         metadata: {
           isNewLongestSession,
           isNewMostTasks,
-          isNewLongestStreak
+          isNewLongestStreak,
+          screenshot: reflection?.screenshot || null,
+          link: reflection?.link || null,
+          isFailed: isFailed
         }
       }
     });
@@ -215,6 +225,9 @@ async function finishSession(req, res) {
     // 10. Upsert DailyActivity for user
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const dailyMissionsInc = isFailed ? 0 : 1;
+    const dailyAuraInc = isFailed ? -5 : 10;
+
     await prisma.dailyActivity.upsert({
       where: {
         userId_date: {
@@ -223,18 +236,18 @@ async function finishSession(req, res) {
         }
       },
       update: {
-        missionsCompleted: { increment: 1 },
+        missionsCompleted: { increment: dailyMissionsInc },
         focusMinutes: { increment: sessionDuration },
         tasksCompleted: { increment: tasksCompleted || 0 },
-        auraEarned: { increment: 10 }
+        auraEarned: { increment: dailyAuraInc }
       },
       create: {
         userId: numericUserId,
         date: today,
-        missionsCompleted: 1,
+        missionsCompleted: dailyMissionsInc,
         focusMinutes: sessionDuration,
         tasksCompleted: tasksCompleted || 0,
-        auraEarned: 10
+        auraEarned: dailyAuraInc
       }
     });
 
@@ -243,14 +256,17 @@ async function finishSession(req, res) {
       data: {
         userId: numericUserId,
         type: "mission_completed",
-        title: `Completed: ${mission.title}`,
+        title: isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`,
         description: reflection?.reflectionText || null,
         metadata: {
           sessionDuration,
           tasksCompleted: tasksCompleted || 0,
           category: mission.category?.categoryName || "Other",
           missionType: mission.missionType || "group",
-          participantCount
+          participantCount,
+          screenshot: reflection?.screenshot || null,
+          link: reflection?.link || null,
+          isFailed: isFailed
         },
         recapId: recap.id
       }

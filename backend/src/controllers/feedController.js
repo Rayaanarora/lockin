@@ -144,7 +144,110 @@ async function getUserFeed(req, res) {
   }
 }
 
+// GET /api/feed/live
+async function getLiveActivities(req, res) {
+  try {
+    const activeParticipations = await prisma.participation.findMany({
+      where: {
+        status: "Executing",
+        workStartedAt: { not: null }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            department: true
+          }
+        },
+        mission: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                name: true,
+                department: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const liveItems = [];
+    const processedUserIds = new Set();
+    const now = Date.now();
+
+    activeParticipations.forEach((p) => {
+      if (!p.mission) return;
+
+      const workStartedAt = p.workStartedAt;
+      const targetDuration = p.mission.focusDuration || 25;
+      
+      const elapsedMs = now - new Date(workStartedAt).getTime();
+      const maxAgeMs = (targetDuration + 30) * 60000;
+      if (elapsedMs > maxAgeMs) {
+        return; // skip stale runs
+      }
+
+      // 1. Participant focusing
+      if (p.user && !processedUserIds.has(p.user.id)) {
+        liveItems.push({
+          userId: p.user.id,
+          name: p.user.name,
+          department: p.user.department || "Student",
+          missionId: p.mission.id,
+          missionTitle: p.mission.title,
+          workStartedAt: workStartedAt.toISOString(),
+          targetDuration,
+          role: p.mission.missionType === "solo" ? "solo" : "participant"
+        });
+        processedUserIds.add(p.user.id);
+      }
+
+      // 2. Creator focusing (for group runs)
+      if (p.mission.missionType === "group" && p.mission.creator) {
+        if (!processedUserIds.has(p.mission.creator.id)) {
+          liveItems.push({
+            userId: p.mission.creator.id,
+            name: p.mission.creator.name,
+            department: p.mission.creator.department || "Student",
+            missionId: p.mission.id,
+            missionTitle: p.mission.title,
+            workStartedAt: workStartedAt.toISOString(),
+            targetDuration,
+            role: "creator"
+          });
+          processedUserIds.add(p.mission.creator.id);
+        }
+      }
+    });
+
+    res.json(liveItems);
+  } catch (error) {
+    if (isDbUnavailable(error)) {
+      console.warn("Database offline. Returning mock live activities.");
+      res.json([
+        {
+          userId: 102,
+          name: "Faheem",
+          department: "CSE",
+          missionId: 999,
+          missionTitle: "Building LOCKIN V2",
+          workStartedAt: new Date(Date.now() - 12 * 60000).toISOString(),
+          targetDuration: 25,
+          role: "creator"
+        }
+      ]);
+      return;
+    }
+    console.error("Error fetching live activities", error);
+    res.status(500).json({ error: "Failed to load live activities." });
+  }
+}
+
 module.exports = {
   getFeed,
-  getUserFeed
+  getUserFeed,
+  getLiveActivities
 };
