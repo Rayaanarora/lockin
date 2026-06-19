@@ -35,6 +35,17 @@ interface RecapProps {
   };
 }
 
+const SHARDS = [
+  { clip: "polygon(0% 0%, 50% 0%, 25% 35%, 0% 25%)", tx: -200, ty: -200, r: -180 },
+  { clip: "polygon(50% 0%, 100% 0%, 75% 30%, 25% 35%)", tx: 150, ty: -240, r: 160 },
+  { clip: "polygon(0% 25%, 25% 35%, 15% 60%, 0% 60%)", tx: -250, ty: -40, r: -110 },
+  { clip: "polygon(25% 35%, 75% 30%, 60% 65%, 15% 60%)", tx: 40, ty: 140, r: 280 },
+  { clip: "polygon(75% 30%, 100% 0%, 100% 50%, 60% 65%)", tx: 250, ty: -90, r: 210 },
+  { clip: "polygon(0% 60%, 15% 60%, 35% 100%, 0% 100%)", tx: -180, ty: 250, r: -220 },
+  { clip: "polygon(15% 60%, 60% 65%, 75% 100%, 35% 100%)", tx: -30, ty: 320, r: 420 },
+  { clip: "polygon(60% 65%, 100% 50%, 100% 100%, 75% 100%)", tx: 200, ty: 220, r: 230 },
+];
+
 export default function LockinRecapCard({
   isOpen,
   onClose,
@@ -282,21 +293,15 @@ export default function LockinRecapCard({
       >
         <motion.div
           initial={{ scale: 0.92, opacity: 0 }}
-          animate={isTrashing ? { y: 800, rotate: 360, scale: 0.1, opacity: 0 } : { scale: 1, opacity: 1 }}
+          animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.92, opacity: 0 }}
-          transition={isTrashing ? { duration: 0.8, ease: "backIn" } : { duration: 0.3, ease: "easeOut" }}
-          onAnimationComplete={() => {
-            if (isTrashing) {
-              onClose();
-              setIsTrashing(false);
-            }
-          }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-[340px] sm:max-w-[380px] my-auto flex flex-col items-center"
         >
           {/* Card perspective container */}
           <div 
-            onClick={() => setIsFlipped(!isFlipped)}
+            onClick={() => !isTrashing && setIsFlipped(!isFlipped)}
             className="cursor-pointer relative w-full select-none animate-fade-in"
             style={{
               perspective: "1200px",
@@ -304,15 +309,59 @@ export default function LockinRecapCard({
               height: "auto",
             }}
           >
+            {/* Glass shattering shards animation overlay */}
+            {isTrashing && (
+              <div className="absolute inset-0 w-full h-full pointer-events-none z-50">
+                {SHARDS.map((shard, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
+                    animate={{
+                      x: shard.tx,
+                      y: shard.ty,
+                      rotate: shard.r,
+                      scale: 0.1,
+                      opacity: 0,
+                    }}
+                    transition={{
+                      duration: 0.8,
+                      ease: [0.1, 0.8, 0.3, 1], // fast explosive ease-out
+                      delay: idx * 0.015,
+                    }}
+                    onAnimationComplete={() => {
+                      if (idx === 0) {
+                        onClose();
+                        setIsTrashing(false);
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      clipPath: shard.clip,
+                      background: cardBg,
+                      border: "2px solid #DE211E",
+                      boxShadow: "0 0 15px rgba(222, 33, 30, 0.5)",
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-[#810100]/10" />
+                    <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <path d="M0,0 L100,100 M100,0 L0,100" stroke="#DE211E" strokeWidth="1.5" />
+                    </svg>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
             {/* Rotating Flipper element */}
             <div
               style={{
                 transformStyle: "preserve-3d",
-                transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease-out",
                 transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
                 position: "absolute",
                 width: "100%",
                 height: "100%",
+                opacity: isTrashing ? 0 : 1,
+                pointerEvents: isTrashing ? "none" : "auto",
               }}
             >
               {/* ───────────────── FRONT SIDE ───────────────── */}
