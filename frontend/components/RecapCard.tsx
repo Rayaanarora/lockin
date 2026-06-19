@@ -280,6 +280,14 @@ export default function LockinRecapCard({
     }
   }, [recapData.shareId, hours, mins]);
 
+  const handleTrashClick = () => {
+    setIsTrashing(true);
+    setTimeout(() => {
+      onClose();
+      setIsTrashing(false);
+    }, 850);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -311,44 +319,51 @@ export default function LockinRecapCard({
           >
             {/* Glass shattering shards animation overlay */}
             {isTrashing && (
-              <div className="absolute inset-0 w-full h-full pointer-events-none z-50">
-                {SHARDS.map((shard, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
-                    animate={{
-                      x: shard.tx,
-                      y: shard.ty,
-                      rotate: shard.r,
-                      scale: 0.1,
-                      opacity: 0,
-                    }}
-                    transition={{
-                      duration: 0.8,
-                      ease: [0.1, 0.8, 0.3, 1], // fast explosive ease-out
-                      delay: idx * 0.015,
-                    }}
-                    onAnimationComplete={() => {
-                      if (idx === 0) {
-                        onClose();
-                        setIsTrashing(false);
-                      }
-                    }}
-                    className="absolute inset-0 w-full h-full"
-                    style={{
-                      clipPath: shard.clip,
-                      background: cardBg,
-                      border: "2px solid #DE211E",
-                      boxShadow: "0 0 15px rgba(222, 33, 30, 0.5)",
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-[#810100]/10" />
-                    <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <path d="M0,0 L100,100 M100,0 L0,100" stroke="#DE211E" strokeWidth="1.5" />
-                    </svg>
-                  </motion.div>
-                ))}
-              </div>
+              <svg 
+                className="absolute inset-0 w-full h-full z-50 overflow-visible pointer-events-none" 
+                viewBox="0 0 100 100" 
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <radialGradient id="trash-card-grad" cx="50%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#250404" />
+                    <stop offset="100%" stopColor="#080000" />
+                  </radialGradient>
+                </defs>
+                {SHARDS.map((shard, idx) => {
+                  const points = shard.clip
+                    .replace("polygon(", "")
+                    .replace(")", "")
+                    .replace(/%/g, "");
+                  
+                  return (
+                    <motion.polygon
+                      key={idx}
+                      points={points}
+                      fill="url(#trash-card-grad)"
+                      stroke="#DE211E"
+                      strokeWidth="0.8"
+                      style={{ 
+                        transformOrigin: "center",
+                        filter: "drop-shadow(0px 0px 4px rgba(222, 33, 30, 0.5))"
+                      }}
+                      initial={{ x: 0, y: 0, scale: 1, rotate: 0, opacity: 1 }}
+                      animate={{
+                        x: shard.tx * 0.3,
+                        y: shard.ty * 0.3,
+                        scale: 0.1,
+                        rotate: shard.r,
+                        opacity: 0,
+                      }}
+                      transition={{
+                        duration: 0.8,
+                        ease: [0.1, 0.8, 0.3, 1],
+                        delay: idx * 0.015,
+                      }}
+                    />
+                  );
+                })}
+              </svg>
             )}
 
             {/* Rotating Flipper element */}
@@ -671,8 +686,8 @@ export default function LockinRecapCard({
                     </div>
                     <div className="text-right">
                       <span className="block text-[7px] sm:text-[8px] font-bold uppercase tracking-wider text-zinc-500 leading-none">AURA SCORE</span>
-                      <span className="text-[12px] sm:text-[13.5px] font-black text-white mt-1 leading-none inline-block uppercase" style={{ color: tierColor }}>
-                        +{isPeriod ? (recapData.missionsCompleted ?? 0) * 15 : 10} AURA
+                      <span className="text-[12px] sm:text-[13.5px] font-black mt-1 leading-none inline-block uppercase" style={{ color: tierColor }}>
+                        {isFailed ? "-5 AURA" : `+${isPeriod ? (recapData.missionsCompleted ?? 0) * 15 : 10} AURA`}
                       </span>
                     </div>
                   </div>
@@ -691,7 +706,7 @@ export default function LockinRecapCard({
           <div className="flex gap-2 mt-4 justify-center w-full">
             {isFailed ? (
               <button
-                onClick={() => setIsTrashing(true)}
+                onClick={handleTrashClick}
                 className="flex-1 bg-[#810100] text-white font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-cherryRed tracking-wider uppercase shadow-[0_0_15px_rgba(222,33,30,0.3)]"
               >
                 <Trash2 size={13} />
