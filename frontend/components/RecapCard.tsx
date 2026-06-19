@@ -280,14 +280,6 @@ export default function LockinRecapCard({
     }
   }, [recapData.shareId, hours, mins]);
 
-  const handleTrashClick = () => {
-    setIsTrashing(true);
-    setTimeout(() => {
-      onClose();
-      setIsTrashing(false);
-    }, 850);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -301,15 +293,21 @@ export default function LockinRecapCard({
       >
         <motion.div
           initial={{ scale: 0.92, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+          animate={isTrashing ? { y: 800, rotate: 360, scale: 0.1, opacity: 0 } : { scale: 1, opacity: 1 }}
           exit={{ scale: 0.92, opacity: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          transition={isTrashing ? { duration: 0.8, ease: "backIn" } : { duration: 0.3, ease: "easeOut" }}
+          onAnimationComplete={() => {
+            if (isTrashing) {
+              onClose();
+              setIsTrashing(false);
+            }
+          }}
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-[340px] sm:max-w-[380px] my-auto flex flex-col items-center"
         >
           {/* Card perspective container */}
           <div 
-            onClick={() => !isTrashing && setIsFlipped(!isFlipped)}
+            onClick={() => setIsFlipped(!isFlipped)}
             className="cursor-pointer relative w-full select-none animate-fade-in"
             style={{
               perspective: "1200px",
@@ -317,66 +315,15 @@ export default function LockinRecapCard({
               height: "auto",
             }}
           >
-            {/* Glass shattering shards animation overlay */}
-            {isTrashing && (
-              <svg 
-                className="absolute inset-0 w-full h-full z-50 overflow-visible pointer-events-none" 
-                viewBox="0 0 100 100" 
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <radialGradient id="trash-card-grad" cx="50%" cy="30%" r="75%">
-                    <stop offset="0%" stopColor="#250404" />
-                    <stop offset="100%" stopColor="#080000" />
-                  </radialGradient>
-                </defs>
-                {SHARDS.map((shard, idx) => {
-                  const points = shard.clip
-                    .replace("polygon(", "")
-                    .replace(")", "")
-                    .replace(/%/g, "");
-                  
-                  return (
-                    <motion.polygon
-                      key={idx}
-                      points={points}
-                      fill="url(#trash-card-grad)"
-                      stroke="#DE211E"
-                      strokeWidth="0.8"
-                      style={{ 
-                        transformOrigin: "center",
-                        filter: "drop-shadow(0px 0px 4px rgba(222, 33, 30, 0.5))"
-                      }}
-                      initial={{ x: 0, y: 0, scale: 1, rotate: 0, opacity: 1 }}
-                      animate={{
-                        x: shard.tx * 0.3,
-                        y: shard.ty * 0.3,
-                        scale: 0.1,
-                        rotate: shard.r,
-                        opacity: 0,
-                      }}
-                      transition={{
-                        duration: 0.8,
-                        ease: [0.1, 0.8, 0.3, 1],
-                        delay: idx * 0.015,
-                      }}
-                    />
-                  );
-                })}
-              </svg>
-            )}
-
             {/* Rotating Flipper element */}
             <div
               style={{
                 transformStyle: "preserve-3d",
-                transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease-out",
+                transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
                 transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
                 position: "absolute",
                 width: "100%",
                 height: "100%",
-                opacity: isTrashing ? 0 : 1,
-                pointerEvents: isTrashing ? "none" : "auto",
               }}
             >
               {/* ───────────────── FRONT SIDE ───────────────── */}
@@ -706,7 +653,7 @@ export default function LockinRecapCard({
           <div className="flex gap-2 mt-4 justify-center w-full">
             {isFailed ? (
               <button
-                onClick={handleTrashClick}
+                onClick={() => setIsTrashing(true)}
                 className="flex-1 bg-[#810100] text-white font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-cherryRed tracking-wider uppercase shadow-[0_0_15px_rgba(222,33,30,0.3)]"
               >
                 <Trash2 size={13} />
