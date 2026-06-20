@@ -7,7 +7,7 @@ function required(value) {
 }
 
 async function createUser(req, res) {
-  const { name, college, college_id, department, bio, instagram, github, interests, campusId } = req.body;
+  const { name, college, college_id, department, bio, instagram, github, interests, campusId, collegeId } = req.body;
 
   if (![name, college, college_id, department].every(required)) {
     return res.status(400).json({ error: "Name, college, college_id, and department are required." });
@@ -22,7 +22,8 @@ async function createUser(req, res) {
     instagram: instagram ? instagram.trim() : "",
     github: github ? github.trim() : "",
     interests: interests ? interests.trim() : "",
-    campusId: campusId ? Number(campusId) : null
+    campusId: campusId ? Number(campusId) : null,
+    collegeId: collegeId ? Number(collegeId) : (campusId ? Number(campusId) : null)
   };
 
   let email = payload.college_id;
@@ -42,7 +43,7 @@ async function createUser(req, res) {
         instagram: payload.instagram,
         github: payload.github,
         interests: payload.interests,
-        campusId: payload.campusId
+        collegeId: payload.collegeId
       }
     });
 
@@ -57,7 +58,7 @@ async function createUser(req, res) {
       instagram: user.instagram,
       github: user.github,
       interests: user.interests,
-      campus_id: user.campusId
+      campus_id: user.collegeId
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -69,7 +70,7 @@ async function getUser(req, res) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: Number(req.params.id) },
-      include: { campus: true }
+      include: { collegeRef: true }
     });
     if (!user) {
       return res.status(404).json({ error: "User not found." });
@@ -85,8 +86,8 @@ async function getUser(req, res) {
       instagram: user.instagram || "",
       github: user.github || "",
       interests: user.interests || "",
-      campus_id: user.campusId,
-      campus_name: user.campus?.name || ""
+      campus_id: user.collegeId,
+      campus_name: user.collegeRef?.shortName || ""
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -119,7 +120,9 @@ async function getLockStatus(req, res) {
 
 async function updateUser(req, res) {
   const { id } = req.params;
-  const { name, department, bio, instagram, github, interests, location } = req.body;
+  const { name, department, bio, instagram, github, interests, location, college, collegeId, campusId } = req.body;
+
+  const effectiveCollegeId = collegeId || campusId;
 
   try {
     const user = await prisma.user.update({
@@ -131,7 +134,9 @@ async function updateUser(req, res) {
         instagram: instagram !== undefined ? instagram.trim() : undefined,
         github: github !== undefined ? github.trim() : undefined,
         interests: interests !== undefined ? interests.trim() : undefined,
-        location: location !== undefined ? location.trim() : undefined
+        location: location !== undefined ? location.trim() : undefined,
+        college: college !== undefined ? college.trim() : undefined,
+        collegeId: effectiveCollegeId !== undefined ? (effectiveCollegeId ? Number(effectiveCollegeId) : null) : undefined
       }
     });
 
@@ -155,14 +160,15 @@ async function updateUser(req, res) {
 }
 
 async function getLeaderboard(req, res) {
-  const { campusId } = req.query;
-  if (!campusId) {
-    return res.status(400).json({ error: "campusId query parameter is required." });
+  const { campusId, collegeId: cId } = req.query;
+  const effectiveCollegeId = cId || campusId;
+  if (!effectiveCollegeId) {
+    return res.status(400).json({ error: "campusId or collegeId query parameter is required." });
   }
 
   try {
     const leaderboard = await prisma.user.findMany({
-      where: { campusId: Number(campusId) },
+      where: { collegeId: Number(effectiveCollegeId) },
       orderBy: { reputationScore: "desc" },
       take: 10,
       select: {
@@ -232,7 +238,7 @@ async function getPublicProfile(req, res) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        campus: true
+        collegeRef: true
       }
     });
 
@@ -320,8 +326,8 @@ async function getPublicProfile(req, res) {
         instagram: user.instagram,
         github: user.github,
         interests: user.interests,
-        campus_id: user.campusId,
-        campus_name: user.campus?.name || ""
+        campus_id: user.collegeId,
+        campus_name: user.collegeRef?.shortName || ""
       },
       stats: {
         totalMissions,

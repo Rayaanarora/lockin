@@ -13,6 +13,9 @@ const recapRoutes = require("./src/routes/recapRoutes");
 const taskRoutes = require("./src/routes/taskRoutes");
 const followRoutes = require("./src/routes/followRoutes");
 const feedRoutes = require("./src/routes/feedRoutes");
+const collegeRoutes = require("./src/routes/collegeRoutes");
+const authRoutes = require("./src/routes/authRoutes");
+const interestRoutes = require("./src/routes/interestRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
 
 const app = express();
@@ -63,6 +66,9 @@ app.use("/api/recaps", recapRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/feed", feedRoutes);
+app.use("/api/colleges", collegeRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/interests", interestRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

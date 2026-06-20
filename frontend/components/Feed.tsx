@@ -19,7 +19,7 @@ interface FeedProps {
 
 export default function Feed({ user, refreshUser, locked, setLocked, api, setTab }: FeedProps) {
   const [missions, setMissions] = useState<Mission[]>([]);
-  const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; categoryName: string; emoji?: string; colorHex?: string }[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
@@ -243,19 +243,24 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           >
             All
           </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => handleCategoryChange(String(c.id))}
-              className={`h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0 ${
-                activeCategory === String(c.id)
-                  ? "border-cherryRed bg-cherryRed text-cotton"
-                  : "border-luxuryMaroon/20 bg-noirBlack/40 text-cotton/60 hover:text-cotton hover:bg-luxuryMaroon/10"
-              }`}
-            >
-              {c.categoryName}
-            </button>
-          ))}
+          {categories.map((c) => {
+            const selected = activeCategory === String(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => handleCategoryChange(String(c.id))}
+                className="flex items-center gap-1.5 h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0"
+                style={{
+                  borderColor: selected ? (c.colorHex || "#810100") : "rgba(129,1,0,0.15)",
+                  backgroundColor: selected ? (c.colorHex || "#810100") : "rgba(8,8,8,0.4)",
+                  color: selected ? "#ffffff" : "rgba(255,255,255,0.6)"
+                }}
+              >
+                {c.emoji && <span className="text-xs md:text-sm">{c.emoji}</span>}
+                {c.categoryName}
+              </button>
+            );
+          })}
         </div>
 
         {/* Right scroll arrow */}
@@ -355,7 +360,17 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                       </p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-luxuryMaroon/10 border border-luxuryMaroon/20 px-2 py-0.5 md:px-3 md:py-1 text-[8px] md:text-[10px] font-black tracking-widest text-cotton/80 uppercase">
+                  <span
+                    className="flex items-center gap-1 rounded-full bg-luxuryMaroon/10 border border-luxuryMaroon/20 px-2 py-0.5 md:px-3 md:py-1 text-[8px] md:text-[10px] font-black tracking-widest uppercase"
+                    style={{
+                      borderColor: currentMission.category_color ? `${currentMission.category_color}40` : undefined,
+                      backgroundColor: currentMission.category_color ? `${currentMission.category_color}14` : undefined,
+                      color: currentMission.category_color || "#ffa3a3"
+                    }}
+                  >
+                    {currentMission.category_emoji && (
+                      <span className="text-[10px] md:text-xs">{currentMission.category_emoji}</span>
+                    )}
                     {currentMission.category_name || "Coding"}
                   </span>
                 </div>
@@ -522,7 +537,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id} className="bg-zinc-950 text-white">
-                      {c.categoryName}
+                      {c.emoji ? `${c.emoji} ` : ""}{c.categoryName}
                     </option>
                   ))}
                 </select>

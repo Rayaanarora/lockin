@@ -8,21 +8,21 @@
 :root {
   --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: dark;
-  --background: 12 10% 10%; /* #1B1716 Noir Black */
-  --foreground: 52 27% 90%; /* #EDEBDE Cotton */
-  --card: 12 11% 12%; /* #221C1A Card Dark */
-  --card-foreground: 52 27% 90%;
-  --muted: 12 10% 13%; /* #25201E Muted Background */
-  --muted-foreground: 52 10% 60%; /* Cotton with reduced brightness */
-  --primary: 1 95% 48%; /* #FC1E1A Bright Cherry Red */
-  --primary-foreground: 52 27% 90%;
-  --secondary: 1 90% 36%; /* #AD1614 Tasteful Maroon */
-  --secondary-foreground: 52 27% 90%;
-  --destructive: 1 89% 38%;
-  --destructive-foreground: 52 27% 90%;
-  --border: 12 10% 18%; /* #322B29 Border */
-  --input: 12 10% 18%;
-  --ring: 1 89% 38%;
+  --background: 7 10% 10%; /* #1B1716 Noir Black */
+  --foreground: 52 31% 90%; /* #EDEBDE Cotton */
+  --card: 7 10% 7%; /* Noir Card Dark */
+  --card-foreground: 52 31% 90%;
+  --muted: 7 10% 14%; /* Muted Background */
+  --muted-foreground: 52 10% 60%;
+  --primary: 1 100% 25%; /* #810100 Cherry Red */
+  --primary-foreground: 52 31% 95%;
+  --secondary: 0 98% 20%; /* #630102 Maroon */
+  --secondary-foreground: 52 31% 90%;
+  --destructive: 1 100% 25%;
+  --destructive-foreground: 52 31% 90%;
+  --border: 0 98% 20%;
+  --input: 7 10% 12%;
+  --ring: 1 100% 25%;
   --radius: 0.625rem;
 }
 
@@ -35,10 +35,10 @@ html,
 body {
   min-height: 100%;
   background:
-    radial-gradient(circle at 12% 8%, rgba(222, 33, 30, .18), transparent 30rem), /* Bright Cherry Red */
-    radial-gradient(circle at 85% 14%, rgba(173, 22, 20, .12), transparent 28rem), /* Maroon */
-    radial-gradient(circle at 78% 82%, rgba(237, 235, 222, .04), transparent 28rem), /* Cotton */
-    linear-gradient(135deg, rgba(27, 23, 22, .98), rgba(18, 15, 14, .98)), /* Noir Black */
+    radial-gradient(circle at 12% 8%, rgba(129, 1, 0, .18), transparent 30rem), /* Cherry Red */
+    radial-gradient(circle at 85% 14%, rgba(99, 1, 2, .16), transparent 28rem), /* Maroon */
+    radial-gradient(circle at 78% 82%, rgba(237, 235, 222, .06), transparent 28rem), /* Cotton */
+    linear-gradient(135deg, #1B1716, #120F0D), /* Noir Black */
     hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -58,18 +58,18 @@ textarea {
 .grid-noise {
   background-image:
     linear-gradient(rgba(237, 235, 222, .04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(179, 16, 14, .04) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(99, 1, 2, .04) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .7), transparent 74%);
 }
 
 .glass {
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .035)),
-    color-mix(in srgb, hsl(var(--card)) 88%, transparent);
-  border: 1px solid rgba(148, 163, 184, .18);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .08);
-  backdrop-filter: blur(18px);
+    linear-gradient(145deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .01)),
+    color-mix(in srgb, hsl(var(--card)) 92%, transparent);
+  border: 1px solid rgba(237, 235, 222, .12);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .04);
+  backdrop-filter: blur(20px);
 }
 
 .text-balance {
@@ -82,7 +82,7 @@ textarea {
 
 .race-stripe {
   background:
-    linear-gradient(110deg, transparent 0 12px, #DE211E 12px 56px, transparent 56px 68px, #EDEBDE 68px 112px, transparent 112px 124px, #DE211E 124px 168px, transparent 168px 180px, #EDEBDE 180px 224px, transparent 224px);
+    linear-gradient(110deg, transparent 0 12px, #810100 12px 56px, transparent 56px 68px, #EDEBDE 68px 112px, transparent 112px 124px, #630102 124px 168px, transparent 168px 180px, #C5A880 180px 224px, transparent 224px);
 }
 
 @layer base {
@@ -91,71 +91,71 @@ textarea {
     --font-sans: var(--font-sans);
   }
   :root {
-    --background: 12 10% 10%;
-    --foreground: 52 27% 90%;
-    --card: 12 11% 12%;
-    --card-foreground: 52 27% 90%;
-    --popover: 12 11% 12%;
-    --popover-foreground: 52 27% 90%;
-    --primary: 1 95% 48%;
-    --primary-foreground: 52 27% 90%;
-    --secondary: 1 90% 36%;
-    --secondary-foreground: 52 27% 90%;
-    --muted: 12 10% 13%;
+    --background: 7 10% 10%;
+    --foreground: 52 31% 90%;
+    --card: 7 10% 7%;
+    --card-foreground: 52 31% 90%;
+    --popover: 7 10% 7%;
+    --popover-foreground: 52 31% 90%;
+    --primary: 1 100% 25%;
+    --primary-foreground: 52 31% 95%;
+    --secondary: 0 98% 20%;
+    --secondary-foreground: 52 31% 90%;
+    --muted: 7 10% 14%;
     --muted-foreground: 52 10% 60%;
-    --accent: 1 89% 29%;
-    --accent-foreground: 52 27% 90%;
-    --destructive: 1 89% 38%;
-    --border: 12 10% 18%;
-    --input: 12 10% 18%;
-    --ring: 1 89% 38%;
-    --chart-1: 12 10% 10%;
-    --chart-2: 52 27% 90%;
-    --chart-3: 1 89% 38%;
-    --chart-4: 1 89% 29%;
-    --chart-5: 12 10% 13%;
+    --accent: 0 98% 20%;
+    --accent-foreground: 52 31% 90%;
+    --destructive: 1 100% 25%;
+    --border: 0 98% 20%;
+    --input: 7 10% 12%;
+    --ring: 1 100% 25%;
+    --chart-1: 7 10% 10%;
+    --chart-2: 52 31% 90%;
+    --chart-3: 1 100% 25%;
+    --chart-4: 0 98% 20%;
+    --chart-5: 7 10% 14%;
     --radius: 0.625rem;
-    --sidebar: 12 11% 12%;
-    --sidebar-foreground: 52 27% 90%;
-    --sidebar-primary: 1 89% 38%;
-    --sidebar-primary-foreground: 52 27% 90%;
-    --sidebar-accent: 1 89% 29%;
-    --sidebar-accent-foreground: 52 27% 90%;
-    --sidebar-border: 12 10% 18%;
-    --sidebar-ring: 1 89% 38%;
+    --sidebar: 7 10% 7%;
+    --sidebar-foreground: 52 31% 90%;
+    --sidebar-primary: 1 100% 25%;
+    --sidebar-primary-foreground: 52 31% 90%;
+    --sidebar-accent: 0 98% 20%;
+    --sidebar-accent-foreground: 52 31% 90%;
+    --sidebar-border: 0 98% 20%;
+    --sidebar-ring: 1 100% 25%;
   }
   .dark {
-    --background: 12 10% 10%;
-    --foreground: 52 27% 90%;
-    --card: 12 11% 12%;
-    --card-foreground: 52 27% 90%;
-    --popover: 12 11% 12%;
-    --popover-foreground: 52 27% 90%;
-    --primary: 1 95% 48%;
-    --primary-foreground: 52 27% 90%;
-    --secondary: 1 90% 36%;
-    --secondary-foreground: 52 27% 90%;
-    --muted: 12 10% 13%;
+    --background: 7 10% 10%;
+    --foreground: 52 31% 90%;
+    --card: 7 10% 7%;
+    --card-foreground: 52 31% 90%;
+    --popover: 7 10% 7%;
+    --popover-foreground: 52 31% 90%;
+    --primary: 1 100% 25%;
+    --primary-foreground: 52 31% 95%;
+    --secondary: 0 98% 20%;
+    --secondary-foreground: 52 31% 90%;
+    --muted: 7 10% 14%;
     --muted-foreground: 52 10% 60%;
-    --accent: 1 89% 29%;
-    --accent-foreground: 52 27% 90%;
-    --destructive: 1 89% 38%;
-    --border: 12 10% 18%;
-    --input: 12 10% 18%;
-    --ring: 1 89% 38%;
-    --chart-1: 12 10% 10%;
-    --chart-2: 52 27% 90%;
-    --chart-3: 1 89% 38%;
-    --chart-4: 1 89% 29%;
-    --chart-5: 12 10% 13%;
-    --sidebar: 12 11% 12%;
-    --sidebar-foreground: 52 27% 90%;
-    --sidebar-primary: 1 89% 38%;
-    --sidebar-primary-foreground: 52 27% 90%;
-    --sidebar-accent: 1 89% 29%;
-    --sidebar-accent-foreground: 52 27% 90%;
-    --sidebar-border: 12 10% 18%;
-    --sidebar-ring: 1 89% 38%;
+    --accent: 0 98% 20%;
+    --accent-foreground: 52 31% 90%;
+    --destructive: 1 100% 25%;
+    --border: 0 98% 20%;
+    --input: 7 10% 12%;
+    --ring: 1 100% 25%;
+    --chart-1: 7 10% 10%;
+    --chart-2: 52 31% 90%;
+    --chart-3: 1 100% 25%;
+    --chart-4: 0 98% 20%;
+    --chart-5: 7 10% 14%;
+    --sidebar: 7 10% 7%;
+    --sidebar-foreground: 52 31% 90%;
+    --sidebar-primary: 1 100% 25%;
+    --sidebar-primary-foreground: 52 31% 90%;
+    --sidebar-accent: 0 98% 20%;
+    --sidebar-accent-foreground: 52 31% 90%;
+    --sidebar-border: 0 98% 20%;
+    --sidebar-ring: 1 100% 25%;
   }
   * {
     @apply border-border;
@@ -264,8 +264,7 @@ textarea {
   border-color: rgba(0, 0, 0, 0.08) !important;
   color: #18181b !important;
 }
-
-.light h2, .light h3, .light h4, .light p, .light span:not(.text-boxOrange):not(.text-boxGreen):not(.text-boxRed) {
+.light h2, .light h3, .light h4, .light p, .light span:not(.text-cotton):not(.text-luxuryGold):not(.text-cherryRed) {
   color: #18181b !important;
 }
 
@@ -308,11 +307,11 @@ textarea {
   color: #18181b !important;
 }
 
-.light button:not(.bg-boxOrange):not(.bg-\[\#F52601\]):not(.bg-boxGreen):not(.bg-boxRed) {
+.light button:not(.bg-cotton):not(.bg-\[\#F52601\]):not(.bg-luxuryGold):not(.bg-cherryRed) {
   color: #27272a;
 }
 
-.light button:hover:not(.bg-boxOrange):not(.bg-\[\#F52601\]):not(.bg-boxGreen):not(.bg-boxRed) {
+.light button:hover:not(.bg-cotton):not(.bg-\[\#F52601\]):not(.bg-luxuryGold):not(.bg-cherryRed) {
   background-color: rgba(0, 0, 0, 0.06) !important;
   color: #18181b !important;
 }

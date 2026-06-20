@@ -99,8 +99,13 @@ export default function Home() {
     try {
       const nextUser = await api(`/users/${id}`);
       const lock = await api(`/users/${id}/lock`);
-      setUser(nextUser);
-      setLocked(lock.locked);
+      if (!nextUser.department || !nextUser.college) {
+        localStorage.removeItem("lockin_user_id");
+        setUser(null);
+      } else {
+        setUser(nextUser);
+        setLocked(lock.locked);
+      }
     } catch {
       localStorage.removeItem("lockin_user_id");
       setUser(null);
@@ -118,8 +123,13 @@ export default function Home() {
     }
     Promise.all([api(`/users/${id}`), api(`/users/${id}/lock`)])
       .then(([nextUser, lock]) => {
-        setUser(nextUser);
-        setLocked(lock.locked);
+        if (!nextUser.department || !nextUser.college) {
+          localStorage.removeItem("lockin_user_id");
+          setUser(null);
+        } else {
+          setUser(nextUser);
+          setLocked(lock.locked);
+        }
       })
       .catch(() => localStorage.removeItem("lockin_user_id"))
       .finally(() => setLoading(false));

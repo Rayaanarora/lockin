@@ -25,15 +25,15 @@ async function getFeed(req, res) {
       // Include following users + current user themselves
       whereClause.userId = { in: [...followingIds, userId] };
     } else if (filter === "campus") {
-      // Find current user's campus
+      // Find current user's college
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { campusId: true }
+        select: { collegeId: true }
       });
-      if (user && user.campusId) {
-        whereClause.user = { campusId: user.campusId };
+      if (user && user.collegeId) {
+        whereClause.user = { collegeId: user.collegeId };
       } else {
-        // If user has no campus, campus feed is just empty or fallback to user's own campusId if not set
+        // If user has no college, campus feed is just empty or fallback to user's own
         whereClause.userId = userId;
       }
     }

@@ -24,10 +24,13 @@ import {
   Gamepad2,
   Palette,
   PenLine,
-  Heart
+  Heart,
+  Mail,
+  KeyRound,
+  X
 } from "lucide-react";
 import { Input } from "./ui/input";
-import { User } from "../app/types";
+import { User, InterestCategory } from "../app/types";
 
 interface ProfileGateProps {
   onReady: (user: User) => void;
@@ -40,15 +43,7 @@ interface Campus {
   location?: string;
 }
 
-const INTEREST_TAGS = [
-  { id: "Coding", label: "Coding", icon: Code },
-  { id: "Study", label: "Study", icon: BookOpen },
-  { id: "Design", label: "Design", icon: Palette },
-  { id: "Sports", label: "Sports", icon: Dumbbell },
-  { id: "Gaming", label: "Gaming", icon: Gamepad2 },
-  { id: "Writing", label: "Writing", icon: PenLine },
-  { id: "Fitness", label: "Fitness", icon: Heart },
-];
+
 
 
 
@@ -102,8 +97,13 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [tutorialSlide, setTutorialSlide] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [interestCategories, setInterestCategories] = useState<InterestCategory[]>([]);
+  const [devOtp, setDevOtp] = useState("");
+  const [tempUserId, setTempUserId] = useState<number | null>(null);
 
   const [form, setForm] = useState({
+    email: "",
+    otpCode: "",
     campusId: "" as string | number,
     campusName: "",
     college_id: "",
@@ -133,6 +133,32 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
           { id: 8, name: "Manipal Institute of Technology", location: "Manipal, KA" },
         ]);
       });
+
+    api("/interests/categories")
+      .then((data: InterestCategory[]) => setInterestCategories(data))
+      .catch(() => {
+        setInterestCategories([
+          { id: 1, name: "Coding", emoji: "💻", color: "#3b82f6" },
+          { id: 2, name: "AI", emoji: "🤖", color: "#8b5cf6" },
+          { id: 3, name: "Startups", emoji: "🚀", color: "#f59e0b" },
+          { id: 4, name: "Hackathons", emoji: "⚡", color: "#ef4444" },
+          { id: 5, name: "Open Source", emoji: "🌐", color: "#10b981" },
+          { id: 6, name: "Design", emoji: "🎨", color: "#ec4899" },
+          { id: 7, name: "Content Creation", emoji: "📱", color: "#f97316" },
+          { id: 8, name: "Fitness", emoji: "💪", color: "#14b8a6" },
+          { id: 9, name: "Study Sessions", emoji: "📚", color: "#6366f1" },
+          { id: 10, name: "Research", emoji: "🔬", color: "#0ea5e9" },
+          { id: 11, name: "Placements", emoji: "🎯", color: "#e11d48" },
+          { id: 12, name: "Competitive Programming", emoji: "🏆", color: "#eab308" },
+          { id: 13, name: "Reading", emoji: "📖", color: "#a855f7" },
+          { id: 14, name: "Languages", emoji: "🗣️", color: "#06b6d4" },
+          { id: 15, name: "Career", emoji: "💼", color: "#64748b" },
+          { id: 16, name: "Projects", emoji: "🛠️", color: "#f43f5e" },
+          { id: 17, name: "Networking", emoji: "🤝", color: "#22c55e" },
+          { id: 18, name: "Events", emoji: "🎪", color: "#d946ef" },
+          { id: 19, name: "Other", emoji: "✨", color: "#a1a1aa" }
+        ]);
+      });
   }, []);
 
   const filteredCampuses = campusSearch.trim()
@@ -142,7 +168,90 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       )
     : campuses;
 
-  function goNext() {
+  async function handleSendOtp() {
+    if (!form.email || !form.email.includes("@")) {
+      setValidation({ email: "Valid student email is required." });
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setValidation({});
+    try {
+      const res = await api("/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email })
+      });
+      if (res.success) {
+        if (res.dev_otp) {
+          setDevOtp(res.dev_otp);
+        }
+        setForm(f => ({
+          ...f,
+          campusId: "",
+          campusName: ""
+        }));
+        setDirection(1);
+        setStep(2);
+      } else {
+        setError(res.error || "Failed to send OTP.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!form.otpCode || form.otpCode.trim().length !== 6) {
+      setValidation({ otpCode: "Enter 6-digit OTP code." });
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setValidation({});
+    try {
+      const res = await api("/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, code: form.otpCode.trim() })
+      });
+      if (res.success) {
+        const isIncomplete = !res.user.department || !res.user.college;
+        if (res.isNewUser || isIncomplete) {
+          setTempUserId(res.user.id);
+          setForm(f => ({
+            ...f,
+            campusId: "",
+            campusName: "",
+            name: res.user.name || f.name
+          }));
+          setDirection(1);
+          setStep(3);
+        } else {
+          localStorage.setItem("lockin_user_id", String(res.user.id));
+          onReady(res.user);
+        }
+      } else {
+        setError(res.error || "Invalid or expired OTP.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Invalid or expired OTP.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function goNext() {
+    if (step === 1) {
+      await handleSendOtp();
+      return;
+    }
+    if (step === 2) {
+      await handleVerifyOtp();
+      return;
+    }
     if (!validateStep(step)) return;
     setDirection(1);
     setStep((s) => s + 1);
@@ -158,14 +267,14 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
   function validateStep(s: number) {
     const errs: { [key: string]: string } = {};
-    if (s === 1) {
+    if (s === 3) {
       if (!form.campusId && form.campusName.trim().length < 3)
         errs.campusId = "Select a campus or type your college name (min 3 chars).";
       const reg = form.college_id.trim().toUpperCase();
-      if (!reg || reg.length < 6) errs.college_id = "Enter a valid registration number.";
+      if (!reg || reg.length < 6) errs.college_id = "Enter your college student ID/roll number.";
       if (form.department.trim().length < 2) errs.department = "Enter your department & year.";
     }
-    if (s === 2) {
+    if (s === 4) {
       if (form.name.trim().length < 2) errs.name = "Name must be at least 2 characters.";
     }
     setValidation(errs);
@@ -182,25 +291,51 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   }
 
   async function submit() {
+    if (!tempUserId) {
+      setError("Session expired. Please verify your email again.");
+      setStep(1);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const college = form.campusName || "Campus";
-      const user = await api("/users", {
-        method: "POST",
+      const interestsStr = form.interests
+        .map((id) => {
+          const cat = interestCategories.find((c) => String(c.id) === id);
+          return cat ? cat.name : id;
+        })
+        .join(", ");
+
+      const user = await api(`/users/${tempUserId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
           college: college,
-          college_id: form.college_id.trim().toUpperCase(),
+          collegeId: form.campusId ? Number(form.campusId) : null,
           department: form.department.trim(),
           bio: form.bio.trim(),
           instagram: form.instagram.trim(),
           github: form.github.trim(),
-          interests: form.interests.join(", "),
-          campusId: form.campusId ? Number(form.campusId) : null,
+          interests: interestsStr,
           location: form.location,
         }),
       });
+
+      try {
+        await api("/interests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            categoryIds: form.interests.map(Number)
+          })
+        });
+      } catch (interestErr) {
+        console.error("Failed to save relational interests:", interestErr);
+      }
+
       localStorage.setItem("lockin_user_id", String(user.id));
       onReady(user);
     } catch (err: any) {
@@ -209,8 +344,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     }
   }
 
-  const totalSteps = 5; // 0-4
-  const progressSteps = [1, 2, 3]; // steps 1-3 have progress bar
+  const totalSteps = 7; // 0-6
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-zinc-950 flex items-center justify-center">
@@ -221,8 +355,8 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       </div>
 
       <div className="relative z-10 w-full max-w-sm mx-auto px-4 py-8">
-        {/* Progress indicator for steps 1-3 */}
-        {step >= 1 && step <= 3 && (
+        {/* Progress indicator for profile onboarding steps 3-5 */}
+        {step >= 3 && step <= 5 && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -235,7 +369,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="flex-1 flex gap-1.5">
-              {progressSteps.map((s) => (
+              {[3, 4, 5].map((s) => (
                 <div
                   key={s}
                   className={`h-1 flex-1 rounded-full transition-all duration-500 ${
@@ -245,8 +379,39 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
               ))}
             </div>
             <span className="text-[10px] font-black tracking-widest text-zinc-600 uppercase">
-              {step}/3
+              {step - 2}/3
             </span>
+          </motion.div>
+        )}
+
+        {/* Back button for email/otp steps (steps 1 & 2) */}
+        {(step === 1 || step === 2) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 mb-6"
+          >
+            <button
+              onClick={goBack}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-400 transition hover:text-white"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+              {step === 1 ? "Email Verification" : "OTP Code"}
+            </span>
+          </motion.div>
+        )}
+
+        {/* Global Error Banner */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-xl border border-cherryRed/35 bg-cherryRed/10 p-3 text-xs font-semibold text-[#ffa3a3] flex items-center gap-2"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0 text-cherryRed animate-bounce" />
+            <span>{error}</span>
           </motion.div>
         )}
 
@@ -268,6 +433,47 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             )}
 
             {step === 1 && (
+              <motion.div
+                key="email"
+                custom={direction}
+                variants={SLIDE_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <EmailStep
+                  form={form}
+                  setForm={setForm}
+                  validation={validation}
+                  onNext={goNext}
+                  busy={busy}
+                />
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div
+                key="otp"
+                custom={direction}
+                variants={SLIDE_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <OtpStep
+                  form={form}
+                  setForm={setForm}
+                  validation={validation}
+                  onNext={goNext}
+                  busy={busy}
+                  devOtp={devOtp}
+                />
+              </motion.div>
+            )}
+
+            {step === 3 && (
               <motion.div
                 key="campus"
                 custom={direction}
@@ -291,7 +497,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
               </motion.div>
             )}
 
-            {step === 2 && (
+            {step === 4 && (
               <motion.div
                 key="profile"
                 custom={direction}
@@ -310,7 +516,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
               </motion.div>
             )}
 
-            {step === 3 && (
+            {step === 5 && (
               <motion.div
                 key="socials"
                 custom={direction}
@@ -326,11 +532,12 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                   toggleInterest={toggleInterest}
                   onNext={goNext}
                   onBack={goBack}
+                  interestCategories={interestCategories}
                 />
               </motion.div>
             )}
 
-            {step === 4 && (
+            {step === 6 && (
               <motion.div
                 key="tutorial"
                 custom={direction}
@@ -466,6 +673,18 @@ function CampusStep({
               <span className="flex-1 truncate text-xs">
                 {form.campusName || "Search your college..."}
               </span>
+              {form.campusName && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setForm((f: any) => ({ ...f, campusId: "", campusName: "" }));
+                  }}
+                  className="p-1 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white transition"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
               <ChevronRight
                 className={`h-3.5 w-3.5 text-zinc-600 transition-transform ${showCampusList ? "rotate-90" : ""}`}
               />
@@ -667,7 +886,7 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
 }
 
 /* ─── STEP 3: SOCIALS & INTERESTS ────────────────────────────────── */
-function SocialsStep({ form, setForm, toggleInterest, onNext, onBack }: any) {
+function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCategories }: any) {
   return (
     <div className="space-y-6">
       <div>
@@ -725,21 +944,26 @@ function SocialsStep({ form, setForm, toggleInterest, onNext, onBack }: any) {
             Focus Interests <span className="text-zinc-600 normal-case font-medium">(pick any)</span>
           </label>
           <div className="flex flex-wrap gap-2">
-            {INTEREST_TAGS.map(({ id, label, icon: Icon }) => {
-              const selected = form.interests.includes(id);
+            {interestCategories.map((cat: any) => {
+              const selected = form.interests.includes(String(cat.id));
               return (
                 <button
-                  key={id}
+                  key={cat.id}
                   type="button"
-                  onClick={() => toggleInterest(id)}
+                  onClick={() => toggleInterest(String(cat.id))}
                   className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95 ${
                     selected
-                      ? "border-luxuryGold/60 bg-luxuryGold/15 text-luxuryGold"
+                      ? "border-luxuryGold bg-luxuryGold/10 text-white"
                       : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
                   }`}
+                  style={{
+                    borderColor: selected ? cat.color : undefined,
+                    backgroundColor: selected ? `${cat.color}1c` : undefined,
+                    color: selected ? cat.color : undefined
+                  }}
                 >
-                  <Icon className="h-3 w-3" />
-                  {label}
+                  <span className="text-sm">{cat.emoji}</span>
+                  {cat.name}
                   {selected && <Check className="h-3 w-3" />}
                 </button>
               );
@@ -855,6 +1079,112 @@ function TutorialStep({
           {busy ? "Activating Pilot..." : "Initialize Lock-In"}
         </motion.button>
       )}
+    </div>
+  );
+}
+
+/* ─── STEP 1: EMAIL VERIFICATION ──────────────────────────────────── */
+function EmailStep({ form, setForm, validation, onNext, busy }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+          Student Verification
+        </span>
+        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
+          Enter Your Email
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">Use your college email domain to unlock your campus feed.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5" />
+            College Email Address
+          </label>
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setForm((f: any) => ({ ...f, email: e.target.value }))
+            }
+            placeholder="e.g. name@srmist.edu.in"
+            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+              validation.email ? "border-cherryRed/50" : ""
+            }`}
+          />
+          {validation.email && <FieldError msg={validation.email} />}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        disabled={busy || !form.email}
+        onClick={onNext}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-[#810100] py-4 text-sm font-sans font-medium text-cotton shadow-[0_0_30px_rgba(129,1,0,0.25)] transition-all hover:bg-[#810100]/95 active:scale-[0.97] disabled:opacity-50"
+      >
+        {busy ? "Sending..." : "Send Verification Code →"}
+      </button>
+    </div>
+  );
+}
+
+/* ─── STEP 2: OTP VERIFICATION ────────────────────────────────────── */
+function OtpStep({ form, setForm, validation, onNext, busy, devOtp }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+          Check Your Inbox
+        </span>
+        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
+          Enter OTP Code
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">We sent a 6-digit verification code to {form.email}.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+            <KeyRound className="h-3.5 w-3.5" />
+            6-Digit Verification Code
+          </label>
+          <Input
+            type="text"
+            maxLength={6}
+            value={form.otpCode}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setForm((f: any) => ({ ...f, otpCode: e.target.value.replace(/[^0-9]/g, "") }))
+            }
+            placeholder="XXXXXX"
+            className={`h-11 border-white/10 bg-black/40 text-center text-lg font-mono font-bold tracking-widest text-white placeholder-zinc-800 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+              validation.otpCode ? "border-cherryRed/50" : ""
+            }`}
+          />
+          {validation.otpCode && <FieldError msg={validation.otpCode} />}
+        </div>
+
+        {/* Development Mode Helper */}
+        {devOtp && (
+          <div className="rounded-xl border border-luxuryGold/20 bg-luxuryGold/5 p-3 text-[11px] font-sans font-semibold text-luxuryGold/90 leading-normal flex items-start gap-2 text-left">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-luxuryGold" />
+            <div>
+              <p className="font-bold text-white uppercase tracking-wider text-[9px] mb-0.5">Local Dev Mode</p>
+              Use OTP: <span className="font-mono bg-black/40 px-1.5 py-0.5 rounded border border-white/5 font-black text-white">{devOtp}</span> (printed to terminal)
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        disabled={busy || form.otpCode.length !== 6}
+        onClick={onNext}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-[#810100] py-4 text-sm font-sans font-medium text-cotton shadow-[0_0_30px_rgba(129,1,0,0.25)] transition-all hover:bg-[#810100]/95 active:scale-[0.97] disabled:opacity-50"
+      >
+        {busy ? "Verifying..." : "Verify Code & Continue →"}
+      </button>
     </div>
   );
 }

@@ -17,7 +17,8 @@ import {
   LayoutGrid,
   Users,
   ListTodo,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  LogOut
 } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -100,6 +101,16 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   useEffect(() => {
     loadProfileStats();
   }, [user.id]);
+
+  async function handleLogout() {
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout API call failed", e);
+    }
+    localStorage.removeItem("lockin_user_id");
+    window.location.reload();
+  }
 
   async function loadRecaps() {
     setLoadingRecaps(true);
@@ -328,6 +339,14 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-luxuryMaroon/25 bg-luxuryMaroon/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-cotton transition hover:bg-luxuryMaroon/15 hover:text-cotton"
           >
             Edit Profile
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white transition hover:bg-white/10"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Log Out
           </button>
         </div>
           </div>

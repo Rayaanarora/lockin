@@ -32,7 +32,7 @@ async function createMission(req, res) {
   try {
     const creatorUser = await prisma.user.findUnique({
       where: { id: payload.creator_id },
-      select: { campusId: true }
+      select: { collegeId: true }
     });
 
     const verificationCode = String(Math.floor(1000 + Math.random() * 9000));
@@ -44,7 +44,7 @@ async function createMission(req, res) {
         location: payload.location,
         categoryId: payload.categoryId,
         createdBy: payload.creator_id,
-        campusId: creatorUser ? creatorUser.campusId : null,
+        collegeId: creatorUser ? creatorUser.collegeId : null,
         focusDuration: payload.focusDuration,
         verificationCode: verificationCode,
         missionType: payload.missionType
@@ -98,13 +98,13 @@ async function getMissionFeed(req, res) {
 
     const activeUser = await prisma.user.findUnique({
       where: { id: numericUserId },
-      select: { campusId: true }
+      select: { collegeId: true }
     });
 
     const whereClause = {
       createdBy: { not: numericUserId },
       datetime: { gte: twelveHoursAgo },
-      campusId: activeUser ? activeUser.campusId : null,
+      collegeId: activeUser ? activeUser.collegeId : null,
       missionType: { not: "solo" }, // Exclude solo missions from feed
       participations: {
         none: {
@@ -137,6 +137,8 @@ async function getMissionFeed(req, res) {
       creator_department: m.creator?.department || "Creator",
       category_name: m.category?.categoryName || "Coding",
       category_id: m.categoryId,
+      category_emoji: m.category?.emoji || "💻",
+      category_color: m.category?.colorHex || "#3b82f6",
       focus_duration: m.focusDuration,
       mission_type: m.missionType
     }));
@@ -614,26 +616,57 @@ async function getCategories(req, res) {
     const categories = await prisma.category.findMany({
       orderBy: { id: "asc" }
     });
-    res.json(categories);
+    res.json(
+      categories.map((c) => ({
+        id: c.id,
+        categoryName: c.categoryName,
+        emoji: c.emoji || "✨",
+        colorHex: c.colorHex || "#a1a1aa"
+      }))
+    );
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
     res.json([
-      { id: 1, categoryName: "Coding" },
-      { id: 2, categoryName: "Sports" }
+      { id: 1, categoryName: "Coding", emoji: "💻", colorHex: "#3b82f6" },
+      { id: 2, categoryName: "AI", emoji: "🤖", colorHex: "#8b5cf6" },
+      { id: 3, categoryName: "Startups", emoji: "🚀", colorHex: "#f59e0b" },
+      { id: 4, categoryName: "Hackathons", emoji: "⚡", colorHex: "#ef4444" },
+      { id: 5, categoryName: "Open Source", emoji: "🌐", colorHex: "#10b981" },
+      { id: 6, categoryName: "Design", emoji: "🎨", colorHex: "#ec4899" },
+      { id: 7, categoryName: "Content Creation", emoji: "📱", colorHex: "#f97316" },
+      { id: 8, categoryName: "Fitness", emoji: "💪", colorHex: "#14b8a6" },
+      { id: 9, categoryName: "Study Sessions", emoji: "📚", colorHex: "#6366f1" },
+      { id: 10, categoryName: "Research", emoji: "🔬", colorHex: "#0ea5e9" },
+      { id: 11, categoryName: "Placements", emoji: "🎯", colorHex: "#e11d48" },
+      { id: 12, categoryName: "Competitive Programming", emoji: "🏆", colorHex: "#eab308" },
+      { id: 13, categoryName: "Reading", emoji: "📖", colorHex: "#a855f7" },
+      { id: 14, categoryName: "Languages", emoji: "🗣️", colorHex: "#06b6d4" },
+      { id: 15, categoryName: "Career", emoji: "💼", colorHex: "#64748b" },
+      { id: 16, categoryName: "Projects", emoji: "🛠️", colorHex: "#f43f5e" },
+      { id: 17, categoryName: "Networking", emoji: "🤝", colorHex: "#22c55e" },
+      { id: 18, categoryName: "Events", emoji: "🎪", colorHex: "#d946ef" },
+      { id: 19, categoryName: "Other", emoji: "✨", colorHex: "#a1a1aa" }
     ]);
   }
 }
 
 async function getCampuses(req, res) {
   try {
-    const campuses = await prisma.campus.findMany({
-      orderBy: { name: "asc" }
+    const colleges = await prisma.college.findMany({
+      orderBy: { shortName: "asc" }
     });
-    res.json(campuses);
+    // Return in a format compatible with the existing frontend
+    res.json(
+      colleges.map((c) => ({
+        id: c.id,
+        name: c.shortName,
+        location: `${c.city}, ${c.state}`
+      }))
+    );
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
     res.json([
-      { id: 1, name: "SRM IST, Kattankulathur (KTR)", location: "Chennai, TN" }
+      { id: 1, name: "SRM IST, Kattankulathur (KTR)", location: "Chennai, Tamil Nadu" }
     ]);
   }
 }

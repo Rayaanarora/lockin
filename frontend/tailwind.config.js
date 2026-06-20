@@ -27,21 +27,26 @@ module.exports = {
         danger: "#FF335F",
         neonBlue: "#40C9FF",
         neonPurple: "#A855F7",
-        boxRed: "#DE211E",
-        boxOrange: "#DE211E",
-        boxMaroon: "#AD1614",
+        noirBlack: "#1B1716",
+        cotton: "#EDEBDE",
+        cherryRed: "#810100",
+        luxuryMaroon: "#630102",
+        luxuryGold: "#C5A880",
+        boxRed: "#810100",
+        boxOrange: "#EDEBDE",
+        boxMaroon: "#630102",
         boxCotton: "#EDEBDE",
         boxNoir: "#1B1716",
-        boxGreen: "#18BD00",
+        boxGreen: "#C5A880",
         boxTrack: "#1B1716",
-        boxPit: "#221C1A",
-        boxLine: "#322B29"
+        boxPit: "#1B1716",
+        boxLine: "#630102"
       },
       boxShadow: {
         acid: "0 0 30px rgba(69,255,154,.35)",
-        danger: "0 0 30px rgba(255,51,95,.35)",
-        blue: "0 0 34px rgba(64,201,255,.32)",
-        purple: "0 0 38px rgba(168,85,247,.34)"
+        danger: "0 0 30px rgba(129,1,0,.35)",
+        blue: "0 0 34px rgba(237,235,222,.32)",
+        purple: "0 0 38px rgba(99,1,2,.34)"
       }
     }
   },
