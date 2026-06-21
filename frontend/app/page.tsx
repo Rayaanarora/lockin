@@ -16,11 +16,6 @@ import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
 import ActivityFeed from "../components/ActivityFeed";
 
-// V3 Beta Components
-import FeedNew from "../components/FeedNew";
-import ActiveMissionsNew from "../components/ActiveMissionsNew";
-import ProfileNew from "../components/ProfileNew";
-
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
 
@@ -56,20 +51,6 @@ export default function Home() {
   const [tab, setTab] = useState("feed");
   const [locked, setLocked] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
-  const [useNewUI, setUseNewUI] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setUseNewUI(localStorage.getItem("use_new_ui") === "true");
-    }
-  }, []);
-
-  const handleSetUseNewUI = (val: boolean) => {
-    setUseNewUI(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("use_new_ui", val ? "true" : "false");
-    }
-  };
 
   // Socket.io connection state
   useEffect(() => {
@@ -157,14 +138,7 @@ export default function Home() {
   const screen = useMemo(() => {
     if (!user) return null;
     if (tab === "active") {
-      return useNewUI ? (
-        <ActiveMissionsNew
-          user={user}
-          refreshUser={refreshUser}
-          api={api}
-          socketUrl={SOCKET_URL}
-        />
-      ) : (
+      return (
         <ActiveMissions
           user={user}
           refreshUser={refreshUser}
@@ -177,22 +151,9 @@ export default function Home() {
       return <ActivityFeed user={user} api={api} />;
     }
     if (tab === "profile") {
-      return useNewUI ? (
-        <ProfileNew user={user} refreshUser={refreshUser} api={api} />
-      ) : (
-        <Profile user={user} refreshUser={refreshUser} api={api} />
-      );
+      return <Profile user={user} refreshUser={refreshUser} api={api} />;
     }
-    return useNewUI ? (
-      <FeedNew
-        user={user}
-        refreshUser={refreshUser}
-        locked={locked}
-        setLocked={setLocked}
-        api={api}
-        setTab={setTab}
-      />
-    ) : (
+    return (
       <Feed
         user={user}
         refreshUser={refreshUser}
@@ -202,7 +163,7 @@ export default function Home() {
         setTab={setTab}
       />
     );
-  }, [tab, user, locked, useNewUI]);
+  }, [tab, user, locked]);
 
   if (loading) {
     return (
@@ -220,14 +181,14 @@ export default function Home() {
 
   return (
     <Shell tab={tab} setTab={setTab} user={user}>
-      <Header user={user} useNewUI={useNewUI} setUseNewUI={handleSetUseNewUI} />
+      <Header user={user} />
       <AnimatePresence mode="wait">
         <motion.div
           key={tab}
           initial={{ opacity: 0, x: 18 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -18 }}
-          className="flex flex-1 flex-col"
+          className="flex flex-1 flex-col overflow-y-auto scrollbar-none pb-28 md:pb-6"
         >
           {screen}
         </motion.div>
@@ -241,7 +202,7 @@ export default function Home() {
             initial={{ opacity: 0, y: -50, scale: 0.9, x: "-50%" }}
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
             exit={{ opacity: 0, y: -20, scale: 0.9, x: "-50%" }}
-            className="fixed top-6 left-1/2 z-[1000] w-[90%] max-w-sm rounded-2xl border border-cherryRed/35 bg-[#120F0D]/90 p-4 shadow-[0_10px_35px_rgba(222,33,30,0.25)] backdrop-blur-xl flex items-start gap-3 text-left"
+            className="fixed top-5 left-1/2 z-[1000] w-[88%] max-w-sm rounded-2xl border border-white/[0.08] bg-[#0F0D0C]/92 p-4 shadow-[0_16px_50px_rgba(0,0,0,.7),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-2xl flex items-start gap-3 text-left"
           >
             <div className="flex-1">
               <h4 className="text-xs font-black text-white uppercase tracking-wider">{toast.title}</h4>

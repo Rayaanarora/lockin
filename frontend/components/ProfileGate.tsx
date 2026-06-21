@@ -347,11 +347,16 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const totalSteps = 7; // 0-6
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-zinc-950 flex items-center justify-center">
+    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center"
+      style={{ background: "linear-gradient(160deg, #141110 0%, #0D0A09 100%)" }}
+    >
+      {/* Race stripe top */}
+      <div className="race-stripe pointer-events-none absolute left-0 right-0 top-0 h-[2px] opacity-80 z-50" />
       {/* Background glow blobs */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-cherryRed/8 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-luxuryMaroon/8 blur-[120px]" />
+        <div className="absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full bg-cherryRed/[0.09] blur-[140px]" />
+        <div className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-luxuryMaroon/[0.09] blur-[140px]" />
+        <div className="grid-noise absolute inset-0 opacity-80" />
       </div>
 
       <div className="relative z-10 w-full max-w-sm mx-auto px-4 py-8">
@@ -567,65 +572,65 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 /* ─── STEP 0: SPLASH ──────────────────────────────────────────────── */
 function SplashStep({ onNext }: { onNext: () => void }) {
   return (
-    <div className="flex flex-col items-center text-center space-y-8 pt-8">
+    <div className="flex flex-col items-center text-center space-y-7 pt-6">
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
+        initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-        className="flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/10 bg-black/60 p-2 shadow-[0_0_50px_rgba(255,255,255,0.08)] backdrop-blur-md"
+        transition={{ delay: 0.08, type: "spring", stiffness: 220, damping: 20 }}
+        className="flex h-[88px] w-[88px] items-center justify-center rounded-[26px] border border-white/[0.09] bg-black/70 p-2 shadow-[0_0_60px_rgba(129,1,0,0.2),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md"
       >
         <img src="/logo.png" alt="LOCKIN Logo" className="h-full w-full object-contain" />
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.18 }}
         className="space-y-2"
       >
-        <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight text-white">LOCKIN</h1>
-        <p className="text-sm font-sans font-normal text-zinc-400 leading-relaxed max-w-[260px]">
+        <h1 className="text-[40px] font-display font-bold tracking-[0.06em] text-white leading-none">LOCKIN</h1>
+        <p className="text-[13px] font-normal text-zinc-400 leading-relaxed max-w-[240px] mx-auto">
           Stop chatting. Start executing.
         </p>
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
-        className="grid grid-cols-1 gap-3 w-full text-left"
+        transition={{ delay: 0.3 }}
+        className="grid grid-cols-1 gap-2 w-full text-left"
       >
         {[
           { icon: Zap, color: "text-cherryRed", text: "Accept missions from campus builders" },
-          { icon: Timer, color: "text-white", text: "Start Focus Lock — prove the work" },
-          { icon: Star, color: "text-cherryRed", text: "Rate the vibe, earn Aura Points" },
-          { icon: Trophy, color: "text-white", text: "Climb your campus leaderboard" },
+          { icon: Timer, color: "text-zinc-300", text: "Focus Lock — prove the work is done" },
+          { icon: Star, color: "text-cherryRed", text: "Rate the vibe, earn Aura points" },
+          { icon: Trophy, color: "text-luxuryGold", text: "Climb your campus leaderboard" },
         ].map(({ icon: Icon, color, text }, i) => (
           <motion.div
             key={text}
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 + i * 0.08 }}
-            className="flex items-center gap-3 rounded-xl border border-white/5 bg-zinc-900/60 px-4 py-3"
+            transition={{ delay: 0.36 + i * 0.07 }}
+            className="flex items-center gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-4 py-3"
           >
-            <Icon className={`h-4 w-4 shrink-0 ${color}`} />
-            <span className="text-xs font-sans font-normal text-zinc-300">{text}</span>
+            <Icon className={`h-[15px] w-[15px] shrink-0 ${color}`} />
+            <span className="text-[12px] font-normal text-zinc-300">{text}</span>
           </motion.div>
         ))}
       </motion.div>
 
       <motion.button
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.75 }}
+        transition={{ delay: 0.68 }}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-[#810100] py-4 text-sm font-sans font-medium text-cotton shadow-[0_0_30px_rgba(129,1,0,0.25)] transition-all hover:bg-[#810100]/95 active:scale-[0.97]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/30 bg-cherryRed py-4 text-[13px] font-bold text-cotton shadow-[0_0_32px_rgba(129,1,0,.3)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
       >
         <Flame className="h-4 w-4 fill-current" />
         Let's Lock In
       </motion.button>
 
-      <p className="text-[10px] font-sans font-normal text-zinc-700">Campus-only. No randos. Just builders.</p>
+      <p className="text-[10px] font-normal text-zinc-700 pb-2">Campus-only. No randos. Just builders.</p>
     </div>
   );
 }

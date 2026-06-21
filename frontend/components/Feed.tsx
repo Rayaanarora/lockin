@@ -27,19 +27,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -200, behavior: "smooth" });
-    }
-  };
+  const scrollLeft = () => scrollContainerRef.current?.scrollBy({ left: -200, behavior: "smooth" });
+  const scrollRight = () => scrollContainerRef.current?.scrollBy({ left: 200, behavior: "smooth" });
 
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 200, behavior: "smooth" });
-    }
-  };
-
-  // New Mission form state
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -59,15 +49,12 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     }
   };
 
-  const removeTask = (idx: number) => {
-    setTasks(tasks.filter((_, i) => i !== idx));
-  };
+  const removeTask = (idx: number) => setTasks(tasks.filter((_, i) => i !== idx));
 
-  // Motion values for swipe animation
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-12, 12]);
-  const opacityAccept = useTransform(x, [0, 100], [0, 1]);
-  const opacityPass = useTransform(x, [-100, 0], [1, 0]);
+  const rotate = useTransform(x, [-200, 200], [-10, 10]);
+  const opacityAccept = useTransform(x, [20, 100], [0, 1]);
+  const opacityPass = useTransform(x, [-100, -20], [1, 0]);
 
   async function load(catId: string = "all") {
     try {
@@ -84,12 +71,8 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     }
   }
 
+  useEffect(() => { load(activeCategory); }, [user.id, activeCategory]);
   useEffect(() => {
-    load(activeCategory);
-  }, [user.id, activeCategory]);
-
-  useEffect(() => {
-    // Load categories once
     api("/missions/categories")
       .then((data) => setCategories(data))
       .catch((err) => console.error("Error loading categories:", err));
@@ -115,11 +98,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         localStorage.setItem(key, JSON.stringify([...new Set([...passed, currentMission.id])]));
       }
       setIndex((curr) => curr + 1);
-      x.set(0); // reset motion value
+      x.set(0);
     } catch (err: any) {
-      if (err.message && err.message.includes("limit")) {
-        setLocked(true);
-      }
+      if (err.message && err.message.includes("limit")) setLocked(true);
       setError(err.message || "Operation failed.");
       x.set(0);
     }
@@ -138,32 +119,18 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         location: isSolo ? "Solo" : form.location,
         datetime: isSolo ? new Date().toISOString() : form.datetime
       };
-
-      const newMission = await api("/missions", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      // If we have tasks, batch create them
+      const newMission = await api("/missions", { method: "POST", body: JSON.stringify(payload) });
       if (tasks.length > 0 && newMission?.id) {
         await api("/tasks/batch", {
           method: "POST",
-          body: JSON.stringify({
-            missionId: newMission.id,
-            tasks: tasks.map((t, idx) => ({ title: t, position: idx }))
-          })
+          body: JSON.stringify({ missionId: newMission.id, tasks: tasks.map((t, idx) => ({ title: t, position: idx })) })
         });
       }
-
       setShowCreate(false);
       setTab?.("active");
       setForm({
-        title: "",
-        description: "",
-        location: user.location || "SRM KTR Library",
-        datetime: "",
-        categoryId: categories[0]?.id ? String(categories[0].id) : "1",
-        missionType: "group"
+        title: "", description: "", location: user.location || "SRM KTR Library",
+        datetime: "", categoryId: categories[0]?.id ? String(categories[0].id) : "1", missionType: "group"
       });
       setTasks([]);
       await load(activeCategory);
@@ -174,71 +141,52 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     }
   }
 
-  const initials = (name = "?") => {
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  };
+  const initials = (name = "?") =>
+    name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-  const formatDate = (value: string) => {
-    return new Intl.DateTimeFormat("en", {
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-      month: "short",
-      day: "numeric"
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat("en", {
+      weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric"
     }).format(new Date(value));
-  };
-
-  const handleCategoryChange = (catId: string) => {
-    setActiveCategory(catId);
-    setError("");
-  };
 
   return (
     <section className="mx-auto flex w-full max-w-md md:max-w-xl flex-1 flex-col px-4 pt-4 pb-24 md:pb-6">
       {/* Title bar */}
-      <div className="mb-4 md:mb-6 flex items-center justify-between border-b border-white/5 pb-4">
+      <div className="mb-5 flex items-center justify-between border-b border-white/[0.06] pb-4">
         <div>
-          <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-boxRed">
+          <span className="text-[9px] font-black uppercase tracking-[0.22em] text-cherryRed/80">
             Discovery
           </span>
-          <h2 className="text-xl md:text-3xl font-bold text-white tracking-tight mt-1">Active Runways</h2>
+          <h2 className="text-[22px] font-bold text-white tracking-tight mt-0.5 leading-tight">Active Runways</h2>
         </div>
-
         <button
           onClick={() => setShowCreate(true)}
-          className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 transition"
+          className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-white/[0.08] bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.07] hover:border-white/[0.12] transition-all duration-150 shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
         >
-          <Plus className="h-5 w-5 md:h-6 md:w-6" />
+          <Plus className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Categories Bar */}
-      <div className="relative mb-4 md:mb-6 group">
-        {/* Left scroll arrow */}
+      {/* Categories */}
+      <div className="relative mb-5 group">
         <button
           type="button"
           onClick={scrollLeft}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-zinc-950/95 text-zinc-400 hover:text-white hover:bg-zinc-900 transition shadow-[0_4px_12px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-[#0D0B0A]/95 text-zinc-400 hover:text-white transition shadow-lg opacity-0 group-hover:opacity-100"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5" />
         </button>
 
-        {/* Scrollable category list */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-1.5 md:gap-2.5 overflow-x-auto pb-2 scrollbar-none shrink-0 -mx-4 px-4 scroll-smooth"
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none shrink-0 -mx-4 px-4 scroll-smooth"
         >
           <button
-            onClick={() => handleCategoryChange("all")}
-            className={`h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0 ${
+            onClick={() => { setActiveCategory("all"); setError(""); }}
+            className={`cat-pill h-8 rounded-full border px-4 text-[10px] font-semibold transition shrink-0 ${
               activeCategory === "all"
-                ? "border-cherryRed bg-cherryRed text-cotton"
-                : "border-luxuryMaroon/20 bg-noirBlack/40 text-cotton/60 hover:text-cotton hover:bg-luxuryMaroon/10"
+                ? "border-cherryRed/60 bg-cherryRed/90 text-white shadow-[0_0_14px_rgba(129,1,0,.3)]"
+                : "border-white/[0.07] bg-white/[0.03] text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05]"
             }`}
           >
             All
@@ -248,51 +196,49 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             return (
               <button
                 key={c.id}
-                onClick={() => handleCategoryChange(String(c.id))}
-                className="flex items-center gap-1.5 h-8 md:h-10 rounded-full border px-4 md:px-5 text-[10px] md:text-xs font-sans font-medium transition shrink-0"
+                onClick={() => { setActiveCategory(String(c.id)); setError(""); }}
+                className="cat-pill flex items-center gap-1.5 h-8 rounded-full border px-4 text-[10px] font-semibold transition shrink-0"
                 style={{
-                  borderColor: selected ? (c.colorHex || "#810100") : "rgba(129,1,0,0.15)",
-                  backgroundColor: selected ? (c.colorHex || "#810100") : "rgba(8,8,8,0.4)",
-                  color: selected ? "#ffffff" : "rgba(255,255,255,0.6)"
+                  borderColor: selected ? `${c.colorHex}60` : "rgba(255,255,255,.06)",
+                  backgroundColor: selected ? `${c.colorHex}18` : "rgba(255,255,255,.025)",
+                  color: selected ? c.colorHex || "#fff" : "rgba(255,255,255,.4)",
+                  boxShadow: selected ? `0 0 14px ${c.colorHex}28` : "none"
                 }}
               >
-                {c.emoji && <span className="text-xs md:text-sm">{c.emoji}</span>}
+                {c.emoji && <span className="text-xs">{c.emoji}</span>}
                 {c.categoryName}
               </button>
             );
           })}
         </div>
 
-        {/* Right scroll arrow */}
         <button
           type="button"
           onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-zinc-950/95 text-zinc-400 hover:text-white hover:bg-zinc-900 transition shadow-[0_4px_12px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-[#0D0B0A]/95 text-zinc-400 hover:text-white transition shadow-lg opacity-0 group-hover:opacity-100"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* Soft Limit Warning Banner */}
+      {/* Locked warning */}
       {locked && (
-        <div className="mb-4 md:mb-6 flex items-start gap-2.5 md:gap-3.5 rounded-xl border border-cherryRed/35 bg-cherryRed/5 p-3.5 md:p-4.5">
-          <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-cherryRed shrink-0 mt-0.5 animate-pulse" />
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-cherryRed/25 bg-cherryRed/[0.06] p-4">
+          <AlertCircle className="h-4 w-4 text-cherryRed shrink-0 mt-0.5 animate-pulse" />
           <div className="text-left">
-            <h4 className="text-[10px] md:text-xs font-black uppercase tracking-wider text-white">
-              Runway full (Locked)
-            </h4>
-            <p className="text-[9px] md:text-xs font-semibold text-zinc-500 leading-normal mt-0.5">
-              You already have 3 active accepted runs. Mark attendance or clear them to unlock.
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-white">Runway Full</h4>
+            <p className="text-[10px] font-medium text-zinc-500 leading-relaxed mt-0.5">
+              3 active missions running. Mark attendance or clear to unlock.
             </p>
           </div>
         </div>
       )}
 
-      {/* Card stack container */}
-      <div className="relative flex flex-1 items-center justify-center min-h-[440px] md:min-h-[500px]">
-        {/* Background stack sheets */}
-        <div className="absolute inset-x-4 top-4 h-[420px] md:h-[480px] rounded-3xl border border-luxuryMaroon/10 bg-[#1B1716]/30 scale-[0.93] translate-y-3 opacity-40 -z-20" />
-        <div className="absolute inset-x-2 top-2 h-[420px] md:h-[480px] rounded-3xl border border-luxuryMaroon/15 bg-[#1B1716]/50 scale-[0.97] translate-y-1.5 opacity-60 -z-10" />
+      {/* Card stack */}
+      <div className="relative flex flex-1 items-center justify-center min-h-[460px]">
+        {/* Stack ghost cards */}
+        <div className="absolute inset-x-6 top-6 h-[420px] rounded-[28px] border border-white/[0.04] bg-white/[0.015] scale-[0.93] translate-y-4 -z-20" />
+        <div className="absolute inset-x-3 top-3 h-[420px] rounded-[28px] border border-white/[0.055] bg-white/[0.025] scale-[0.97] translate-y-2 -z-10" />
 
         <AnimatePresence mode="wait">
           {currentMission ? (
@@ -301,7 +247,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               style={{ x, rotate }}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.6}
+              dragElastic={0.55}
               dragSnapToOrigin
               onDragEnd={(_, info) => {
                 if (info.offset.x > 120) {
@@ -315,87 +261,86 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                   handleAction("pass");
                 }
               }}
-              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              initial={{ opacity: 0, scale: 0.93, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.88, y: -20 }}
-              whileDrag={{ scale: 1.01 }}
-              transition={{ type: "spring", stiffness: 260, damping: 24 }}
-              className="relative flex h-[420px] md:h-[480px] w-full touch-none flex-col justify-between overflow-hidden rounded-3xl border border-luxuryMaroon/20 bg-[#1B1716]/60 p-6 md:p-8 shadow-2xl backdrop-blur-md"
+              exit={{ opacity: 0, scale: 0.88, y: -24 }}
+              whileDrag={{ scale: 1.015, cursor: "grabbing" }}
+              transition={{ type: "spring", stiffness: 280, damping: 26 }}
+              className="mission-card-inner relative flex h-[430px] w-full touch-none flex-col justify-between overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#161210]/80 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl"
             >
-              {/* Swipe Overlays */}
+              {/* Swipe overlay — accept */}
               <motion.div
                 style={{ opacity: opacityAccept }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-luxuryGold/10 backdrop-blur-[1px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-luxuryGold/[0.12] to-transparent backdrop-blur-[2px]"
               >
-                <div className="rounded-xl border border-luxuryGold/30 bg-noirBlack/90 px-4 py-2 text-xs md:text-sm font-black tracking-widest text-luxuryGold uppercase shadow-[0_0_30px_rgba(197,168,128,0.25)]">
-                  Lock In
+                <div className="rounded-2xl border border-luxuryGold/40 bg-black/80 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-luxuryGold uppercase shadow-[0_0_30px_rgba(197,168,128,.3)]">
+                  ✓ Lock In
                 </div>
               </motion.div>
 
+              {/* Swipe overlay — pass */}
               <motion.div
                 style={{ opacity: opacityPass }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-cherryRed/15 backdrop-blur-[1px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-cherryRed/[0.15] to-transparent backdrop-blur-[2px]"
               >
-                <div className="rounded-xl border border-cherryRed bg-noirBlack/90 px-4 py-2 text-xs md:text-sm font-black tracking-widest text-cherryRed uppercase shadow-[0_0_30px_rgba(129,1,0,0.35)]">
-                  Pass
+                <div className="rounded-2xl border border-cherryRed/50 bg-black/80 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-cherryRed uppercase shadow-[0_0_30px_rgba(129,1,0,.4)]">
+                  ✕ Pass
                 </div>
               </motion.div>
 
-              {/* Inside glow card */}
-              <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(129,1,0,0.08),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(197,168,128,0.06),transparent_40%)]" />
+              {/* Inner top highlight */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
 
-              <div className="space-y-4 md:space-y-6">
-                {/* Creator info */}
+              <div className="space-y-5">
+                {/* Creator row */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 md:gap-3.5">
-                    <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl border border-luxuryMaroon/20 bg-luxuryMaroon/5 text-xs md:text-sm font-black text-cotton">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/[0.07] bg-white/[0.04] text-[12px] font-black text-cotton/90">
                       {initials(currentMission.creator_name)}
                     </div>
                     <div className="text-left">
-                      <h3 className="text-xs md:text-sm font-bold text-cotton leading-tight">
+                      <h3 className="text-[13px] font-semibold text-cotton/95 leading-tight">
                         {currentMission.creator_name}
                       </h3>
-                      <p className="text-[9px] md:text-xs font-semibold text-zinc-500 uppercase tracking-wide mt-0.5">
+                      <p className="text-[10px] font-medium text-zinc-500 mt-0.5 uppercase tracking-wide">
                         {currentMission.creator_department || "Department"}
                       </p>
                     </div>
                   </div>
                   <span
-                    className="flex items-center gap-1 rounded-full bg-luxuryMaroon/10 border border-luxuryMaroon/20 px-2 py-0.5 md:px-3 md:py-1 text-[8px] md:text-[10px] font-black tracking-widest uppercase"
+                    className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-[0.14em] uppercase"
                     style={{
-                      borderColor: currentMission.category_color ? `${currentMission.category_color}40` : undefined,
-                      backgroundColor: currentMission.category_color ? `${currentMission.category_color}14` : undefined,
+                      borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(129,1,0,.3)",
+                      backgroundColor: currentMission.category_color ? `${currentMission.category_color}12` : "rgba(129,1,0,.08)",
                       color: currentMission.category_color || "#ffa3a3"
                     }}
                   >
-                    {currentMission.category_emoji && (
-                      <span className="text-[10px] md:text-xs">{currentMission.category_emoji}</span>
-                    )}
-                    {currentMission.category_name || "Coding"}
+                    {currentMission.category_emoji && <span className="text-[10px]">{currentMission.category_emoji}</span>}
+                    {currentMission.category_name || "Mission"}
                   </span>
                 </div>
 
-                <div className="space-y-2 md:space-y-3 text-left">
-                  <h3 className="text-lg md:text-xl lg:text-2xl font-black text-cotton leading-snug tracking-tight">
+                <div className="space-y-2 text-left">
+                  <h3 className="text-[18px] font-black text-cotton leading-snug tracking-tight">
                     {currentMission.title}
                   </h3>
-                  <p className="text-xs md:text-sm font-medium leading-relaxed text-cotton/70 line-clamp-6">
+                  <p className="text-[12px] font-normal leading-relaxed text-zinc-400 line-clamp-5">
                     {currentMission.description}
                   </p>
                 </div>
               </div>
 
-              {/* Timing & Location block */}
-              <div className="space-y-2.5 md:space-y-3.5">
-                <div className="flex items-center gap-2.5 md:gap-3.5 rounded-xl border border-luxuryMaroon/15 bg-noirBlack/45 p-2.5 md:p-3.5">
-                  <CalendarClock className="h-4 w-4 md:h-5 md:w-5 text-luxuryGold shrink-0" />
-                  <span className="text-xs md:text-sm font-bold text-cotton/95">
+              {/* Meta block */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
+                  <CalendarClock className="h-4 w-4 text-luxuryGold shrink-0 opacity-80" />
+                  <span className="text-[12px] font-medium text-cotton/85">
                     {formatDate(currentMission.datetime)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2.5 md:gap-3.5 rounded-xl border border-luxuryMaroon/15 bg-noirBlack/45 p-2.5 md:p-3.5">
-                  <MapPin className="h-4 w-4 md:h-5 md:w-5 text-cherryRed shrink-0" />
-                  <span className="text-xs md:text-sm font-bold text-cotton/95 truncate">
+                <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
+                  <MapPin className="h-4 w-4 text-cherryRed shrink-0 opacity-80" />
+                  <span className="text-[12px] font-medium text-cotton/85 truncate">
                     {currentMission.location}
                   </span>
                 </div>
@@ -405,13 +350,13 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex h-[420px] md:h-[480px] w-full flex-col items-center justify-center rounded-3xl border border-luxuryMaroon/15 bg-noirBlack/40 p-6 md:p-8 text-center backdrop-blur-md"
+              className="flex h-[430px] w-full flex-col items-center justify-center rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-8 text-center backdrop-blur-md"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cherryRed/20 bg-cherryRed/5 shadow-[0_0_20px_rgba(129,1,0,0.1)] mb-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cherryRed/20 bg-cherryRed/[0.06] shadow-[0_0_24px_rgba(129,1,0,.12)] mb-5">
                 <Flame className="h-6 w-6 text-cherryRed animate-pulse" />
               </div>
-              <h3 className="text-sm md:text-base font-black text-cotton uppercase tracking-wider">Feed Cleared</h3>
-              <p className="mt-2 text-xs md:text-sm font-semibold text-zinc-500 leading-relaxed max-w-[240px] mx-auto">
+              <h3 className="text-[14px] font-black text-cotton uppercase tracking-wider">Feed Cleared</h3>
+              <p className="mt-2 text-[12px] font-normal text-zinc-500 leading-relaxed max-w-[220px]">
                 No runways nearby. Launch one yourself or swap filters.
               </p>
             </motion.div>
@@ -419,121 +364,106 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         </AnimatePresence>
       </div>
 
-      {/* Swipe guides */}
+      {/* Swipe hints */}
       {currentMission && (
-        <div className="flex justify-between items-center w-full px-2 mt-4 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 select-none pointer-events-none">
-          <div className="flex items-center gap-1 opacity-70">
-            <span>← Swipe Left to Pass</span>
+        <div className="flex justify-between items-center w-full px-1 mt-4">
+          <span className="swipe-hint">← Pass</span>
+          <div className="flex gap-1">
+            {missions.slice(index, index + 4).map((_, i) => (
+              <div key={i} className={`h-1 rounded-full transition-all ${i === 0 ? "w-5 bg-cherryRed/60" : "w-1.5 bg-white/10"}`} />
+            ))}
           </div>
-          <div className="flex items-center gap-1 text-luxuryGold/85">
-            <span>Swipe Right to Lock In →</span>
-          </div>
+          <span className="swipe-hint text-luxuryGold/50">Lock In →</span>
         </div>
       )}
 
       {error && (
-        <p className="mt-4 text-center text-xs md:text-sm font-bold text-cherryRed animate-pulse">
+        <p className="mt-3 text-center text-[11px] font-bold text-cherryRed">
           {error}
         </p>
       )}
 
-      {/* Swipe buttons */}
+      {/* Action buttons */}
       {currentMission && (
-        <div className="mt-5 md:mt-7 grid grid-cols-2 gap-3 md:gap-5 shrink-0">
+        <div className="mt-5 grid grid-cols-2 gap-3 shrink-0">
           <button
             onClick={() => handleAction("pass")}
-            className="flex h-11 md:h-13 items-center justify-center gap-1.5 rounded-xl border border-luxuryMaroon/20 bg-luxuryMaroon/5 text-xs md:text-sm font-bold uppercase tracking-wider text-cotton/80 transition hover:bg-luxuryMaroon/15 hover:text-cotton active:scale-[0.98]"
+            className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-white/[0.07] bg-white/[0.03] text-[12px] font-bold uppercase tracking-wider text-zinc-400 transition hover:bg-white/[0.06] hover:text-white active:scale-[0.97]"
           >
-            <X className="h-4 w-4 md:h-5 md:w-5" /> Pass
+            <X className="h-4 w-4" /> Pass
           </button>
           <button
             onClick={() => !locked && handleAction("accept")}
             disabled={locked}
-            className={`flex h-11 md:h-13 items-center justify-center gap-1.5 rounded-xl border text-xs md:text-sm font-black uppercase tracking-wider transition active:scale-[0.98] ${
+            className={`flex h-11 items-center justify-center gap-2 rounded-[14px] border text-[12px] font-black uppercase tracking-wider transition active:scale-[0.97] ${
               locked
-                ? "border-white/5 bg-[#1B1716]/40 text-zinc-600 cursor-not-allowed"
-                : "border-cherryRed/50 bg-[#810100] text-cotton shadow-[0_0_24px_rgba(129,1,0,0.25)] hover:bg-[#810100]/95"
+                ? "border-white/[0.04] bg-white/[0.02] text-zinc-700 cursor-not-allowed"
+                : "border-cherryRed/40 bg-cherryRed text-cotton shadow-[0_0_24px_rgba(129,1,0,0.3)] hover:bg-cherryRed/90"
             }`}
           >
-            <Check className="h-4 w-4 md:h-5 md:w-5 stroke-[3]" /> Lock In
+            <Check className="h-4 w-4 stroke-[2.5]" /> Lock In
           </button>
         </div>
       )}
 
-      {/* Launch Mission Dialog Modal */}
+      {/* Create Mission Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="border-white/10 bg-zinc-950/95 text-white max-w-sm rounded-3xl backdrop-blur-xl">
+        <DialogContent className="border-white/[0.08] bg-[#0F0D0C]/98 text-white max-w-sm rounded-3xl backdrop-blur-2xl shadow-[0_40px_100px_rgba(0,0,0,0.85)]">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black tracking-tight text-white uppercase">
-              LAUNCH MISSION
+            <DialogTitle className="text-[15px] font-black tracking-tight text-white uppercase">
+              Launch Mission
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreateMission} className="space-y-4 mt-2">
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Runway Type
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-black/45 p-1 rounded-xl border border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, missionType: "group" })}
-                  className={`h-8 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${
-                    form.missionType === "group"
-                      ? "bg-cherryRed text-cotton shadow-sm"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  Group Runway
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, missionType: "solo" })}
-                  className={`h-8 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${
-                    form.missionType === "solo"
-                      ? "bg-cherryRed text-cotton shadow-sm"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  Solo Session
-                </button>
+          <form onSubmit={handleCreateMission} className="space-y-4 mt-1">
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Runway Type</label>
+              <div className="grid grid-cols-2 gap-1.5 bg-black/40 p-1 rounded-[14px] border border-white/[0.06]">
+                {["group", "solo"].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setForm({ ...form, missionType: t })}
+                    className={`h-9 rounded-[11px] text-[10px] font-black uppercase tracking-wider transition ${
+                      form.missionType === t
+                        ? "bg-cherryRed text-cotton shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-300"
+                    }`}
+                  >
+                    {t === "group" ? "Group" : "Solo"}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Mission Title
-              </label>
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Mission Title</label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="e.g. LeetCode Lock-In"
-                className="h-10 border-white/10 bg-black/40 text-xs text-white"
+                className="h-10 border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-700"
                 required
               />
             </div>
 
-            <div className="space-y-1 text-left">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Detailed Description
-              </label>
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Description</label>
               <Textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="What exactly needs to get executed?"
-                className="min-h-20 border-white/10 bg-black/40 text-xs text-white resize-none"
+                className="min-h-[72px] border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-700 resize-none"
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1 text-left">
-                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                  Category
-                </label>
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Category</label>
                 <select
                   value={form.categoryId}
                   onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                  className="h-10 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-luxuryGold cursor-pointer"
+                  className="h-10 w-full rounded-lg border border-white/[0.08] bg-black/40 px-2.5 text-[12px] text-white outline-none focus:border-luxuryGold/40 cursor-pointer"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id} className="bg-zinc-950 text-white">
@@ -544,26 +474,15 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               </div>
 
               {form.missionType === "group" && (
-                <div className="space-y-1 text-left">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                    Meet Location
-                  </label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Location</label>
                   <select
                     value={form.location}
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    className="h-10 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-luxuryGold cursor-pointer"
+                    className="h-10 w-full rounded-lg border border-white/[0.08] bg-black/40 px-2.5 text-[12px] text-white outline-none focus:border-luxuryGold/40 cursor-pointer"
                   >
-                    {[
-                      "SRM KTR Library",
-                      "SRM KTR Tech Park",
-                      "SRM KTR Java Canteen",
-                      "SRM KTR Bio-Tech Block",
-                      "SRM KTR Cafe Court",
-                      "SRM KTR UB Block"
-                    ].map((spot) => (
-                      <option key={spot} value={spot} className="bg-zinc-950 text-white">
-                        {spot}
-                      </option>
+                    {["SRM KTR Library","SRM KTR Tech Park","SRM KTR Java Canteen","SRM KTR Bio-Tech Block","SRM KTR Cafe Court","SRM KTR UB Block"].map((spot) => (
+                      <option key={spot} value={spot} className="bg-zinc-950 text-white">{spot}</option>
                     ))}
                   </select>
                 </div>
@@ -571,58 +490,43 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             </div>
 
             {form.missionType === "group" && (
-              <div className="space-y-1 text-left">
-                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                  Datetime Schedule (Future Only)
-                </label>
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Schedule (Future Only)</label>
                 <Input
                   type="datetime-local"
                   value={form.datetime}
-                  min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)} // at least 5 minutes in the future
+                  min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
                   onChange={(e) => setForm({ ...form, datetime: e.target.value })}
-                  className="h-10 border-white/10 bg-black/40 text-xs text-white"
+                  className="h-10 border-white/[0.08] bg-black/40 text-[12px] text-white"
                   required
                 />
               </div>
             )}
 
-            <div className="space-y-1.5 text-left border-t border-white/5 pt-3">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Runway Checklist (Optional)
-              </label>
+            <div className="space-y-2 border-t border-white/[0.05] pt-3">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Checklist (Optional)</label>
               <div className="flex gap-2">
                 <Input
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Add task checklist item..."
-                  className="h-9 border-white/10 bg-black/40 text-xs text-white"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTask();
-                    }
-                  }}
+                  placeholder="Add a task..."
+                  className="h-9 border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-700"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTask(); } }}
                 />
                 <button
                   type="button"
                   onClick={addTask}
-                  className="h-9 px-3 rounded-lg border border-luxuryMaroon/20 bg-luxuryMaroon/5 text-xs text-cotton font-bold hover:bg-luxuryMaroon/15 transition"
+                  className="h-9 px-3.5 rounded-lg border border-white/[0.07] bg-white/[0.04] text-[11px] text-cotton font-bold hover:bg-white/[0.08] transition"
                 >
                   Add
                 </button>
               </div>
               {tasks.length > 0 && (
-                <div className="mt-2 max-h-24 overflow-y-auto space-y-1.5 bg-black/30 p-2 rounded-xl border border-white/5 scrollbar-thin">
+                <div className="max-h-24 overflow-y-auto space-y-1 bg-black/25 p-2 rounded-xl border border-white/[0.05]">
                   {tasks.map((t, idx) => (
-                    <div key={idx} className="flex justify-between items-center gap-2 bg-zinc-900/60 px-2.5 py-1 rounded-md">
-                      <span className="text-[11px] text-cotton/90 truncate">{t}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeTask(idx)}
-                        className="text-[10px] text-cherryRed font-bold hover:text-red-400 shrink-0"
-                      >
-                        Remove
-                      </button>
+                    <div key={idx} className="flex justify-between items-center gap-2 bg-white/[0.03] px-2.5 py-1.5 rounded-lg">
+                      <span className="text-[11px] text-cotton/80 truncate">{t}</span>
+                      <button type="button" onClick={() => removeTask(idx)} className="text-[10px] text-cherryRed font-bold hover:text-red-400 shrink-0">×</button>
                     </div>
                   ))}
                 </div>
@@ -632,10 +536,10 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-luxuryGold/30 bg-luxuryGold text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(197,168,128,0.2)] hover:bg-luxuryGold/95 transition active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-luxuryGold/25 bg-luxuryGold text-[12px] font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(197,168,128,0.18)] hover:bg-luxuryGold/90 transition active:scale-[0.98] disabled:opacity-50"
             >
-              <Plus className="h-4 w-4 stroke-[3]" />
-              {submitting ? "Launching..." : "Launch runway"}
+              <Plus className="h-4 w-4 stroke-[2.5]" />
+              {submitting ? "Launching..." : "Launch Runway"}
             </button>
           </form>
         </DialogContent>

@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote, Trash2 } from "lucide-react";
+import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote, Trash2, X } from "lucide-react";
 import { toPng } from "html-to-image";
 
 interface RecapProps {
@@ -291,6 +291,18 @@ export default function LockinRecapCard({
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
+        {/* Floating Close Button for Mobile Accessibility */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute top-5 right-5 p-2.5 rounded-full border border-white/[0.08] bg-zinc-950/80 text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all backdrop-blur-md shadow-lg z-50 flex items-center justify-center"
+          aria-label="Close card overlay"
+        >
+          <X size={18} />
+        </button>
+
         <motion.div
           initial={{ scale: 0.92, opacity: 0 }}
           animate={isTrashing ? { y: 800, rotate: 360, scale: 0.1, opacity: 0 } : { scale: 1, opacity: 1 }}
