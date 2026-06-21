@@ -16,6 +16,11 @@ import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
 import ActivityFeed from "../components/ActivityFeed";
 
+// V3 Beta Components
+import FeedNew from "../components/FeedNew";
+import ActiveMissionsNew from "../components/ActiveMissionsNew";
+import ProfileNew from "../components/ProfileNew";
+
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
 
@@ -51,6 +56,20 @@ export default function Home() {
   const [tab, setTab] = useState("feed");
   const [locked, setLocked] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
+  const [useNewUI, setUseNewUI] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUseNewUI(localStorage.getItem("use_new_ui") === "true");
+    }
+  }, []);
+
+  const handleSetUseNewUI = (val: boolean) => {
+    setUseNewUI(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("use_new_ui", val ? "true" : "false");
+    }
+  };
 
   // Socket.io connection state
   useEffect(() => {
@@ -138,7 +157,14 @@ export default function Home() {
   const screen = useMemo(() => {
     if (!user) return null;
     if (tab === "active") {
-      return (
+      return useNewUI ? (
+        <ActiveMissionsNew
+          user={user}
+          refreshUser={refreshUser}
+          api={api}
+          socketUrl={SOCKET_URL}
+        />
+      ) : (
         <ActiveMissions
           user={user}
           refreshUser={refreshUser}
@@ -151,9 +177,22 @@ export default function Home() {
       return <ActivityFeed user={user} api={api} />;
     }
     if (tab === "profile") {
-      return <Profile user={user} refreshUser={refreshUser} api={api} />;
+      return useNewUI ? (
+        <ProfileNew user={user} refreshUser={refreshUser} api={api} />
+      ) : (
+        <Profile user={user} refreshUser={refreshUser} api={api} />
+      );
     }
-    return (
+    return useNewUI ? (
+      <FeedNew
+        user={user}
+        refreshUser={refreshUser}
+        locked={locked}
+        setLocked={setLocked}
+        api={api}
+        setTab={setTab}
+      />
+    ) : (
       <Feed
         user={user}
         refreshUser={refreshUser}
@@ -163,7 +202,7 @@ export default function Home() {
         setTab={setTab}
       />
     );
-  }, [tab, user, locked]);
+  }, [tab, user, locked, useNewUI]);
 
   if (loading) {
     return (
@@ -181,7 +220,7 @@ export default function Home() {
 
   return (
     <Shell tab={tab} setTab={setTab} user={user}>
-      <Header user={user} />
+      <Header user={user} useNewUI={useNewUI} setUseNewUI={handleSetUseNewUI} />
       <AnimatePresence mode="wait">
         <motion.div
           key={tab}

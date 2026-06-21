@@ -151,7 +151,8 @@ async function updateUser(req, res) {
       instagram: user.instagram,
       github: user.github,
       interests: user.interests,
-      location: user.location
+      location: user.location,
+      campus_id: user.collegeId
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;

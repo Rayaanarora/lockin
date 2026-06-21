@@ -216,13 +216,14 @@ async function verifyOtp(req, res) {
         email: user.email,
         email_verified: user.emailVerified,
         college: user.college,
-        college_id: user.collegeId,
+        college_id: user.email,
         department: user.department,
         reputation_score: user.reputationScore,
         bio: user.bio,
         instagram: user.instagram,
         github: user.github,
-        interests: user.interests
+        interests: user.interests,
+        campus_id: user.collegeId
       }
       // token  // Uncomment when JWT is implemented
     });
@@ -260,14 +261,15 @@ async function getMe(req, res) {
       email: user.email,
       email_verified: user.emailVerified,
       college: user.college,
-      college_id: user.collegeId,
+      college_id: user.email,
       department: user.department,
       reputation_score: user.reputationScore,
       bio: user.bio,
       instagram: user.instagram,
       github: user.github,
       interests: user.interests,
-      college_name: user.collegeRef?.shortName || ""
+      campus_id: user.collegeId,
+      campus_name: user.collegeRef?.shortName || ""
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
