@@ -27,7 +27,9 @@ const server = http.createServer(app);
 // Setup Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
+    origin: (origin, callback) => {
+      callback(null, origin || "*");
+    },
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -39,7 +41,9 @@ app.set("io", io);
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: (origin, callback) => {
+      callback(null, origin || "*");
+    },
     credentials: true
   })
 );
