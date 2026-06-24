@@ -89,6 +89,8 @@ model Mission {
   focusDuration    Int             @default(25) @map("focus_duration")
   verificationCode String?         @map("verification_code") @db.VarChar(10)
   missionType      String          @default("group") @map("mission_type") @db.VarChar(20)
+  coverColor       String?         @map("cover_color") @db.VarChar(50)
+  coverImage       String?         @map("cover_image") @db.Text
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   creator          User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
   collegeRef       College?        @relation(fields: [collegeId], references: [id], onDelete: SetNull)

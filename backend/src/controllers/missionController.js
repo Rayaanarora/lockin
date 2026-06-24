@@ -11,7 +11,7 @@ function assertUserId(userId, res) {
 }
 
 async function createMission(req, res) {
-  const { creator_id, title, description, location, datetime, categoryId, focusDuration, missionType } = req.body;
+  const { creator_id, title, description, location, datetime, categoryId, focusDuration, missionType, coverColor, coverImage } = req.body;
   const isSolo = missionType === "solo";
 
   if (!creator_id || !title || !description || (!isSolo && (!location || !datetime))) {
@@ -47,7 +47,9 @@ async function createMission(req, res) {
         collegeId: creatorUser ? creatorUser.collegeId : null,
         focusDuration: payload.focusDuration,
         verificationCode: verificationCode,
-        missionType: payload.missionType
+        missionType: payload.missionType,
+        coverColor: coverColor || null,
+        coverImage: coverImage || null
       },
       include: {
         creator: {
@@ -78,7 +80,9 @@ async function createMission(req, res) {
       creator_department: mission.creator?.department || "Creator",
       verification_code: mission.verificationCode,
       focus_duration: mission.focusDuration,
-      mission_type: mission.missionType
+      mission_type: mission.missionType,
+      cover_color: mission.coverColor,
+      cover_image: mission.coverImage
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -122,26 +126,73 @@ async function getMissionFeed(req, res) {
       orderBy: { datetime: "asc" },
       include: {
         category: true,
-        creator: true
+        creator: true,
+        participations: {
+          where: {
+            status: { in: ["Accepted", "Executing", "Completed"] }
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                department: true,
+                reputationScore: true
+              }
+            }
+          }
+        }
       }
     });
 
-    const rows = missions.map((m) => ({
-      id: m.id,
-      creator_id: m.createdBy,
-      title: m.title,
-      description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
-      location: m.location,
-      datetime: m.datetime ? m.datetime.toISOString() : null,
-      creator_name: m.creator?.name || "Unknown",
-      creator_department: m.creator?.department || "Creator",
-      category_name: m.category?.categoryName || "Coding",
-      category_id: m.categoryId,
-      category_emoji: m.category?.emoji || "💻",
-      category_color: m.category?.colorHex || "#3b82f6",
-      focus_duration: m.focusDuration,
-      mission_type: m.missionType
-    }));
+    const rows = missions.map((m) => {
+      const attendees = [];
+      if (m.creator) {
+        attendees.push({
+          id: m.createdBy,
+          name: m.creator.name,
+          department: m.creator.department || "Host",
+          reputation_score: m.creator.reputationScore || 0,
+          is_host: true
+        });
+      }
+
+      const acceptedParticipants = (m.participations || [])
+        .map((p) => {
+          if (!p.user) return null;
+          return {
+            id: p.user.id,
+            name: p.user.name,
+            department: p.user.department || "Student",
+            reputation_score: p.user.reputationScore || 0,
+            is_host: false
+          };
+        })
+        .filter(Boolean);
+
+      attendees.push(...acceptedParticipants);
+
+      return {
+        id: m.id,
+        creator_id: m.createdBy,
+        title: m.title,
+        description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
+        location: m.location,
+        datetime: m.datetime ? m.datetime.toISOString() : null,
+        creator_name: m.creator?.name || "Unknown",
+        creator_department: m.creator?.department || "Creator",
+        category_name: m.category?.categoryName || "Coding",
+        category_id: m.categoryId,
+        category_emoji: m.category?.emoji || "💻",
+        category_color: m.category?.colorHex || "#3b82f6",
+        focus_duration: m.focusDuration,
+        mission_type: m.missionType,
+        cover_color: m.coverColor,
+        cover_image: m.coverImage,
+        locked_in_count: attendees.length,
+        attendees: attendees
+      };
+    });
 
     res.json(rows);
   } catch (error) {
@@ -262,7 +313,22 @@ async function getActiveMissions(req, res) {
         mission: {
           include: {
             category: true,
-            creator: true
+            creator: true,
+            participations: {
+              where: {
+                status: { in: ["Accepted", "Executing", "Completed"] }
+              },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    department: true,
+                    reputationScore: true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -287,7 +353,22 @@ async function getActiveMissions(req, res) {
         mission: {
           include: {
             category: true,
-            creator: true
+            creator: true,
+            participations: {
+              where: {
+                status: { in: ["Accepted", "Executing", "Completed"] }
+              },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    department: true,
+                    reputationScore: true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -302,14 +383,58 @@ async function getActiveMissions(req, res) {
       include: {
         category: true,
         creator: true,
-        participations: true
+        participations: {
+          where: {
+            status: { in: ["Accepted", "Executing", "Completed", "Requested"] }
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                department: true,
+                reputationScore: true
+              }
+            }
+          }
+        }
       }
     });
+
+    const buildAttendees = (m) => {
+      if (!m) return [];
+      const attendees = [];
+      if (m.creator) {
+        attendees.push({
+          id: m.createdBy,
+          name: m.creator.name,
+          department: m.creator.department || "Host",
+          reputation_score: m.creator.reputationScore || 0,
+          is_host: true
+        });
+      }
+      const acceptedParticipants = (m.participations || [])
+        .filter(p => ["Accepted", "Executing", "Completed"].includes(p.status))
+        .map((p) => {
+          if (!p.user) return null;
+          return {
+            id: p.user.id,
+            name: p.user.name,
+            department: p.user.department || "Student",
+            reputation_score: p.user.reputationScore || 0,
+            is_host: false
+          };
+        })
+        .filter(Boolean);
+      attendees.push(...acceptedParticipants);
+      return attendees;
+    };
 
     const acceptedRows = accepted
       .filter((p) => p.status !== "Rejected")
       .map((p) => {
         if (!p.mission) return null;
+        const attendees = buildAttendees(p.mission);
         return {
           id: p.mission.id,
           creator_id: p.mission.createdBy,
@@ -327,7 +452,11 @@ async function getActiveMissions(req, res) {
           work_duration: p.workDuration,
           creator_vibe_rating: p.creatorVibeRating,
           participant_vibe_rating: p.participantVibeRating,
-          mission_type: p.mission.missionType
+          mission_type: p.mission.missionType,
+          cover_color: p.mission.coverColor,
+          cover_image: p.mission.coverImage,
+          locked_in_count: attendees.length,
+          attendees: attendees
         };
       })
       .filter(Boolean);
@@ -337,6 +466,7 @@ async function getActiveMissions(req, res) {
       .map((p) => {
         if (!p.mission) return null;
         const isSolo = p.mission.missionType === "solo";
+        const attendees = buildAttendees(p.mission);
         return {
           id: p.mission.id,
           creator_id: p.mission.createdBy,
@@ -358,7 +488,11 @@ async function getActiveMissions(req, res) {
           work_duration: p.workDuration,
           creator_vibe_rating: p.creatorVibeRating,
           participant_vibe_rating: p.participantVibeRating,
-          mission_type: p.mission.missionType
+          mission_type: p.mission.missionType,
+          cover_color: p.mission.coverColor,
+          cover_image: p.mission.coverImage,
+          locked_in_count: attendees.length,
+          attendees: attendees
         };
       })
       .filter(Boolean);
@@ -371,29 +505,36 @@ async function getActiveMissions(req, res) {
         );
         return !hasActiveOrPending;
       })
-      .map((m) => ({
-        id: m.id,
-        creator_id: m.createdBy,
-        title: m.title,
-        description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
-        location: m.location,
-        datetime: m.datetime ? m.datetime.toISOString() : null,
-        status: "Pending",
-        showed_up: null,
-        creator_name: m.creator?.name || "Me",
-        role: "creator",
-        participant_name: "Waiting for requests...",
-        participant_id: null,
-        participant_department: "",
-        participant_reputation: 0,
-        verification_code: m.verificationCode,
-        focus_duration: m.focusDuration,
-        work_started_at: null,
-        work_duration: null,
-        creator_vibe_rating: null,
-        participant_vibe_rating: null,
-        mission_type: m.missionType
-      }));
+      .map((m) => {
+        const attendees = buildAttendees(m);
+        return {
+          id: m.id,
+          creator_id: m.createdBy,
+          title: m.title,
+          description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
+          location: m.location,
+          datetime: m.datetime ? m.datetime.toISOString() : null,
+          status: "Pending",
+          showed_up: null,
+          creator_name: m.creator?.name || "Me",
+          role: "creator",
+          participant_name: "Waiting for requests...",
+          participant_id: null,
+          participant_department: "",
+          participant_reputation: 0,
+          verification_code: m.verificationCode,
+          focus_duration: m.focusDuration,
+          work_started_at: null,
+          work_duration: null,
+          creator_vibe_rating: null,
+          participant_vibe_rating: null,
+          mission_type: m.missionType,
+          cover_color: m.coverColor,
+          cover_image: m.coverImage,
+          locked_in_count: attendees.length,
+          attendees: attendees
+        };
+      });
 
     const rows = [...acceptedRows, ...hostedRows, ...pendingRows];
 

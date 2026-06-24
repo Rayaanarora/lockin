@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, CheckSquare, Square, FileText, Flame, Play, Pause } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, CheckSquare, Square, FileText, Flame, Play, Pause, Users, Calendar, Download } from "lucide-react";
 import { User, Mission } from "../app/types";
 import Chat from "./Chat";
 import RecapCard from "./RecapCard";
+import PublicProfile from "./PublicProfile";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -20,6 +21,7 @@ interface ActiveMissionsProps {
 export default function ActiveMissions({ user, refreshUser, api, socketUrl }: ActiveMissionsProps) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [chatMission, setChatMission] = useState<Mission | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [inputCodes, setInputCodes] = useState<{ [missionId: number]: string }>({});
   const [errors, setErrors] = useState<{ [missionId: number]: string }>({});
@@ -377,6 +379,94 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     }
   }
 
+  const getInitials = (name: string) => {
+    if (!name) return "??";
+    return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  };
+
+  const getGoogleCalendarUrl = (mission: Mission) => {
+    const title = encodeURIComponent(mission.title || "LockIn Mission");
+    const descText = `${mission.description || ""}\n\nHost: ${mission.creator_name || "Unknown"}\nLocation: ${mission.location || "Runway"}\nLocked in with: ${mission.participant_name || "Solo"}`;
+    const details = encodeURIComponent(descText);
+    const location = encodeURIComponent(mission.location || "");
+    
+    const startDate = mission.datetime ? new Date(mission.datetime) : new Date();
+    const isValidDate = !isNaN(startDate.getTime());
+    const actualStart = isValidDate ? startDate : new Date();
+    const durationMin = mission.focus_duration || 60;
+    const endDate = new Date(actualStart.getTime() + durationMin * 60 * 1000);
+    
+    const formatGCalDate = (date: Date) => {
+      try {
+        return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      } catch (e) {
+        return new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      }
+    };
+    
+    const dates = `${formatGCalDate(actualStart)}/${formatGCalDate(endDate)}`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+  };
+
+  const downloadICS = (mission: Mission) => {
+    const title = mission.title || "LockIn Mission";
+    const descText = `${mission.description || ""}\n\nHost: ${mission.creator_name || "Unknown"}\nLocation: ${mission.location || "Runway"}\nLocked in with: ${mission.participant_name || "Solo"}`;
+    const location = mission.location || "Runway";
+    
+    const startDate = mission.datetime ? new Date(mission.datetime) : new Date();
+    const isValidDate = !isNaN(startDate.getTime());
+    const actualStart = isValidDate ? startDate : new Date();
+    const durationMin = mission.focus_duration || 60;
+    const endDate = new Date(actualStart.getTime() + durationMin * 60 * 1000);
+    
+    const formatICSDate = (date: Date) => {
+      try {
+        return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      } catch (e) {
+        return new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      }
+    };
+    
+    const escapeICS = (str: string) => {
+      return str
+        .replace(/[\\,;]/g, (match) => `\\${match}`)
+        .replace(/\n/g, "\\n");
+    };
+    
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//LockIn//Mission Calendar//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:mission-${mission.id}@lockin.app`,
+      `DTSTAMP:${formatICSDate(new Date())}`,
+      `DTSTART:${formatICSDate(actualStart)}`,
+      `DTEND:${formatICSDate(endDate)}`,
+      `SUMMARY:${escapeICS(title)}`,
+      `DESCRIPTION:${escapeICS(descText)}`,
+      `LOCATION:${escapeICS(location)}`,
+      "STATUS:CONFIRMED",
+      "SEQUENCE:0",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+    
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    
+    const safeTitle = title.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 30) || "mission";
+    link.download = `${safeTitle}.ics`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const isDue = (datetime: string) => {
     return new Date(datetime).getTime() <= Date.now();
   };
@@ -515,39 +605,113 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className={`rounded-2xl border bg-noirBlack/45 p-4 md:p-6 shadow-sm backdrop-blur-md transition hover:scale-[1.01] hover:border-white/10 ${
+                  className={`relative overflow-hidden rounded-2xl border bg-noirBlack/45 p-4 md:p-6 shadow-sm backdrop-blur-md transition hover:scale-[1.01] hover:border-white/10 ${
                     needsReview ? "border-luxuryGold/40 ring-1 ring-luxuryGold/10" : "border-luxuryMaroon/15"
                   }`}
+                  style={{
+                    borderColor: mission.cover_color ? `${mission.cover_color}55` : undefined,
+                    boxShadow: mission.cover_color ? `0 4px 20px rgba(0,0,0,0.4), 0 0 15px ${mission.cover_color}12` : undefined
+                  }}
                 >
-                  <div className="flex items-start justify-between gap-3 mb-3.5 text-left">
-                    <div>
-                      <h3 className="text-sm md:text-base lg:text-lg font-black text-white leading-tight">
-                        {mission.title}
-                      </h3>
-                      <p className="mt-1 text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                        {roleLabel}
-                      </p>
+                  {/* Optional Mission Cover Background */}
+                  {mission.cover_image && (
+                    <div 
+                      className="absolute inset-0 z-0 opacity-[0.12] pointer-events-none"
+                      style={{ 
+                        background: mission.cover_image.includes("gradient") 
+                          ? mission.cover_image 
+                          : `url(${mission.cover_image}) center/cover no-repeat`
+                      }}
+                    />
+                  )}
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between gap-3 mb-3.5 text-left">
+                      <div>
+                        <h3 className="text-sm md:text-base lg:text-lg font-black text-white leading-tight">
+                          {mission.title}
+                        </h3>
+                        <p className="mt-1 text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                          {roleLabel}
+                        </p>
+                        {/* RSVP Count */}
+                        {mission.locked_in_count !== undefined && mission.locked_in_count > 2 && (
+                          <div className="flex items-center gap-1.5 mt-1 text-[10px] md:text-xs font-bold text-zinc-400">
+                            <Users className="h-3.5 w-3.5 text-luxuryGold shrink-0" />
+                            <span>{mission.locked_in_count} people locked in</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className={`rounded-md border px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-black uppercase tracking-wider shrink-0 h-fit ${statusColor}`}>
+                        {statusLabel}
+                      </span>
                     </div>
-                    <span className={`rounded-md border px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-black uppercase tracking-wider shrink-0 h-fit ${statusColor}`}>
-                      {statusLabel}
-                    </span>
-                  </div>
 
-                  {/* Timing & Location */}
-                  <div className="grid grid-cols-2 gap-3.5 text-xs md:text-sm font-bold text-cotton/80 mb-4.5 text-left">
-                    <div className="flex items-center gap-2.5 rounded-xl border border-luxuryMaroon/15 bg-[#1B1716]/40 p-2.5 md:p-3.5">
-                      <CalendarClock className="h-3.5 w-3.5 md:h-4.5 md:w-4.5 text-luxuryGold shrink-0" />
-                      <span className="text-cotton/90">
-                        {isSolo ? "Start Anytime" : (due ? "Ready" : timeLeft(mission.datetime))}
-                      </span>
+                    {/* Timing & Location */}
+                    <div className="grid grid-cols-2 gap-3.5 text-xs md:text-sm font-bold text-cotton/80 mb-4.5 text-left">
+                      <div className="flex items-center gap-2.5 rounded-xl border border-luxuryMaroon/15 bg-[#1B1716]/40 p-2.5 md:p-3.5">
+                        <CalendarClock className="h-3.5 w-3.5 md:h-4.5 md:w-4.5 text-luxuryGold shrink-0" />
+                        <span className="text-cotton/90">
+                          {isSolo ? "Start Anytime" : (due ? "Ready" : timeLeft(mission.datetime))}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5 rounded-xl border border-luxuryMaroon/15 bg-[#1B1716]/40 p-2.5 md:p-3.5">
+                        <MapPin className="h-3.5 w-3.5 md:h-4.5 md:w-4.5 text-cherryRed shrink-0" />
+                        <span className="truncate text-cotton/90">
+                          {isSolo ? "Solo Runway" : mission.location}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2.5 rounded-xl border border-luxuryMaroon/15 bg-[#1B1716]/40 p-2.5 md:p-3.5">
-                      <MapPin className="h-3.5 w-3.5 md:h-4.5 md:w-4.5 text-cherryRed shrink-0" />
-                      <span className="truncate text-cotton/90">
-                        {isSolo ? "Solo Runway" : mission.location}
-                      </span>
-                    </div>
-                  </div>
+
+                    {/* Attendee Profiles */}
+                    {mission.attendees && mission.attendees.length > 0 && (
+                      <div className="mb-4.5 space-y-2 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                          Locked In Crew
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {mission.attendees.slice(0, 3).map((attendee) => (
+                            <button
+                              key={attendee.id}
+                              type="button"
+                              onClick={() => setSelectedUserId(attendee.id)}
+                              className="flex items-center gap-1.5 rounded-full border border-white/5 bg-black/30 pl-1 pr-2.5 py-1 text-[10px] font-semibold text-cotton/90 hover:border-luxuryGold/40 hover:bg-black/50 transition cursor-pointer"
+                            >
+                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-cherryRed/10 border border-cherryRed/20 text-[8px] font-black text-cherryRed shrink-0">
+                                {getInitials(attendee.name)}
+                              </div>
+                              <span className="truncate max-w-[80px]">{attendee.name}</span>
+                            </button>
+                          ))}
+                          {mission.attendees.length > 3 && (
+                            <div className="flex h-7 items-center justify-center rounded-full border border-white/5 bg-black/30 px-2.5 text-[9px] font-bold text-zinc-500">
+                              +{mission.attendees.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Calendar Integration */}
+                    {!isSolo && mission.status !== "Completed" && mission.status !== "Missed" && (
+                      <div className="mb-4.5 flex flex-wrap gap-2 text-left">
+                        <a
+                          href={getGoogleCalendarUrl(mission)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex h-8 items-center justify-center gap-1.5 rounded-lg border border-luxuryGold/20 bg-luxuryGold/5 px-2.5 text-[10px] font-bold text-luxuryGold hover:bg-luxuryGold/10 transition"
+                        >
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span>Google Calendar</span>
+                        </a>
+                        <button
+                          onClick={() => downloadICS(mission)}
+                          className="flex-1 flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-bold text-cotton/80 hover:bg-white/10 transition"
+                        >
+                          <Download className="h-3 w-3 shrink-0" />
+                          <span>Export .ics</span>
+                        </button>
+                      </div>
+                    )}
 
                   {/* 1. Request Review Box (Creator Only) */}
                   {isCreator && isRequest && !isSolo && (
@@ -903,6 +1067,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       )}
                     </div>
                   )}
+                  </div>
                 </motion.article>
               );
             })}
@@ -929,6 +1094,17 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           isOpen={showRecapCard}
           onClose={() => setShowRecapCard(false)}
           recapData={recapData}
+        />
+      )}
+
+      {/* Public Profile Modal */}
+      {selectedUserId && (
+        <PublicProfile
+          userId={selectedUserId}
+          viewerId={user.id}
+          isOpen={!!selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          api={api}
         />
       )}
 

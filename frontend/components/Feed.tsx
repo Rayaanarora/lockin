@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
-import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -41,6 +41,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const [tasks, setTasks] = useState<string[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showCustomizeCover, setShowCustomizeCover] = useState(false);
+  const [coverColor, setCoverColor] = useState("");
+  const [coverImage, setCoverImage] = useState("");
 
   const addTask = () => {
     if (newTaskTitle.trim()) {
@@ -117,7 +120,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         creator_id: user.id,
         categoryId: Number(form.categoryId),
         location: isSolo ? "Solo" : form.location,
-        datetime: isSolo ? new Date().toISOString() : form.datetime
+        datetime: isSolo ? new Date().toISOString() : form.datetime,
+        coverColor: coverColor || null,
+        coverImage: coverImage || null
       };
       const newMission = await api("/missions", { method: "POST", body: JSON.stringify(payload) });
       if (tasks.length > 0 && newMission?.id) {
@@ -133,6 +138,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         datetime: "", categoryId: categories[0]?.id ? String(categories[0].id) : "1", missionType: "group"
       });
       setTasks([]);
+      setCoverColor("");
+      setCoverImage("");
+      setShowCustomizeCover(false);
       await load(activeCategory);
     } catch (err: any) {
       setError(err.message || "Could not launch mission.");
@@ -244,7 +252,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           {currentMission ? (
             <motion.article
               key={currentMission.id}
-              style={{ x, rotate }}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.55}
@@ -266,8 +273,25 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               exit={{ opacity: 0, scale: 0.88, y: -24 }}
               whileDrag={{ scale: 1.015, cursor: "grabbing" }}
               transition={{ type: "spring", stiffness: 280, damping: 26 }}
-              className="mission-card-inner relative flex h-[430px] w-full touch-none flex-col justify-between overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#161210]/80 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+              className="mission-card-inner relative flex h-[430px] w-full touch-none flex-col justify-between overflow-hidden rounded-[28px] border bg-[#161210]/80 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+              style={{
+                x,
+                rotate,
+                borderColor: currentMission.cover_color ? `${currentMission.cover_color}55` : "rgba(255,255,255,0.08)",
+                boxShadow: currentMission.cover_color ? `0 24px 70px rgba(0,0,0,0.65), 0 0 20px ${currentMission.cover_color}18` : undefined
+              }}
             >
+              {/* Optional Mission Cover Background */}
+              {currentMission.cover_image && (
+                <div 
+                  className="absolute inset-0 z-0 opacity-[0.18] pointer-events-none"
+                  style={{ 
+                    background: currentMission.cover_image.includes("gradient") 
+                      ? currentMission.cover_image 
+                      : `url(${currentMission.cover_image}) center/cover no-repeat`
+                  }}
+                />
+              )}
               {/* Swipe overlay — accept */}
               <motion.div
                 style={{ opacity: opacityAccept }}
@@ -291,7 +315,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               {/* Inner top highlight */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
 
-              <div className="space-y-5">
+              <div className="space-y-5 z-10">
                 {/* Creator row */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -305,6 +329,12 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                       <p className="text-[10px] font-medium text-zinc-500 mt-0.5 uppercase tracking-wide">
                         {currentMission.creator_department || "Department"}
                       </p>
+                      {currentMission.locked_in_count !== undefined && currentMission.locked_in_count > 2 && (
+                        <div className="flex items-center gap-1 mt-1 text-[9px] font-black uppercase text-zinc-500">
+                          <Users className="h-3 w-3 text-luxuryGold" />
+                          <span>{currentMission.locked_in_count} people locked in</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <span
@@ -529,6 +559,119 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                       <button type="button" onClick={() => removeTask(idx)} className="text-[10px] text-cherryRed font-bold hover:text-red-400 shrink-0">×</button>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+            {/* Custom Cover & Theme (Optional) */}
+            <div className="space-y-2 border-t border-white/[0.05] pt-3">
+              <button
+                type="button"
+                onClick={() => setShowCustomizeCover(!showCustomizeCover)}
+                className="flex items-center justify-between w-full text-[9px] font-black uppercase tracking-wider text-zinc-500 hover:text-cotton transition"
+              >
+                <span>Customize Cover & Theme (Optional)</span>
+                <span className="text-[12px]">{showCustomizeCover ? "−" : "+"}</span>
+              </button>
+
+              {showCustomizeCover && (
+                <div className="space-y-3 bg-black/25 p-3 rounded-xl border border-white/[0.05] text-left">
+                  {/* Theme Colors */}
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold uppercase tracking-wider text-zinc-600">Accent Color</label>
+                    <div className="flex gap-2">
+                      {[
+                        { name: "Crimson", value: "#B11226" },
+                        { name: "Emerald", value: "#10B981" },
+                        { name: "Gold", value: "#F59E0B" },
+                        { name: "Indigo", value: "#6366F1" },
+                        { name: "Violet", value: "#8B5CF6" },
+                      ].map((color) => (
+                        <button
+                          key={color.name}
+                          type="button"
+                          onClick={() => setCoverColor(color.value)}
+                          className={`h-5 w-5 rounded-full border transition ${
+                            coverColor === color.value ? "border-white scale-110" : "border-transparent"
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                          title={color.name}
+                        />
+                      ))}
+                      {coverColor && (
+                        <button
+                          type="button"
+                          onClick={() => setCoverColor("")}
+                          className="text-[8px] font-bold uppercase text-zinc-500 hover:text-white"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Preset Covers */}
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold uppercase tracking-wider text-zinc-600">Preset Patterns</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { name: "Cosmic", value: "linear-gradient(135deg, #1b0f1c 0%, #0e0d10 100%)" },
+                        { name: "Aqua", value: "linear-gradient(135deg, #0f1c1e 0%, #0d0f11 100%)" },
+                        { name: "Amber Glow", value: "linear-gradient(135deg, #1f120c 0%, #110d0c 100%)" },
+                        { name: "Midnight", value: "linear-gradient(135deg, #121212 0%, #080808 100%)" },
+                      ].map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => setCoverImage(preset.value)}
+                          className={`h-8 rounded-lg border text-[9px] font-bold uppercase tracking-wider text-cotton/85 transition ${
+                            coverImage === preset.value ? "border-white" : "border-white/10"
+                          }`}
+                          style={{ background: preset.value }}
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom Image Upload */}
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-bold uppercase tracking-wider text-zinc-600">Custom Cover Image</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="cover-upload"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setCoverImage(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="cover-upload"
+                        className="flex h-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 text-[9px] font-bold uppercase tracking-wider text-cotton hover:bg-white/10 transition cursor-pointer"
+                      >
+                        Upload Image
+                      </label>
+                      {coverImage && !coverImage.includes("gradient") && (
+                        <span className="text-[8px] text-emerald-500 font-bold truncate max-w-[120px]">Image Loaded</span>
+                      )}
+                      {coverImage && (
+                        <button
+                          type="button"
+                          onClick={() => setCoverImage("")}
+                          className="text-[8px] font-bold uppercase text-zinc-500 hover:text-white"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

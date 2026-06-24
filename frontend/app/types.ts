@@ -39,6 +39,16 @@ export interface Mission {
   category_color?: string;
   mission_type?: string;
   focus_duration?: number;
+  cover_color?: string | null;
+  cover_image?: string | null;
+  locked_in_count?: number;
+  attendees?: Array<{
+    id: number;
+    name: string;
+    department: string;
+    reputation_score: number;
+    is_host: boolean;
+  }>;
 }
 
 export interface Message {
