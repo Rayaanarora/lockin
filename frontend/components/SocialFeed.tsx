@@ -260,7 +260,7 @@ export default function SocialFeed({ user, api }: SocialFeedProps) {
           </div>
         ) : (
           <>
-            <div className="space-y-4">
+            <div className="space-y-4 sm:max-w-[470px]">
               {posts.map((post) => (
                 <FeedPostCard
                   key={post.id}

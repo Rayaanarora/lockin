@@ -74,6 +74,7 @@ export interface Post {
   userId: number;
   recapId?: number | null;
   imageUrl?: string | null;
+  imageUrls?: string[];
   caption?: string | null;
   visibility: "college" | "followers" | "everyone";
   createdAt: string;

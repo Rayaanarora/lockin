@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Image as ImageIcon, Globe, Users, School, Loader2, Check } from "lucide-react";
+import { X, Image as ImageIcon, Globe, Users, School, Loader2, Check, Plus } from "lucide-react";
 import { uploadImage } from "../lib/supabase";
 
 interface ShareToFeedSheetProps {
@@ -10,22 +10,34 @@ interface ShareToFeedSheetProps {
   onClose: () => void;
   recapId?: number;
   recapData?: any;
+  preGeneratedCardImage?: string | null;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const MAX_IMAGES = 4;
 
-export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }: ShareToFeedSheetProps) {
+export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData, preGeneratedCardImage }: ShareToFeedSheetProps) {
   const [caption, setCaption] = useState("");
   const [visibility, setVisibility] = useState<"college" | "followers" | "everyone">("everyone");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Drag and drop state
   const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (preGeneratedCardImage) {
+        setImagePreviews([preGeneratedCardImage]);
+        setImageFiles([null]); // null = base64 data URL, not a File
+      } else {
+        setImagePreviews([]);
+        setImageFiles([]);
+      }
+    }
+  }, [preGeneratedCardImage, isOpen]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -42,31 +54,43 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith("image/")) {
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
-      } else {
-        setError("Only image files are allowed.");
-      }
+    if (e.dataTransfer.files) {
+      addFiles(Array.from(e.dataTransfer.files));
     }
+  };
+
+  const addFiles = (files: File[]) => {
+    const remaining = MAX_IMAGES - imagePreviews.length;
+    const validFiles = files.filter(f => f.type.startsWith("image/")).slice(0, remaining);
+
+    if (validFiles.length === 0 && files.length > 0) {
+      setError("Only image files are allowed.");
+      return;
+    }
+
+    const newPreviews: string[] = [];
+    const newFiles: (File | null)[] = [];
+
+    validFiles.forEach(file => {
+      newPreviews.push(URL.createObjectURL(file));
+      newFiles.push(file);
+    });
+
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    setImageFiles(prev => [...prev, ...newFiles]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+    if (e.target.files) {
+      addFiles(Array.from(e.target.files));
     }
+    // Reset so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const handleRemoveImage = (index: number) => {
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,17 +106,33 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
     }
 
     try {
-      let uploadedUrl: string | null = null;
-      
-      // 1. Upload image to storage / convert to base64 if selected
-      if (imageFile) {
-        uploadedUrl = await uploadImage(imageFile);
-      } else if (recapData?.metadata?.screenshot) {
-        // Carry over screenshot from recap card if present
-        uploadedUrl = recapData.metadata.screenshot;
+      // Upload all images
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < imagePreviews.length; i++) {
+        const file = imageFiles[i];
+        const preview = imagePreviews[i];
+
+        if (file) {
+          // It's a real File object
+          const url = await uploadImage(file);
+          uploadedUrls.push(url);
+        } else if (preview && preview.startsWith("data:")) {
+          // It's a base64 data URL (e.g. recap card capture)
+          const url = await uploadImage(preview);
+          uploadedUrls.push(url);
+        } else if (preview) {
+          // Already a URL
+          uploadedUrls.push(preview);
+        }
       }
 
-      // 2. Submit post to backend
+      // Fallback: carry over screenshot from recap card
+      if (uploadedUrls.length === 0 && recapData?.metadata?.screenshot) {
+        uploadedUrls.push(recapData.metadata.screenshot);
+      }
+
+      // Submit post to backend
       const response = await fetch(`${API_URL}/posts`, {
         method: "POST",
         headers: {
@@ -101,7 +141,7 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
         body: JSON.stringify({
           userId: Number(userId),
           recapId: recapId ? Number(recapId) : null,
-          imageUrl: uploadedUrl,
+          imageUrls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
           caption: caption.trim() || null,
           visibility,
         }),
@@ -117,8 +157,8 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
       setTimeout(() => {
         setSuccess(false);
         setCaption("");
-        setImageFile(null);
-        setImagePreview(null);
+        setImagePreviews([]);
+        setImageFiles([]);
         onClose();
       }, 1500);
 
@@ -131,6 +171,8 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
   };
 
   if (!isOpen) return null;
+
+  const canAddMore = imagePreviews.length < MAX_IMAGES;
 
   return (
     <AnimatePresence>
@@ -147,7 +189,7 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 25, stiffness: 220 }}
-          className="relative z-10 w-full max-w-[430px] rounded-t-[32px] border-t border-white/[0.08] bg-[#0c0a09] px-6 pb-10 pt-5 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.6)]"
+          className="relative z-10 w-full max-w-[430px] rounded-t-[32px] border-t border-white/[0.08] bg-[#0c0a09] px-6 pb-10 pt-5 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.6)] max-h-[90vh] overflow-y-auto"
         >
           {/* Handlebar */}
           <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-zinc-700" />
@@ -185,7 +227,7 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
                         {recapData.missionTitle || recapData.missionName || "Focus Session"}
                       </p>
                       <p className="text-[10px] text-zinc-500 font-semibold uppercase mt-0.5">
-                        {recapData.sessionDuration || 25} minutes • {recapData.categorySnapshot || "Other"}
+                        {recapData.sessionDuration || 25} minutes &bull; {recapData.categorySnapshot || "Other"}
                       </p>
                     </div>
                     <span className="text-xs font-black text-white/90">
@@ -212,19 +254,53 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
                 </div>
               </div>
 
-              {/* Image Drag and Drop */}
+              {/* Image Previews Row + Add More */}
               <div className="space-y-1.5 text-left">
-                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Progress Image (Optional)</label>
-                {imagePreview ? (
-                  <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-black/40 aspect-video w-full">
-                    <img src={imagePreview} alt="Upload preview" className="h-full w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-2.5 right-2.5 rounded-full bg-black/80 border border-white/10 p-1.5 text-zinc-400 hover:text-white"
-                    >
-                      <X size={14} />
-                    </button>
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                  Images ({imagePreviews.length}/{MAX_IMAGES})
+                </label>
+
+                {imagePreviews.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {/* Thumbnail Grid */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {imagePreviews.map((preview, idx) => (
+                        <div
+                          key={idx}
+                          className="relative rounded-xl border border-white/[0.08] bg-black/40 overflow-hidden aspect-square group"
+                        >
+                          <img
+                            src={preview}
+                            alt={`Upload ${idx + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            className="absolute top-1 right-1 rounded-full bg-black/80 border border-white/10 p-1 text-zinc-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={10} />
+                          </button>
+                          {idx === 0 && preGeneratedCardImage && (
+                            <span className="absolute bottom-0 left-0 right-0 bg-black/70 text-[7px] font-black text-center text-cherryRed uppercase tracking-wider py-0.5">
+                              Recap
+                            </span>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add More Button */}
+                      {canAddMore && (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="rounded-xl border border-dashed border-white/[0.12] bg-black/20 aspect-square flex flex-col items-center justify-center gap-1 text-zinc-500 hover:text-zinc-300 hover:border-white/20 hover:bg-black/35 transition-all"
+                        >
+                          <Plus size={16} />
+                          <span className="text-[8px] font-black uppercase tracking-wider">Add</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div
@@ -242,18 +318,20 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData }
                   >
                     <ImageIcon className="mb-2.5 h-6 w-6 text-zinc-500" />
                     <p className="text-[11px] font-bold text-zinc-400">
-                      Drag & drop an image or <span className="text-cherryRed">browse files</span>
+                      Drag & drop images or <span className="text-cherryRed">browse files</span>
                     </p>
-                    <p className="text-[9px] text-zinc-600 font-semibold mt-1">PNG, JPG up to 10MB</p>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept="image/*"
-                      className="hidden"
-                    />
+                    <p className="text-[9px] text-zinc-600 font-semibold mt-1">PNG, JPG up to 10MB &bull; Max {MAX_IMAGES} images</p>
                   </div>
                 )}
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
               </div>
 
               {/* Visibility Options */}

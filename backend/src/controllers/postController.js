@@ -1,9 +1,33 @@
 const prisma = require("../config/db");
 const { isDbUnavailable } = require("../utils/dbFallback");
 
+// Helper: parse imageUrl column (may be a JSON array string or a single URL)
+function parseImageUrls(imageUrlField) {
+  if (!imageUrlField) return [];
+  try {
+    const parsed = JSON.parse(imageUrlField);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch (e) {
+    // Not JSON — treat as a single URL (backwards compat)
+  }
+  return [imageUrlField];
+}
+
+// Helper: serialize image URLs array to store in DB
+function serializeImageUrls(imageUrls, imageUrl) {
+  // Prefer imageUrls array; fallback to single imageUrl
+  if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+    return JSON.stringify(imageUrls.filter(Boolean));
+  }
+  if (imageUrl) {
+    return JSON.stringify([imageUrl]);
+  }
+  return null;
+}
+
 // POST /api/posts
 async function createPost(req, res) {
-  const { userId, recapId, imageUrl, caption, visibility = "college" } = req.body;
+  const { userId, recapId, imageUrl, imageUrls, caption, visibility = "college" } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: "userId is required." });
@@ -21,12 +45,13 @@ async function createPost(req, res) {
   try {
     const numericUserId = Number(userId);
     const numericRecapId = recapId ? Number(recapId) : null;
+    const serializedImages = serializeImageUrls(imageUrls, imageUrl);
 
     const post = await prisma.post.create({
       data: {
         userId: numericUserId,
         recapId: numericRecapId,
-        imageUrl: imageUrl || null,
+        imageUrl: serializedImages,
         caption: caption || null,
         visibility
       },
@@ -45,8 +70,12 @@ async function createPost(req, res) {
       }
     });
 
+    const parsedUrls = parseImageUrls(post.imageUrl);
+
     res.status(201).json({
       ...post,
+      imageUrl: parsedUrls[0] || null,
+      imageUrls: parsedUrls,
       commentCount: 0,
       reactionCounts: { "🔥": 0, "💀": 0, "❤️": 0, "🧠": 0 },
       userReactions: { "🔥": false, "💀": false, "❤️": false, "🧠": false }
@@ -54,11 +83,13 @@ async function createPost(req, res) {
   } catch (error) {
     if (isDbUnavailable(error)) {
       console.warn("Database offline. Returning mock created post.");
+      const mockUrls = Array.isArray(imageUrls) ? imageUrls : (imageUrl ? [imageUrl] : []);
       res.status(201).json({
         id: Math.floor(Math.random() * 1000) + 1000,
         userId: Number(userId),
         recapId: recapId ? Number(recapId) : null,
-        imageUrl: imageUrl || null,
+        imageUrl: mockUrls[0] || null,
+        imageUrls: mockUrls,
         caption: caption || null,
         visibility,
         createdAt: new Date().toISOString(),
@@ -181,11 +212,14 @@ async function getPostsFeed(req, res) {
         }
       });
 
+      const parsedUrls = parseImageUrls(post.imageUrl);
+
       return {
         id: post.id,
         userId: post.userId,
         recapId: post.recapId,
-        imageUrl: post.imageUrl,
+        imageUrl: parsedUrls[0] || null,
+        imageUrls: parsedUrls,
         caption: post.caption,
         visibility: post.visibility,
         createdAt: post.createdAt,
@@ -214,6 +248,7 @@ async function getPostsFeed(req, res) {
             userId: 999,
             recapId: 888,
             imageUrl: null,
+            imageUrls: [],
             caption: "Crushed a backend migration! Let's lock in.",
             visibility: "everyone",
             createdAt: new Date().toISOString(),
@@ -307,11 +342,14 @@ async function getPostDetail(req, res) {
       }
     });
 
+    const parsedUrls = parseImageUrls(post.imageUrl);
+
     res.json({
       id: post.id,
       userId: post.userId,
       recapId: post.recapId,
-      imageUrl: post.imageUrl,
+      imageUrl: parsedUrls[0] || null,
+      imageUrls: parsedUrls,
       caption: post.caption,
       visibility: post.visibility,
       createdAt: post.createdAt,
@@ -329,6 +367,7 @@ async function getPostDetail(req, res) {
         userId: 999,
         recapId: 888,
         imageUrl: null,
+        imageUrls: [],
         caption: "Crushed a backend migration! Let's lock in.",
         visibility: "everyone",
         createdAt: new Date().toISOString(),

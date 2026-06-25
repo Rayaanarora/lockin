@@ -59,6 +59,8 @@ export default function LockinRecapCard({
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTrashing, setIsTrashing] = useState(false);
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [cardImage, setCardImage] = useState<string | null>(null);
 
   const {
     recapType = "session",
@@ -282,6 +284,39 @@ export default function LockinRecapCard({
       alert(`Here is your share link: ${shareUrl}`);
     }
   }, [recapData.shareId, hours, mins]);
+  
+  const handlePostToFeedClick = async () => {
+    if (!cardRef.current || generatingImage) return;
+
+    try {
+      setGeneratingImage(true);
+      
+      const wasFlipped = isFlipped;
+      if (wasFlipped) {
+        setIsFlipped(false);
+        // Wait for flip animation
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2.0,
+        cacheBust: true,
+      });
+
+      if (wasFlipped) {
+        setIsFlipped(true);
+      }
+
+      setCardImage(dataUrl);
+      setIsShareSheetOpen(true);
+    } catch (err) {
+      console.error("Failed to generate card image:", err);
+      // Fallback
+      setIsShareSheetOpen(true);
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -686,10 +721,11 @@ export default function LockinRecapCard({
                   {saving ? "Exporting..." : "Export Card"}
                 </button>
                 <button
-                  onClick={() => setIsShareSheetOpen(true)}
-                  className="flex-1 bg-cherryRed text-white font-black px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-red-800 tracking-wider uppercase truncate"
+                  onClick={handlePostToFeedClick}
+                  disabled={generatingImage}
+                  className="flex-1 bg-cherryRed text-white font-black px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-red-800 tracking-wider uppercase truncate disabled:opacity-50"
                 >
-                  Post to Feed
+                  {generatingImage ? "Processing..." : "Post to Feed"}
                 </button>
               </>
             )}
@@ -706,9 +742,13 @@ export default function LockinRecapCard({
 
         <ShareToFeedSheet
           isOpen={isShareSheetOpen}
-          onClose={() => setIsShareSheetOpen(false)}
+          onClose={() => {
+            setIsShareSheetOpen(false);
+            setCardImage(null);
+          }}
           recapId={recapData.id}
           recapData={recapData}
+          preGeneratedCardImage={cardImage}
         />
       </motion.div>
     </AnimatePresence>
