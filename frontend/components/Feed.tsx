@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from "framer-motion";
 import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
+import { CometCard } from "./ui/comet-card";
+
+// Feature flag: set to false to completely revert the 3D card tilt animation back to original card styling
+const ENABLE_3D_COMET_TILT = true;
 
 interface FeedProps {
   user: User;
@@ -58,6 +62,39 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
   const opacityAccept = useTransform(x, [20, 100], [0, 1]);
   const opacityPass = useTransform(x, [-100, -20], [1, 0]);
+
+  // 3D Tilt properties
+  const tiltX = useMotionValue(0);
+  const tiltY = useMotionValue(0);
+  const mouseXSpring = useSpring(tiltX, { stiffness: 300, damping: 30 });
+  const mouseYSpring = useSpring(tiltY, { stiffness: 300, damping: 30 });
+
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["-12deg", "12deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["12deg", "-12deg"]);
+  const translateX = useTransform(mouseXSpring, [-0.5, 0.5], ["-8px", "8px"]);
+  const translateY = useTransform(mouseYSpring, [-0.5, 0.5], ["8px", "-8px"]);
+
+  const glareX = useTransform(mouseXSpring, [-0.5, 0.5], [0, 100]);
+  const glareY = useTransform(mouseYSpring, [-0.5, 0.5], [0, 100]);
+  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255, 255, 255, 0.25) 10%, rgba(255, 255, 255, 0.15) 20%, rgba(255, 255, 255, 0) 80%)`;
+
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!ENABLE_3D_COMET_TILT || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    tiltX.set(mouseX / width - 0.5);
+    tiltY.set(mouseY / height - 0.5);
+  };
+
+  const handleMouseLeave = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
 
   async function load(catId: string = "all") {
     try {
@@ -242,15 +279,18 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       )}
 
       {/* Card stack */}
-      <div className="relative flex flex-1 items-center justify-center min-h-[460px]">
+      <div className="relative flex flex-1 items-center justify-center min-h-[460px] perspective-distant">
         {/* Stack ghost cards */}
         <div className="absolute inset-x-6 top-6 h-[420px] rounded-[28px] border border-white/[0.04] bg-white/[0.015] scale-[0.93] translate-y-4 -z-20" />
         <div className="absolute inset-x-3 top-3 h-[420px] rounded-[28px] border border-white/[0.055] bg-white/[0.025] scale-[0.97] translate-y-2 -z-10" />
-
+ 
         <AnimatePresence mode="wait">
           {currentMission ? (
             <motion.article
               key={currentMission.id}
+              ref={cardRef}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.55}
@@ -271,108 +311,135 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.88, y: -24 }}
               whileDrag={{ scale: 1.015, cursor: "grabbing" }}
+              whileHover={ENABLE_3D_COMET_TILT ? { scale: 1.025, z: 20 } : undefined}
               transition={{ type: "spring", stiffness: 280, damping: 26 }}
-              className="mission-card-inner relative flex h-[430px] w-full touch-none flex-col justify-between overflow-hidden rounded-[28px] border bg-[#161210]/80 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+              className="mission-card-inner relative flex h-[430px] w-full touch-none flex-col justify-between overflow-hidden rounded-[28px] border bg-[#161210]/80 p-0 shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl transform-3d"
               style={{
                 x,
                 rotate,
+                rotateX: ENABLE_3D_COMET_TILT ? rotateX : 0,
+                rotateY: ENABLE_3D_COMET_TILT ? rotateY : 0,
+                translateX: ENABLE_3D_COMET_TILT ? translateX : 0,
+                translateY: ENABLE_3D_COMET_TILT ? translateY : 0,
+                transformStyle: ENABLE_3D_COMET_TILT ? "preserve-3d" : undefined,
                 borderColor: currentMission.cover_color ? `${currentMission.cover_color}55` : "rgba(255,255,255,0.08)",
                 boxShadow: currentMission.cover_color ? `0 24px 70px rgba(0,0,0,0.65), 0 0 20px ${currentMission.cover_color}18` : undefined
               }}
             >
-              {/* Optional Mission Cover Background */}
-              {currentMission.cover_image && (
-                <div 
-                  className="absolute inset-0 z-0 opacity-[0.18] pointer-events-none"
-                  style={{ 
-                    background: currentMission.cover_image.includes("gradient") 
-                      ? currentMission.cover_image 
-                      : `url(${currentMission.cover_image}) center/cover no-repeat`
-                  }}
-                />
-              )}
-              {/* Swipe overlay — accept */}
-              <motion.div
-                style={{ opacity: opacityAccept }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-cherryRed/[0.12] to-transparent backdrop-blur-[2px]"
-              >
-                <div className="rounded-2xl border border-cherryRed/40 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(210,4,45,.35)] flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-cherryRed stroke-[3]" /> Lock In
-                </div>
-              </motion.div>
+              {(() => {
+                const innerJSX = (
+                  <>
+                    {/* Optional Mission Cover Background */}
+                    {currentMission.cover_image && (
+                      <div 
+                        className="absolute inset-0 z-0 opacity-[0.18] pointer-events-none rounded-[28px]"
+                        style={{ 
+                          background: currentMission.cover_image.includes("gradient") 
+                            ? currentMission.cover_image 
+                            : `url(${currentMission.cover_image}) center/cover no-repeat`
+                        }}
+                      />
+                    )}
+                    {/* Swipe overlay — accept */}
+                    <motion.div
+                      style={{ opacity: opacityAccept }}
+                      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-cherryRed/[0.12] to-transparent backdrop-blur-[2px]"
+                    >
+                      <div className="rounded-2xl border border-cherryRed/40 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(210,4,45,.35)] flex items-center gap-1.5">
+                        <Check className="h-4 w-4 text-cherryRed stroke-[3]" /> Lock In
+                      </div>
+                    </motion.div>
 
-              {/* Swipe overlay — pass */}
-              <motion.div
-                style={{ opacity: opacityPass }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-white/[0.08] to-transparent backdrop-blur-[2px]"
-              >
-                <div className="rounded-2xl border border-white/20 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(255,255,255,.1)] flex items-center gap-1.5">
-                  <X className="h-4 w-4 text-white stroke-[3]" /> Pass
-                </div>
-              </motion.div>
+                    {/* Swipe overlay — pass */}
+                    <motion.div
+                      style={{ opacity: opacityPass }}
+                      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-white/[0.08] to-transparent backdrop-blur-[2px]"
+                    >
+                      <div className="rounded-2xl border border-white/20 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(255,255,255,.1)] flex items-center gap-1.5">
+                        <X className="h-4 w-4 text-white stroke-[3]" /> Pass
+                      </div>
+                    </motion.div>
 
-              {/* Inner top highlight */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
+                    {/* Inner top highlight */}
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
 
-              <div className="space-y-5 z-10">
-                {/* Creator row */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/[0.07] bg-white/[0.04] text-[12px] font-black text-cotton/90">
-                      {initials(currentMission.creator_name)}
-                    </div>
-                    <div className="text-left">
-                      <h3 className="text-[13px] font-semibold text-cotton/95 leading-tight">
-                        {currentMission.creator_name}
-                      </h3>
-                      <p className="text-[10px] font-medium text-zinc-500 mt-0.5 uppercase tracking-wide">
-                        {currentMission.creator_department || "Department"}
-                      </p>
-                      {currentMission.locked_in_count !== undefined && currentMission.locked_in_count > 2 && (
-                        <div className="flex items-center gap-1 mt-1 text-[9px] font-black uppercase text-zinc-500">
-                          <Users className="h-3 w-3 text-luxuryGold" />
-                          <span>{currentMission.locked_in_count} people locked in</span>
+                    <div className="space-y-5 z-10">
+                      {/* Creator row */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/[0.07] bg-white/[0.04] text-[12px] font-black text-cotton/90">
+                            {initials(currentMission.creator_name)}
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-[13px] font-semibold text-cotton/95 leading-tight">
+                              {currentMission.creator_name}
+                            </h3>
+                            <p className="text-[10px] font-medium text-zinc-500 mt-0.5 uppercase tracking-wide">
+                              {currentMission.creator_department || "Department"}
+                            </p>
+                            {currentMission.locked_in_count !== undefined && currentMission.locked_in_count > 2 && (
+                              <div className="flex items-center gap-1 mt-1 text-[9px] font-black uppercase text-zinc-500">
+                                <Users className="h-3 w-3 text-luxuryGold" />
+                                <span>{currentMission.locked_in_count} people locked in</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+                        <span
+                          className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-[0.14em] uppercase"
+                          style={{
+                            borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(129,1,0,.3)",
+                            backgroundColor: currentMission.category_color ? `${currentMission.category_color}12` : "rgba(129,1,0,.08)",
+                            color: currentMission.category_color || "#ffa3a3"
+                          }}
+                        >
+                          {currentMission.category_name || "Mission"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-left">
+                        <h3 className="text-[18px] font-black text-cotton leading-snug tracking-tight">
+                          {currentMission.title}
+                        </h3>
+                        <p className="text-[12px] font-normal leading-relaxed text-zinc-400 line-clamp-5">
+                          {currentMission.description}
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Meta block */}
+                    <div className="space-y-2 z-10">
+                      <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
+                        <CalendarClock className="h-4 w-4 text-white shrink-0 opacity-80" />
+                        <span className="text-[12px] font-medium text-cotton/85">
+                          {formatDate(currentMission.datetime)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
+                        <MapPin className="h-4 w-4 text-cherryRed shrink-0 opacity-80" />
+                        <span className="text-[12px] font-medium text-cotton/85 truncate">
+                          {currentMission.location}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
+
+                return (
+                  <div className="relative w-full h-full flex flex-col justify-between p-6">
+                    {innerJSX}
+                    {ENABLE_3D_COMET_TILT && (
+                      <motion.div
+                        className="pointer-events-none absolute inset-0 z-50 h-full w-full rounded-[28px] mix-blend-overlay"
+                        style={{
+                          background: glareBackground,
+                          opacity: 0.4,
+                        }}
+                      />
+                    )}
                   </div>
-                  <span
-                    className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-[0.14em] uppercase"
-                    style={{
-                      borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(129,1,0,.3)",
-                      backgroundColor: currentMission.category_color ? `${currentMission.category_color}12` : "rgba(129,1,0,.08)",
-                      color: currentMission.category_color || "#ffa3a3"
-                    }}
-                  >
-                    {currentMission.category_name || "Mission"}
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-left">
-                  <h3 className="text-[18px] font-black text-cotton leading-snug tracking-tight">
-                    {currentMission.title}
-                  </h3>
-                  <p className="text-[12px] font-normal leading-relaxed text-zinc-400 line-clamp-5">
-                    {currentMission.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Meta block */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
-                  <CalendarClock className="h-4 w-4 text-white shrink-0 opacity-80" />
-                  <span className="text-[12px] font-medium text-cotton/85">
-                    {formatDate(currentMission.datetime)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
-                  <MapPin className="h-4 w-4 text-cherryRed shrink-0 opacity-80" />
-                  <span className="text-[12px] font-medium text-cotton/85 truncate">
-                    {currentMission.location}
-                  </span>
-                </div>
-              </div>
+                );
+              })()}
             </motion.article>
           ) : (
             <motion.div

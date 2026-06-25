@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
 import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote, Trash2, X } from "lucide-react";
 import { toPng } from "html-to-image";
 import ShareToFeedSheet from "./ShareToFeedSheet";
@@ -54,6 +54,7 @@ export default function LockinRecapCard({
   recapData,
 }: RecapProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -61,6 +62,38 @@ export default function LockinRecapCard({
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [cardImage, setCardImage] = useState<string | null>(null);
+
+  // 3D Tilt properties
+  const tiltX = useMotionValue(0);
+  const tiltY = useMotionValue(0);
+  const mouseXSpring = useSpring(tiltX, { stiffness: 300, damping: 30 });
+  const mouseYSpring = useSpring(tiltY, { stiffness: 300, damping: 30 });
+
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["-12deg", "12deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["12deg", "-12deg"]);
+  const translateX = useTransform(mouseXSpring, [-0.5, 0.5], ["-8px", "8px"]);
+  const translateY = useTransform(mouseYSpring, [-0.5, 0.5], ["8px", "-8px"]);
+
+  const glareX = useTransform(mouseXSpring, [-0.5, 0.5], [0, 100]);
+  const glareY = useTransform(mouseYSpring, [-0.5, 0.5], [0, 100]);
+  const glareBackgroundFront = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255, 255, 255, 0.22) 10%, rgba(255, 255, 255, 0.08) 30%, rgba(255, 255, 255, 0) 80%)`;
+  const glareBackgroundBack = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255, 255, 255, 0.18) 10%, rgba(255, 255, 255, 0.06) 30%, rgba(255, 255, 255, 0) 80%)`;
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    tiltX.set(mouseX / width - 0.5);
+    tiltY.set(mouseY / height - 0.5);
+  };
+
+  const handleMouseLeave = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
 
   const {
     recapType = "session",
@@ -357,6 +390,9 @@ export default function LockinRecapCard({
         >
           {/* Card perspective container */}
           <div
+            ref={containerRef}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             onClick={() => setIsFlipped(!isFlipped)}
             className="cursor-pointer relative w-full select-none animate-fade-in"
             style={{
@@ -365,17 +401,31 @@ export default function LockinRecapCard({
               height: "auto",
             }}
           >
-            {/* Rotating Flipper element */}
-            <div
+            {/* 3D Tilting Layer */}
+            <motion.div
               style={{
+                rotateX,
+                rotateY,
+                translateX,
+                translateY,
                 transformStyle: "preserve-3d",
-                transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                position: "absolute",
                 width: "100%",
                 height: "100%",
               }}
+              whileHover={{ scale: 1.025 }}
+              transition={{ duration: 0.2 }}
             >
+              {/* Rotating Flipper element */}
+              <div
+                style={{
+                  transformStyle: "preserve-3d",
+                  transition: "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                  transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                }}
+              >
               {/* ───────────────── FRONT SIDE ───────────────── */}
               <div
                 ref={cardRef}
@@ -538,6 +588,15 @@ export default function LockinRecapCard({
                   <span>{tierName} Runway Card</span>
                   <span className="animate-pulse">Click card to Flip</span>
                 </div>
+
+                {/* 3D Glare overlay */}
+                <motion.div
+                  className="pointer-events-none absolute inset-0 z-50 h-full w-full rounded-[28px] mix-blend-overlay"
+                  style={{
+                    background: glareBackgroundFront,
+                    opacity: 0.5,
+                  }}
+                />
               </div>
 
               {/* ───────────────── BACK SIDE ───────────────── */}
@@ -695,9 +754,19 @@ export default function LockinRecapCard({
                     <span>Tap to flip</span>
                   </div>
                 </div>
+
+                {/* 3D Glare overlay */}
+                <motion.div
+                  className="pointer-events-none absolute inset-0 z-50 h-full w-full rounded-[28px] mix-blend-overlay"
+                  style={{
+                    background: glareBackgroundBack,
+                    opacity: 0.4,
+                  }}
+                />
               </div>
             </div>
-          </div>
+          </motion.div>
+        </div>
 
           {/* Action Row */}
           <div className="flex gap-2 mt-4 justify-center w-full">

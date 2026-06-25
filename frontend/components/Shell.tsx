@@ -20,7 +20,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
         className={`relative flex text-white antialiased overflow-hidden
           ${isDesktopDashboard
             ? "h-screen w-full md:flex-row"
-            : "h-screen w-full md:h-[860px] md:max-w-[430px] md:flex-col md:rounded-[44px] md:border md:border-white/[0.07] md:shadow-[0_40px_120px_rgba(0,0,0,0.98)] md:ring-1 md:ring-white/[0.04]"
+            : "h-screen w-full md:h-[min(860px,90vh)] md:max-w-[430px] md:flex-col md:rounded-[44px] md:border md:border-white/[0.07] md:shadow-[0_40px_120px_rgba(0,0,0,0.98)] md:ring-1 md:ring-white/[0.04]"
           }
         `}
         style={{ background: "linear-gradient(160deg, #09090b 0%, #000000 100%)" }}
@@ -125,7 +125,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
         )}
 
         {/* Main content */}
-        <div className="relative z-10 flex flex-1 flex-col overflow-hidden h-full">
+        <div className="relative z-10 flex flex-1 flex-col overflow-y-auto h-full scrollbar-none">
           {children}
         </div>
       </main>

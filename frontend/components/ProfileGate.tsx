@@ -347,7 +347,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const totalSteps = 7; // 0-6
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center"
+    <div className="relative min-h-screen w-full overflow-y-auto flex flex-col items-center justify-start md:justify-center py-8 px-4"
       style={{ background: "linear-gradient(160deg, #141110 0%, #0D0A09 100%)" }}
     >
       {/* Race stripe top */}
@@ -359,7 +359,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
         <div className="grid-noise absolute inset-0 opacity-80" />
       </div>
 
-      <div className="relative z-10 w-full max-w-sm mx-auto px-4 py-8">
+      <div className="relative z-10 w-full max-w-sm mx-auto my-auto">
         {/* Progress indicator for profile onboarding steps 3-5 */}
         {step >= 3 && step <= 5 && (
           <motion.div

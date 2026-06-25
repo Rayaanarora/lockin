@@ -255,3 +255,11 @@ button:disabled { cursor: not-allowed; }
   white-space: nowrap;
 }
 .cat-pill:active { transform: scale(.95); }
+
+/* ── CometCard 3D tilt utilities ── */
+.perspective-distant {
+  perspective: 1000px;
+}
+.transform-3d {
+  transform-style: preserve-3d;
+}
