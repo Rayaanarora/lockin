@@ -74,9 +74,9 @@ const TUTORIAL_STEPS = [
   },
   {
     icon: Trophy,
-    color: "text-white",
-    bg: "bg-white/8 border-white/20",
-    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
+    color: "text-cherryRed",
+    bg: "bg-cherryRed/10 border-cherryRed/30",
+    glow: "shadow-[0_0_30px_rgba(129,1,0,0.2)]",
     title: "Aura & Leaderboard",
     body: "Aura Points stack up with every completed mission. Climb your campus leaderboard. Reputation is earned, not claimed.",
   },
@@ -1041,15 +1041,20 @@ function TutorialStep({
 
         {/* Dot indicators */}
         <div className="flex justify-center gap-1.5 pb-4">
-          {TUTORIAL_STEPS.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setTutorialSlide(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === tutorialSlide ? "w-5 bg-cherryRed" : "w-1.5 bg-zinc-700"
-              }`}
-            />
-          ))}
+          {TUTORIAL_STEPS.map((_, i) => {
+            const colors = ["bg-cherryRed", "bg-white", "bg-cherryRed", "bg-cherryRed"];
+            const activeColor = colors[i];
+            const inactiveColor = i === 1 ? "bg-white/20" : "bg-cherryRed/20";
+            return (
+              <button
+                key={i}
+                onClick={() => setTutorialSlide(i)}
+                className={`h-1.5 w-6 rounded-full transition-all duration-300 ${
+                  i === tutorialSlide ? activeColor : inactiveColor
+                }`}
+              />
+            );
+          })}
         </div>
       </div>
 
