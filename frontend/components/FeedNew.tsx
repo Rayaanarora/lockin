@@ -200,14 +200,14 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
       <div className="mb-5 flex items-center justify-between border-b border-white/5 pb-4">
         <div>
           <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-luxuryGold animate-pulse" /> V3 beta discovery
+            <Sparkles className="h-3 w-3 text-cherryRed animate-pulse" /> V3 beta discovery
           </span>
-          <h2 className="text-xl md:text-3xl font-black text-cotton tracking-tight mt-1">Active Runways</h2>
+          <h2 className="text-xl md:text-3xl font-black text-white tracking-tight mt-1">Active Runways</h2>
         </div>
 
         <button
           onClick={() => setShowCreate(true)}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-luxuryGold/30 bg-luxuryGold/5 text-luxuryGold hover:bg-luxuryGold/20 hover:scale-[1.03] transition-all shadow-[0_0_15px_rgba(197,168,128,0.1)] active:scale-[0.97]"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cherryRed/30 bg-cherryRed/5 text-cherryRed hover:bg-cherryRed/20 hover:scale-[1.03] transition-all shadow-[0_0_15px_rgba(210,4,45,0.1)] active:scale-[0.97]"
         >
           <Plus className="h-5 w-5 stroke-[2.5]" />
         </button>
@@ -231,8 +231,8 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
             onClick={() => handleCategoryChange("all")}
             className={`h-9 rounded-full border px-4.5 text-[10px] md:text-xs font-black uppercase tracking-wider transition-all shrink-0 ${
               activeCategory === "all"
-                ? "border-luxuryGold bg-luxuryGold/10 text-luxuryGold shadow-[0_0_15px_rgba(197,168,128,0.15)]"
-                : "border-white/5 bg-zinc-900/60 text-zinc-500 hover:text-cotton hover:bg-zinc-800/40"
+                ? "border-cherryRed bg-cherryRed/10 text-cherryRed shadow-[0_0_15px_rgba(210,4,45,0.15)]"
+                : "border-white/5 bg-zinc-900/60 text-zinc-500 hover:text-white hover:bg-zinc-800/40"
             }`}
           >
             All Runways
@@ -251,7 +251,6 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                   boxShadow: selected ? `0 0 15px ${c.colorHex || "#DE211E"}20` : undefined
                 }}
               >
-                {c.emoji && <span className="text-xs md:text-sm">{c.emoji}</span>}
                 {c.categoryName}
               </button>
             );
@@ -294,7 +293,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
 
         {/* Halo Glow effect */}
         {currentMission && (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(197,168,128,0.06),transparent_65%)] blur-[40px] pointer-events-none -z-30" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(210,4,45,0.06),transparent_65%)] blur-[40px] pointer-events-none -z-30" />
         )}
 
         <AnimatePresence mode="wait">
@@ -328,19 +327,19 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
               {/* Swipe Overlays */}
               <motion.div
                 style={{ opacity: opacityAccept }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-luxuryGold/10 backdrop-blur-[2px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-cherryRed/10 backdrop-blur-[2px]"
               >
-                <div className="rounded-2xl border-2 border-luxuryGold/40 bg-black/95 px-5 py-2.5 text-xs md:text-sm font-black tracking-[0.2em] text-luxuryGold uppercase shadow-[0_0_30px_rgba(197,168,128,0.3)]">
-                  LOCK IN
+                <div className="rounded-2xl border-2 border-cherryRed/40 bg-black/95 px-5 py-2.5 text-xs md:text-sm font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(210,4,45,0.35)] flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-cherryRed stroke-[3]" /> Lock In
                 </div>
               </motion.div>
 
               <motion.div
                 style={{ opacity: opacityPass }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-cherryRed/15 backdrop-blur-[2px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/5 backdrop-blur-[2px]"
               >
-                <div className="rounded-2xl border-2 border-cherryRed/40 bg-black/95 px-5 py-2.5 text-xs md:text-sm font-black tracking-[0.2em] text-cherryRed uppercase shadow-[0_0_30px_rgba(222,33,30,0.3)]">
-                  PASS
+                <div className="rounded-2xl border-2 border-white/20 bg-black/95 px-5 py-2.5 text-xs md:text-sm font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center gap-1.5">
+                  <X className="h-4 w-4 text-white stroke-[3]" /> Pass
                 </div>
               </motion.div>
 
@@ -360,7 +359,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                       </p>
                     </div>
                   </div>
-                  <span
+                   <span
                     className="flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[8px] md:text-[10px] font-black tracking-widest uppercase shadow-sm"
                     style={{
                       borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(255,255,255,0.05)",
@@ -368,9 +367,6 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                       color: currentMission.category_color || "#ffa3a3"
                     }}
                   >
-                    {currentMission.category_emoji && (
-                      <span className="text-[10px] md:text-xs">{currentMission.category_emoji}</span>
-                    )}
                     {currentMission.category_name || "Other"}
                   </span>
                 </div>
@@ -388,14 +384,14 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
               {/* Timing & Location block */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-zinc-950/60 p-3 shadow-inner">
-                  <CalendarClock className="h-4.5 w-4.5 text-luxuryGold shrink-0" />
-                  <span className="text-xs md:text-sm font-bold text-cotton/95">
+                  <CalendarClock className="h-4.5 w-4.5 text-white shrink-0" />
+                  <span className="text-xs md:text-sm font-bold text-white/95">
                     {formatDate(currentMission.datetime)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-zinc-950/60 p-3 shadow-inner">
                   <MapPin className="h-4.5 w-4.5 text-cherryRed shrink-0" />
-                  <span className="text-xs md:text-sm font-bold text-cotton/95 truncate">
+                  <span className="text-xs md:text-sm font-bold text-white/95 truncate">
                     {currentMission.location}
                   </span>
                 </div>
@@ -425,7 +421,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
           <div className="flex items-center gap-1 opacity-70">
             <span>← Swipe Left to Pass</span>
           </div>
-          <div className="flex items-center gap-1 text-luxuryGold/85">
+          <div className="flex items-center gap-1 text-cherryRed/85">
             <span>Swipe Right to Lock In →</span>
           </div>
         </div>
@@ -452,7 +448,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
             className={`flex h-12 items-center justify-center gap-1.5 rounded-2xl border text-xs font-black uppercase tracking-wider transition active:scale-[0.98] ${
               locked
                 ? "border-white/5 bg-zinc-950/45 text-zinc-700 cursor-not-allowed"
-                : "border-cherryRed/50 bg-[#810100] text-cotton shadow-[0_0_20px_rgba(129,1,0,0.2)] hover:bg-[#810100]/95"
+                : "border-cherryRed/50 bg-cherryRed text-white shadow-[0_0_20px_rgba(210,4,45,0.2)] hover:bg-cherryRed/95"
             }`}
           >
             <Check className="h-4.5 w-4.5 stroke-[3]" /> Lock In
@@ -465,7 +461,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
         <DialogContent className="border-white/10 bg-zinc-950/95 text-white max-w-sm rounded-[32px] backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-luxuryGold" />
+              <Sparkles className="h-5 w-5 text-cherryRed" />
               LAUNCH RUNWAY
             </DialogTitle>
           </DialogHeader>
@@ -534,11 +530,11 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                 <select
                   value={form.categoryId}
                   onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                  className="h-10.5 w-full rounded-lg border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-luxuryGold cursor-pointer"
+                  className="h-10.5 w-full rounded-lg border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-cherryRed/40 cursor-pointer"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id} className="bg-zinc-950 text-white">
-                      {c.emoji ? `${c.emoji} ` : ""}{c.categoryName}
+                      {c.categoryName}
                     </option>
                   ))}
                 </select>
@@ -552,7 +548,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                   <select
                     value={form.location}
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    className="h-10.5 w-full rounded-lg border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-luxuryGold cursor-pointer"
+                    className="h-10.5 w-full rounded-lg border border-white/10 bg-black/40 px-2 text-xs text-white outline-none focus:border-cherryRed/40 cursor-pointer"
                   >
                     {[
                       "SRM KTR Library",
@@ -607,7 +603,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                 <button
                   type="button"
                   onClick={addTask}
-                  className="h-9 px-3 rounded-lg border border-luxuryGold/30 bg-luxuryGold/5 text-xs text-luxuryGold font-black uppercase hover:bg-luxuryGold/15 transition"
+                  className="h-9 px-3 rounded-lg border border-cherryRed/30 bg-cherryRed/5 text-xs text-cherryRed font-black uppercase hover:bg-cherryRed/15 transition"
                 >
                   Add
                 </button>
@@ -616,7 +612,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                 <div className="mt-2 max-h-24 overflow-y-auto space-y-1.5 bg-black/30 p-2 rounded-xl border border-white/5 scrollbar-thin">
                   {tasks.map((t, idx) => (
                     <div key={idx} className="flex justify-between items-center gap-2 bg-zinc-900/60 px-2.5 py-1 rounded-lg">
-                      <span className="text-[11px] text-cotton/90 truncate font-semibold">{t}</span>
+                      <span className="text-[11px] text-white/90 truncate font-semibold">{t}</span>
                       <button
                         type="button"
                         onClick={() => removeTask(idx)}
@@ -633,7 +629,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-luxuryGold/30 bg-luxuryGold text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(197,168,128,0.25)] hover:bg-luxuryGold/95 transition active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-cherryRed/30 bg-cherryRed text-xs font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(210,4,45,0.25)] hover:bg-cherryRed/95 transition active:scale-[0.98] disabled:opacity-50"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               {submitting ? "Launching..." : "Launch Runway"}

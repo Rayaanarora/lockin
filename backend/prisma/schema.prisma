@@ -22,6 +22,7 @@ model User {
   instagram        String?         @db.VarChar(50)
   github           String?         @db.VarChar(50)
   interests        String?         @db.Text
+  avatarUrl        String?         @map("avatar_url") @db.Text
   collegeRef       College?        @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   missions         Mission[]       @relation("CreatedMissions")
   participations   Participation[]
@@ -32,6 +33,9 @@ model User {
   followers        Follow[]        @relation("Followers")
   feedItems        FeedItem[]
   userInterests    UserInterest[]
+  posts            Post[]
+  comments         Comment[]
+  reactions        Reaction[]
 
   @@map("users")
 }
@@ -177,6 +181,7 @@ model SessionRecap {
 
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   mission          Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  posts            Post[]
 
   @@index([userId, generatedAt])
   @@index([userId, categorySnapshot, generatedAt])
@@ -235,4 +240,49 @@ model Otp {
 
   @@index([email, used])
   @@map("otp")
+}
+
+model Post {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  recapId     Int?      @map("recap_id")
+  imageUrl    String?   @map("image_url") @db.Text
+  caption     String?   @db.VarChar(300)
+  visibility  String    @default("college") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recap       SessionRecap?  @relation(fields: [recapId], references: [id], onDelete: SetNull)
+  comments    Comment[]
+  reactions   Reaction[]
+
+  @@index([userId, createdAt])
+  @@map("post")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  text      String   @db.VarChar(300)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comment")
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  emoji     String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, emoji])
+  @@map("reaction")
 }

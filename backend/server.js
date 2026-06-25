@@ -17,6 +17,7 @@ const collegeRoutes = require("./src/routes/collegeRoutes");
 const authRoutes = require("./src/routes/authRoutes");
 const interestRoutes = require("./src/routes/interestRoutes");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler");
+const postRoutes = require("./src/routes/posts");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -73,6 +74,7 @@ app.use("/api/feed", feedRoutes);
 app.use("/api/colleges", collegeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/interests", interestRoutes);
+app.use("/api/posts", postRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

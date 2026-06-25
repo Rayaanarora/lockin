@@ -3,7 +3,7 @@ const path = require("path");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Seeding database...\n");
+  console.log("[DB] Seeding database...\n");
 
   // ─── Clean DB ──────────────────────────────────────────────────────
   console.log("  Cleaning existing data...");
@@ -29,7 +29,7 @@ async function main() {
     colleges = require(path.resolve(__dirname, "../src/data/colleges.json"));
     console.log(`  Found ${colleges.length} colleges in database file.`);
   } catch (err) {
-    console.warn("  ⚠ colleges.json not found, seeding with minimal college data.");
+    console.warn("  [WARN] colleges.json not found, seeding with minimal college data.");
     colleges = [
       { college_name: "SRM Institute of Science and Technology", short_name: "SRM IST KTR", college_type: "Private Engineering", city: "Kattankulathur", state: "Tamil Nadu", country: "India", official_domain: "srmist.edu.in", email_domain: "srmist.edu.in" },
       { college_name: "SRM IST Ramapuram", short_name: "SRM IST Ramapuram", college_type: "Private Engineering", city: "Chennai", state: "Tamil Nadu", country: "India", official_domain: "srmist.edu.in", email_domain: "srmist.edu.in" },
@@ -57,34 +57,34 @@ async function main() {
     }));
     await prisma.college.createMany({ data: batch });
   }
-  console.log(`  ✅ Seeded ${colleges.length} colleges.\n`);
+  console.log(`  [OK] Seeded ${colleges.length} colleges.\n`);
 
   // ─── Seed Categories (19 expanded) ─────────────────────────────────
   console.log("  Seeding 19 categories...");
   const categoriesData = [
-    { id: 1,  categoryName: "Coding",                   emoji: "💻", colorHex: "#3b82f6" },
-    { id: 2,  categoryName: "AI",                       emoji: "🤖", colorHex: "#8b5cf6" },
-    { id: 3,  categoryName: "Startups",                 emoji: "🚀", colorHex: "#f59e0b" },
-    { id: 4,  categoryName: "Hackathons",               emoji: "⚡", colorHex: "#ef4444" },
-    { id: 5,  categoryName: "Open Source",              emoji: "🌐", colorHex: "#10b981" },
-    { id: 6,  categoryName: "Design",                   emoji: "🎨", colorHex: "#ec4899" },
-    { id: 7,  categoryName: "Content Creation",         emoji: "📱", colorHex: "#f97316" },
-    { id: 8,  categoryName: "Fitness",                  emoji: "💪", colorHex: "#14b8a6" },
-    { id: 9,  categoryName: "Study Sessions",           emoji: "📚", colorHex: "#6366f1" },
-    { id: 10, categoryName: "Research",                 emoji: "🔬", colorHex: "#0ea5e9" },
-    { id: 11, categoryName: "Placements",               emoji: "🎯", colorHex: "#e11d48" },
-    { id: 12, categoryName: "Competitive Programming",  emoji: "🏆", colorHex: "#eab308" },
-    { id: 13, categoryName: "Reading",                  emoji: "📖", colorHex: "#a855f7" },
-    { id: 14, categoryName: "Languages",                emoji: "🗣️", colorHex: "#06b6d4" },
-    { id: 15, categoryName: "Career",                   emoji: "💼", colorHex: "#64748b" },
-    { id: 16, categoryName: "Projects",                 emoji: "🛠️", colorHex: "#f43f5e" },
-    { id: 17, categoryName: "Networking",               emoji: "🤝", colorHex: "#22c55e" },
-    { id: 18, categoryName: "Events",                   emoji: "🎪", colorHex: "#d946ef" },
-    { id: 19, categoryName: "Other",                    emoji: "✨", colorHex: "#a1a1aa" }
+    { id: 1,  categoryName: "Coding",                   emoji: null, colorHex: "#3b82f6" },
+    { id: 2,  categoryName: "AI",                       emoji: null, colorHex: "#8b5cf6" },
+    { id: 3,  categoryName: "Startups",                 emoji: null, colorHex: "#f59e0b" },
+    { id: 4,  categoryName: "Hackathons",               emoji: null, colorHex: "#ef4444" },
+    { id: 5,  categoryName: "Open Source",              emoji: null, colorHex: "#10b981" },
+    { id: 6,  categoryName: "Design",                   emoji: null, colorHex: "#ec4899" },
+    { id: 7,  categoryName: "Content Creation",         emoji: null, colorHex: "#f97316" },
+    { id: 8,  categoryName: "Fitness",                  emoji: null, colorHex: "#14b8a6" },
+    { id: 9,  categoryName: "Study Sessions",           emoji: null, colorHex: "#6366f1" },
+    { id: 10, categoryName: "Research",                 emoji: null, colorHex: "#0ea5e9" },
+    { id: 11, categoryName: "Placements",               emoji: null, colorHex: "#e11d48" },
+    { id: 12, categoryName: "Competitive Programming",  emoji: null, colorHex: "#eab308" },
+    { id: 13, categoryName: "Reading",                  emoji: null, colorHex: "#a855f7" },
+    { id: 14, categoryName: "Languages",                emoji: null, colorHex: "#06b6d4" },
+    { id: 15, categoryName: "Career",                   emoji: null, colorHex: "#64748b" },
+    { id: 16, categoryName: "Projects",                 emoji: null, colorHex: "#f43f5e" },
+    { id: 17, categoryName: "Networking",               emoji: null, colorHex: "#22c55e" },
+    { id: 18, categoryName: "Events",                   emoji: null, colorHex: "#d946ef" },
+    { id: 19, categoryName: "Other",                    emoji: null, colorHex: "#a1a1aa" }
   ];
 
   await prisma.category.createMany({ data: categoriesData });
-  console.log("  ✅ Seeded 19 categories.\n");
+  console.log("  [OK] Seeded 19 categories.\n");
 
   // ─── Seed Skills ───────────────────────────────────────────────────
   await prisma.skill.createMany({
@@ -126,7 +126,7 @@ async function main() {
       { id: 110, name: "Tara Iyer", email: "tara@srmist.edu.in", emailVerified: true, verifiedAt: new Date(), department: "Data Science", reputationScore: 45, college: srmKtr ? srmKtr.shortName : "SRM IST KTR", location: "SRM KTR Library", collegeId: srmCollegeId, bio: "Clean UI enthusiast.", instagram: "@tara_iyer", github: "tara-design", interests: "Design, Study Sessions" }
     ]
   });
-  console.log("  ✅ Seeded 10 demo users.\n");
+  console.log("  [OK] Seeded 10 demo users.\n");
 
   // ─── Seed User Interests (many-to-many) ────────────────────────────
   console.log("  Seeding user interests...");
@@ -150,7 +150,7 @@ async function main() {
     }
   }
   await prisma.userInterest.createMany({ data: interestData });
-  console.log("  ✅ Seeded user interests.\n");
+  console.log("  [OK] Seeded user interests.\n");
 
   // ─── Seed Missions ─────────────────────────────────────────────────
   const now = new Date();
@@ -175,7 +175,7 @@ async function main() {
       { id: 210, title: "Final Demo Rehearsal", description: "Simulating public presentation and timing of slides.", datetime: addHours(now, 120), location: "SRM KTR Auditorium Lobby", categoryId: 18, createdBy: 110, collegeId: srmCollegeId, focusDuration: 25, verificationCode: "2100" }
     ]
   });
-  console.log("  ✅ Seeded 10 demo missions.\n");
+  console.log("  [OK] Seeded 10 demo missions.\n");
 
   // ─── Seed Participations ───────────────────────────────────────────
   await prisma.participation.createMany({
@@ -195,7 +195,7 @@ async function main() {
     ]
   });
 
-  console.log("✅ Database seeded successfully!\n");
+  console.log("[OK] Database seeded successfully!\n");
 }
 
 main()

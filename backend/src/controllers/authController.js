@@ -65,7 +65,7 @@ async function sendOtp(req, res) {
 
     // For now, log to console in development
     if (process.env.NODE_ENV !== "production") {
-      console.log(`\n🔐 OTP for ${normalizedEmail}: ${otp}\n`);
+      console.log(`\n[OTP] OTP for ${normalizedEmail}: ${otp}\n`);
     }
  
     // If Resend API key is configured, send the actual email
@@ -88,9 +88,9 @@ async function sendOtp(req, res) {
             </div>
           `
         });
-        console.log(`✉️ Real OTP email sent to ${normalizedEmail} via Resend.`);
+        console.log(`[EMAIL] Real OTP email sent to ${normalizedEmail} via Resend.`);
       } catch (emailErr) {
-        console.error("❌ Failed to send email via Resend:", emailErr);
+        console.error("[ERROR] Failed to send email via Resend:", emailErr);
       }
     }
 
@@ -223,7 +223,8 @@ async function verifyOtp(req, res) {
         instagram: user.instagram,
         github: user.github,
         interests: user.interests,
-        campus_id: user.collegeId
+        campus_id: user.collegeId,
+        verified_at: user.verifiedAt
       }
       // token  // Uncomment when JWT is implemented
     });
@@ -269,7 +270,8 @@ async function getMe(req, res) {
       github: user.github,
       interests: user.interests,
       campus_id: user.collegeId,
-      campus_name: user.collegeRef?.shortName || ""
+      campus_name: user.collegeRef?.shortName || "",
+      verified_at: user.verifiedAt
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;

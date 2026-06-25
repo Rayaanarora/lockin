@@ -93,12 +93,21 @@ async function getFollowers(req, res) {
             department: true,
             college: true,
             reputationScore: true,
-            bio: true
+            bio: true,
+            avatarUrl: true
           }
         }
       }
     });
-    res.json(followers.map(f => f.follower));
+    res.json(followers.map(f => ({
+      id: f.follower.id,
+      name: f.follower.name,
+      department: f.follower.department,
+      college: f.follower.college || 'SRM Institute of Science and Technology KTR',
+      reputationScore: f.follower.reputationScore,
+      avatar_url: f.follower.avatarUrl || null,
+      bio: f.follower.bio || ''
+    })));
   } catch (error) {
     if (isDbUnavailable(error)) {
       console.warn("Database offline. Returning empty array for followers.");
@@ -128,12 +137,21 @@ async function getFollowing(req, res) {
             department: true,
             college: true,
             reputationScore: true,
-            bio: true
+            bio: true,
+            avatarUrl: true
           }
         }
       }
     });
-    res.json(following.map(f => f.following));
+    res.json(following.map(f => ({
+      id: f.following.id,
+      name: f.following.name,
+      department: f.following.department,
+      college: f.following.college || 'SRM Institute of Science and Technology KTR',
+      reputationScore: f.following.reputationScore,
+      avatar_url: f.following.avatarUrl || null,
+      bio: f.following.bio || ''
+    })));
   } catch (error) {
     if (isDbUnavailable(error)) {
       console.warn("Database offline. Returning empty array for following.");

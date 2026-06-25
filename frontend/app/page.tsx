@@ -14,14 +14,14 @@ import ProfileGate from "../components/ProfileGate";
 import Feed from "../components/Feed";
 import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
-import ActivityFeed from "../components/ActivityFeed";
+import SocialFeed from "../components/SocialFeed";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
 
 async function api(path: string, options: RequestInit = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const response = await fetch(`${API}${path}`, {
@@ -36,6 +36,15 @@ async function api(path: string, options: RequestInit = {}) {
     clearTimeout(timeoutId);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (
+        (response.status === 404 && data.error === "User not found.") ||
+        (response.status === 400 && data.error && data.error.includes("User session is invalid"))
+      ) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("lockin_user_id");
+          window.location.reload();
+        }
+      }
       throw new Error(data.error || "Request failed");
     }
     return data;
@@ -48,9 +57,21 @@ async function api(path: string, options: RequestInit = {}) {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("feed");
+  const [tab, setTab] = useState("missions");
   const [locked, setLocked] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
+
+  // Synchronize active tab from URL query params if present
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const queryTab = params.get("tab");
+      if (queryTab && ["missions", "feed", "active", "profile"].includes(queryTab)) {
+        setTab(queryTab);
+      }
+    }
+  }, []);
+
 
   // Socket.io connection state
   useEffect(() => {
@@ -147,8 +168,8 @@ export default function Home() {
         />
       );
     }
-    if (tab === "discover") {
-      return <ActivityFeed user={user} api={api} />;
+    if (tab === "feed") {
+      return <SocialFeed user={user} api={api} />;
     }
     if (tab === "profile") {
       return <Profile user={user} refreshUser={refreshUser} api={api} />;
@@ -169,7 +190,7 @@ export default function Home() {
     return (
       <Shell>
         <div className="flex min-h-screen items-center justify-center">
-          <Flame className="h-10 w-10 text-luxuryGold animate-pulse" />
+          <Flame className="h-10 w-10 text-cherryRed animate-pulse" />
         </div>
       </Shell>
     );

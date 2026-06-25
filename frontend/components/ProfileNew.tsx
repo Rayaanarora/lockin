@@ -257,17 +257,16 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
         {/* Left Column: Profile Card */}
         <div className="md:col-span-1">
           <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#161211]/50 p-6 backdrop-blur-xl shadow-2xl">
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 h-36 w-36 rounded-full bg-luxuryGold/5 blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 h-36 w-36 rounded-full bg-cherryRed/5 blur-3xl pointer-events-none" />
             
-            {/* Avatar and Name */}
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] border-2 border-luxuryGold/40 bg-zinc-950 text-2xl font-black text-cotton shadow-[0_0_25px_rgba(197,168,128,0.15)] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-luxuryMaroon/30 to-luxuryGold/10" />
+            {/* Header info */}
+            <div className="flex flex-col md:flex-row md:items-center gap-5 md:gap-7 relative z-10 text-left">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[24px] border-2 border-cherryRed/45 bg-zinc-950 text-2xl font-black text-white shadow-[0_0_25px_rgba(210,4,45,0.15)] overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#4A0002]/30 to-cherryRed/10" />
                 <span className="relative z-10">{initials}</span>
               </div>
-              
-              <div className="space-y-1">
-                <h2 className="text-lg md:text-xl font-black text-cotton tracking-tight">{user.name}</h2>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg md:text-xl font-black text-white tracking-tight">{user.name}</h2>
                 <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">{user.department}</p>
                 {user.bio && (
                   <p className="text-xs text-zinc-400 mt-2 leading-relaxed max-w-[200px] mx-auto font-medium">
@@ -279,21 +278,20 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
 
             {/* Aura display */}
             <div className="mt-6 flex justify-center">
-              <span className="flex items-center gap-2 rounded-full border border-luxuryGold/30 bg-luxuryGold/10 px-4 py-2 text-xs font-black text-luxuryGold uppercase tracking-widest shadow-[0_0_15px_rgba(197,168,128,0.1)]">
-                <Sparkles className="h-4 w-4 animate-pulse" />
+              <span className="flex items-center gap-2 rounded-full border border-cherryRed/30 bg-cherryRed/10 px-4 py-2 text-xs font-black text-cherryRed uppercase tracking-widest shadow-[0_0_15px_rgba(210,4,45,0.1)]">
+                <img src="/aura-bolt.png" alt="Aura" className="h-4 w-4 object-contain shrink-0" />
                 {aura} Aura
               </span>
             </div>
 
-            {/* Follow Counts */}
-            <div className="mt-5 flex gap-2 justify-center text-[10px] font-black uppercase tracking-wider text-zinc-500 bg-zinc-950/40 py-2.5 px-4 rounded-2xl border border-white/5 shadow-inner">
-              <div className="px-1">
-                <span className="text-cotton font-black mr-0.5">{followersCount}</span> Followers
-              </div>
-              <div className="w-px bg-white/10 h-3 self-center" />
-              <div className="px-1">
-                <span className="text-cotton font-black mr-0.5">{followingCount}</span> Following
-              </div>
+            {/* Stats list under profile */}
+            <div className="mt-4 md:mt-5 flex flex-wrap gap-2 text-left">
+              <span className="text-[10px] md:text-xs font-bold text-zinc-500 bg-zinc-900/60 px-3.5 py-1.5 rounded-xl border border-white/5">
+                <span className="text-white font-black mr-0.5">{followersCount}</span> Followers
+              </span>
+              <span className="text-[10px] md:text-xs font-bold text-zinc-500 bg-zinc-900/60 px-3.5 py-1.5 rounded-xl border border-white/5">
+                <span className="text-white font-black mr-0.5">{followingCount}</span> Following
+              </span>
             </div>
 
             {/* Location & Tags */}
@@ -306,7 +304,7 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
               )}
               {user.interests && (
                 <div className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-[#1B1716]/30 p-3">
-                  <Sliders className="h-4 w-4 text-luxuryGold shrink-0" />
+                  <Sliders className="h-4 w-4 text-cherryRed shrink-0" />
                   <span className="truncate text-zinc-300">{user.interests}</span>
                 </div>
               )}
@@ -346,14 +344,14 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                 <button
                   onClick={handleSync}
                   disabled={syncing}
-                  className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-950/60 text-xs font-black uppercase tracking-wider text-cotton hover:bg-white/5 disabled:opacity-50 transition active:scale-95 shadow-md"
+                  className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-950/60 text-xs font-black uppercase tracking-wider text-white hover:bg-white/5 disabled:opacity-50 transition active:scale-95 shadow-md"
                 >
-                  <Activity className={`h-3.5 w-3.5 text-luxuryGold ${syncing ? "animate-spin" : ""}`} />
-                  <span>{syncing ? "Syncing" : "Sync"}</span>
+                  <Activity className={`h-3.5 w-3.5 text-cherryRed ${syncing ? "animate-spin" : ""}`} />
+                  <span>{syncing ? "Syncing..." : "Sync"}</span>
                 </button>
                 <button
                   onClick={() => setShowEdit(true)}
-                  className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-950/60 text-xs font-black uppercase tracking-wider text-cotton hover:bg-white/5 transition active:scale-95 shadow-md"
+                  className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-950/60 text-xs font-black uppercase tracking-wider text-white hover:bg-white/5 transition active:scale-95 shadow-md"
                 >
                   <span>Edit Profile</span>
                 </button>
@@ -377,22 +375,24 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
           {/* Tab Selector pills */}
           <div className="relative flex rounded-[20px] border border-white/10 bg-[#161211]/50 p-1 backdrop-blur-md shadow-lg">
             <motion.div
-              className="absolute top-1 bottom-1 rounded-xl bg-luxuryGold/10 border border-luxuryGold/30 shadow-[0_0_12px_rgba(197,168,128,0.12)]"
-              animate={{ left: indicator.left, width: indicator.width }}
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              className="absolute top-1 bottom-1 rounded-xl bg-cherryRed/15 border border-cherryRed/30 shadow-[0_0_12px_rgba(210,4,45,0.15)]"
+              layoutId="profileActiveTab"
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
             />
-            {TABS.map((tab, idx) => (
-              <button
-                key={tab}
-                ref={(el) => { tabRefs.current[idx] = el; }}
-                onClick={() => setActiveTab(tab)}
-                className={`relative z-10 flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors duration-300 ${
-                  activeTab === tab ? "text-luxuryGold" : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`relative flex-1 py-2 text-[10px] md:text-xs font-black uppercase tracking-widest transition duration-150 ${
+                    active ? "text-cherryRed" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
           {/* Tab Content Panels */}
@@ -412,19 +412,20 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">
                         Aura Rank Progress
                       </span>
-                      <h4 className="text-xs font-black uppercase text-cotton mt-1 tracking-wider">
-                        {aura < 100 ? "Initiate" : aura < 250 ? "Executor" : aura < 500 ? "Specialist" : "Elite"}
+                      <h4 className="text-xs font-black uppercase text-white mt-1 tracking-wider">
+                        AURA POINTS
                       </h4>
                     </div>
-                    <span className="text-base font-black text-luxuryGold tracking-tight">{aura} Aura</span>
+                    <span className="text-base font-black text-cherryRed tracking-tight">{aura} Aura</span>
                   </div>
                   
-                  <div className="h-2 overflow-hidden rounded-full bg-zinc-900 border border-white/5 shadow-inner">
+                  {/* Linear Bar */}
+                  <div className="h-2 overflow-hidden rounded-full bg-zinc-950 border border-white/5">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(100, (aura / 500) * 100)}%` }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
-                      className="h-full rounded-full bg-gradient-to-r from-cherryRed via-luxuryMaroon to-luxuryGold"
+                      className="h-full rounded-full bg-gradient-to-r from-red-950 to-cherryRed"
                     />
                   </div>
                   
@@ -451,13 +452,14 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
 
                 {/* Execution Metrics Grid */}
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left pl-1">
-                    Flight metrics
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left pl-1 flex items-center gap-2">
+                    <Activity className="h-4.5 w-4.5 text-cherryRed" />
+                    <span>STATS</span>
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
                       { label: "Completed", value: profileStats?.totalMissions ?? 0, icon: Flame, color: "text-cherryRed", border: "hover:border-cherryRed/30" },
-                      { label: "Focus Hours", value: `${profileStats?.focusHours ?? 0}h`, icon: Clock, color: "text-luxuryGold", border: "hover:border-luxuryGold/30" },
+                      { label: "Focus Hours", value: `${profileStats?.focusHours ?? 0}h`, icon: Clock, color: "text-cherryRed", border: "hover:border-cherryRed/30" },
                       { label: "Completion Rate", value: `${profileStats?.completionRate ?? 100}%`, icon: CheckCircle2, color: "text-emerald-400", border: "hover:border-emerald-500/30" },
                       { label: "Active Streak", value: `${profileStats?.currentStreak ?? 0}d`, icon: Zap, color: "text-amber-500", border: "hover:border-amber-500/30" },
                       { label: "Tasks Logged", value: profileStats?.tasksCompleted ?? 0, icon: ListTodo, color: "text-zinc-200", border: "hover:border-white/20" },
@@ -480,46 +482,42 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                 {/* LOCKIN Heatmap wrapped */}
                 <div className="rounded-[24px] border border-white/5 bg-zinc-950/40 p-5 shadow-xl">
                   <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
-                    <Activity className="h-4.5 w-4.5 text-luxuryGold" />
+                    <Activity className="h-4.5 w-4.5 text-cherryRed" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Activity Grid</span>
                   </div>
-                  <HeatMap userId={user.id} api={api} />
+                  <HeatMap userId={user.id} userJoinedAt={user.verified_at} api={api} />
                 </div>
 
                 {/* Wrapped Recaps Action Block */}
                 <div className="rounded-[24px] border border-white/5 bg-zinc-950/40 p-5 space-y-4 shadow-xl text-left">
                   <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-                    <Award className="h-4.5 w-4.5 text-luxuryGold" />
+                    <Award className="h-4.5 w-4.5 text-cherryRed" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Wrapped Logs</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 mt-4">
                     <button
                       onClick={() => handleGenerateWrapped("weekly")}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:bg-[#1B1716]/60 transition active:scale-95"
+                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-[11px] font-black uppercase tracking-wider text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition shadow-sm"
                     >
-                      <Zap className="h-3.5 w-3.5 text-luxuryGold" /> 
-                      <span>Weekly Wrapped</span>
+                      <Zap className="h-3.5 w-3.5 text-cherryRed" /> Weekly Wrapped
                     </button>
                     <button
                       onClick={() => handleGenerateWrapped("monthly")}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:bg-[#1B1716]/60 transition active:scale-95"
+                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-[11px] font-black uppercase tracking-wider text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition shadow-sm"
                     >
-                      <Trophy className="h-3.5 w-3.5 text-luxuryGold" />
-                      <span>Monthly Wrapped</span>
+                      <Trophy className="h-3.5 w-3.5 text-cherryRed" /> Monthly Wrapped
                     </button>
                     <button
                       onClick={() => handleGenerateWrapped("yearly")}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:bg-[#1B1716]/60 transition active:scale-95"
+                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-[11px] font-black uppercase tracking-wider text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition shadow-sm"
                     >
-                      <Activity className="h-3.5 w-3.5 text-luxuryGold" />
-                      <span>Yearly Wrapped</span>
+                      <Activity className="h-3.5 w-3.5 text-cherryRed" /> Yearly Wrapped
                     </button>
                     <button
                       onClick={handleGenerateTeamSummary}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white hover:bg-[#1B1716]/60 transition active:scale-95"
+                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-zinc-900/40 text-[11px] font-black uppercase tracking-wider text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition shadow-sm"
                     >
-                      <Users className="h-3.5 w-3.5 text-luxuryGold" />
-                      <span>Team Summary</span>
+                      <Users className="h-3.5 w-3.5 text-cherryRed" /> Team Summary
                     </button>
                   </div>
                 </div>
@@ -553,31 +551,31 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                 ) : (
                   <div className="rounded-[24px] border border-white/10 bg-[#161211]/50 overflow-hidden shadow-2xl backdrop-blur-xl">
                     <div className="px-5 py-4 border-b border-white/5 flex items-center gap-2">
-                      <Trophy className="h-4 w-4 text-luxuryGold" />
+                      <Trophy className="h-4 w-4 text-cherryRed" />
                       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Campus Leaderboard</span>
                     </div>
                     
                     <div className="divide-y divide-white/5">
                       {leaderboard.map((entry, idx) => {
                         const isYou = entry.id === user.id;
-                        let rankBadge = `${idx + 1}`;
-                        let bgStyle = "";
-                        let rankText = "text-zinc-500";
+                        let rankBadge = "";
+                        let bgStyle = "hover:bg-white/5 cursor-pointer";
+                        let rankText = "text-zinc-500 font-bold";
                         
                         if (idx === 0) {
-                          rankBadge = "👑";
-                          bgStyle = "bg-gradient-to-r from-luxuryGold/10 to-transparent border-l-2 border-luxuryGold";
-                          rankText = "text-luxuryGold font-black";
+                          rankBadge = "#1";
+                          bgStyle = "bg-gradient-to-r from-cherryRed/10 to-transparent border-l-2 border-cherryRed";
+                          rankText = "text-cherryRed font-black";
                         } else if (idx === 1) {
-                          rankBadge = "🥈";
-                          bgStyle = "bg-gradient-to-r from-zinc-500/5 to-transparent border-l-2 border-zinc-400";
-                          rankText = "text-zinc-300 font-bold";
+                          rankBadge = "#2";
+                          rankText = "text-zinc-300 font-black";
                         } else if (idx === 2) {
-                          rankBadge = "🥉";
-                          bgStyle = "bg-gradient-to-r from-amber-800/5 to-transparent border-l-2 border-amber-700";
-                          rankText = "text-amber-500 font-semibold";
+                          rankBadge = "#3";
+                          rankText = "text-zinc-400 font-bold";
+                        } else {
+                          rankBadge = String(idx + 1);
                         }
-
+                        
                         return (
                           <div
                             key={entry.id}
@@ -587,23 +585,23 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                                 setLeaderboardProfileOpen(true);
                               }
                             }}
-                            className={`flex items-center gap-4 px-5 py-3.5 transition-colors duration-300 ${bgStyle} ${
-                              isYou ? "bg-white/[0.02]" : "cursor-pointer hover:bg-white/[0.02]"
+                            className={`flex items-center gap-3.5 px-5 py-4 transition-all duration-150 ${
+                              isYou ? "bg-cherryRed/5" : bgStyle
                             }`}
                           >
-                            <span className={`w-6 text-sm shrink-0 text-center ${rankText}`}>
+                            <span className={`w-6 text-[10px] shrink-0 text-center ${rankText}`}>
                               {rankBadge}
                             </span>
-                            <div className="flex-1 min-w-0 text-left">
-                              <p className={`text-xs font-black truncate tracking-wide ${isYou ? "text-luxuryGold" : "text-cotton"}`}>
-                                {entry.name} {isYou && <span className="text-[9px] text-zinc-500 lowercase">(you)</span>}
+                            
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs font-black truncate tracking-wide ${isYou ? "text-cherryRed" : "text-white"}`}>
+                                {entry.name} {isYou && <span className="text-[9px] text-zinc-500 font-semibold">(You)</span>}
                               </p>
-                              <p className="text-[10px] text-zinc-500 font-semibold truncate mt-0.5">{entry.department}</p>
+                              <p className="text-[9.5px] text-zinc-500 truncate font-semibold uppercase tracking-wider mt-0.5">{entry.department}</p>
                             </div>
                             
-                            <span className="text-xs font-black text-cotton shrink-0 tracking-wider">
-                              {entry.reputation_score}
-                              <span className="text-[9px] text-zinc-500 ml-1 font-bold">Aura</span>
+                            <span className="text-xs font-black text-white shrink-0 tracking-wider">
+                              {entry.reputation_score} Aura
                             </span>
                           </div>
                         );
@@ -673,7 +671,7 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                               {done && (
                                 <button
                                   onClick={() => handleViewMissionRecap(m.id)}
-                                  className="text-[9px] font-black uppercase tracking-wider border border-luxuryGold/30 bg-luxuryGold/5 px-3 py-1.5 rounded-lg text-luxuryGold hover:bg-luxuryGold/15 active:scale-95 transition"
+                                  className="text-[9px] font-black uppercase tracking-wider border border-cherryRed/30 bg-cherryRed/5 px-3 py-1.5 rounded-lg text-cherryRed hover:bg-cherryRed/15 active:scale-95 transition"
                                 >
                                   View recap
                                 </button>
@@ -713,22 +711,22 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                     <select
                       value={galleryCategory}
                       onChange={(e) => setGalleryCategory(e.target.value)}
-                      className="flex-1 h-9 rounded-xl border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400 px-2 outline-none focus:border-luxuryGold transition"
+                      className="flex-1 h-9 rounded-xl border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400 px-2 outline-none focus:border-cherryRed transition"
                     >
-                      <option value="all">All Channels</option>
-                      <option value="Programming">💻 Programming</option>
-                      <option value="Study">📚 Study</option>
-                      <option value="Design">🎨 Design</option>
-                      <option value="Writing">✍️ Writing</option>
-                      <option value="Research">🔍 Research</option>
-                      <option value="Fitness">⚡ Fitness</option>
-                      <option value="Other">⚙️ Other</option>
+                      <option value="all">All Categories</option>
+                      <option value="Programming">Programming</option>
+                      <option value="Study">Study</option>
+                      <option value="Design">Design</option>
+                      <option value="Writing">Writing</option>
+                      <option value="Research">Research</option>
+                      <option value="Fitness">Fitness</option>
+                      <option value="Other">Other</option>
                     </select>
 
                     <select
                       value={galleryYear}
                       onChange={(e) => setGalleryYear(e.target.value)}
-                      className="flex-1 h-9 rounded-xl border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400 px-2 outline-none focus:border-luxuryGold transition"
+                      className="flex-1 h-9 rounded-xl border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400 px-2 outline-none focus:border-cherryRed transition"
                     >
                       <option value="all">All Years</option>
                       <option value="2026">2026</option>
@@ -739,7 +737,7 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                   <select
                     value={gallerySort}
                     onChange={(e) => setGallerySort(e.target.value)}
-                    className="h-9 rounded-xl border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400 px-2 outline-none focus:border-luxuryGold transition"
+                    className="h-9 rounded-xl border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-400 px-2 outline-none focus:border-cherryRed transition"
                   >
                     <option value="newest">Newest First</option>
                     <option value="longest">Duration Log</option>
@@ -774,13 +772,13 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                             setRecapData(recap);
                             setShowRecapCard(true);
                           }}
-                          className="cursor-pointer group relative overflow-hidden rounded-[24px] border border-white/5 bg-zinc-950/40 p-5 flex flex-col justify-between hover:border-luxuryGold/35 hover:shadow-lg transition-all duration-300"
+                          className="cursor-pointer group relative overflow-hidden rounded-[24px] border border-white/5 bg-zinc-950/40 p-5 flex flex-col justify-between hover:border-cherryRed/35 hover:shadow-lg transition-all duration-300"
                         >
-                          <div className="flex justify-between items-start mb-3">
-                            <span className="rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-white/5 text-zinc-500 font-display">
+                          <div className="flex justify-between items-start mb-2.5">
+                            <span className="rounded-full px-2.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider bg-white/5 text-zinc-500 font-display">
                               {recap.categorySnapshot || "Other"}
                             </span>
-                            <span className="text-[9px] font-bold text-zinc-500 font-display">
+                            <span className="text-[8.5px] font-bold text-zinc-500 font-display">
                               {new Date(recap.generatedAt).toLocaleDateString("en-IN", {
                                 day: "numeric",
                                 month: "short",
@@ -789,13 +787,13 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                             </span>
                           </div>
                           
-                          <h4 className="text-xs font-black text-white line-clamp-1 group-hover:text-luxuryGold transition text-left tracking-wide">
+                          <h4 className="text-xs font-black text-white line-clamp-1 group-hover:text-cherryRed transition text-left tracking-wide">
                             {recap.missionTitle || "Focus Sprint"}
                           </h4>
                           
-                          <div className="mt-4 flex items-center justify-between border-t border-white/4 pt-3 text-[10px] font-bold text-zinc-500 font-display">
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="h-3.5 w-3.5 text-luxuryGold" />
+                          <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3.5 text-[9.5px] font-bold text-zinc-400 font-display">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-cherryRed" />
                               <span>{durationText}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
@@ -819,21 +817,21 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
         <DialogContent className="border-white/10 bg-zinc-950/98 text-white max-w-sm rounded-[32px] backdrop-blur-2xl p-6.5 shadow-2xl">
           <DialogHeader className="border-b border-white/5 pb-3">
             <DialogTitle className="text-base font-black tracking-widest text-white uppercase flex items-center gap-2">
-              <UserIcon className="h-5 w-5 text-luxuryGold" />
-              EDIT PILOT LOG
+              <UserIcon className="h-5 w-5 text-cherryRed" />
+              <span>EDIT PROFILE</span>
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-4 mt-4 text-left">
+          <form onSubmit={handleUpdate} className="space-y-4 mt-2">
             {[
               { label: "Full Name", key: "name", placeholder: "Your Name" },
-              { label: "Department & Academic Year", key: "department", placeholder: "e.g. CSE, 3rd Year" },
-              { label: "Default Meet Location", key: "location", placeholder: "e.g. Library, Block B..." },
-              { label: "Bio / Target description", key: "bio", placeholder: "What goals are you executing?" },
-              { label: "Instagram Handle", key: "instagram", placeholder: "username" },
-              { label: "GitHub Profile", key: "github", placeholder: "username" },
+              { label: "Department & Year", key: "department", placeholder: "e.g. CSE, 3rd Year" },
+              { label: "Meet Spot", key: "location", placeholder: "e.g. Library, Block B Canteen..." },
+              { label: "Bio", key: "bio", placeholder: "What are you building?" },
+              { label: "Instagram", key: "instagram", placeholder: "@username" },
+              { label: "GitHub", key: "github", placeholder: "@username" },
             ].map(({ label, key, placeholder }) => (
-              <div key={key} className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+              <div key={key} className="space-y-1 text-left">
+                <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
                   {label}
                 </label>
                 <Input
@@ -842,19 +840,19 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                     setForm((f) => ({ ...f, [key]: e.target.value }))
                   }
                   placeholder={placeholder}
-                  className="h-10 border-white/5 bg-[#1B1716]/40 text-xs text-cotton placeholder-zinc-700 focus:border-luxuryGold rounded-xl"
+                  className="h-10 border-white/5 bg-[#1B1716]/40 text-xs text-white placeholder-zinc-700 focus:border-cherryRed rounded-xl"
                 />
               </div>
             ))}
 
             {error && (
-              <p className="text-xs font-bold text-cherryRed">{error}</p>
+              <p className="text-[11px] font-black text-cherryRed tracking-wide text-left">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={updating}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-luxuryGold text-xs font-black uppercase tracking-wider text-black hover:bg-luxuryGold/95 active:scale-[0.98] transition disabled:opacity-50 shadow-md"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cherryRed text-xs font-black uppercase tracking-wider text-white hover:bg-cherryRed/95 active:scale-[0.98] transition disabled:opacity-50 shadow-md"
             >
               <Flame className="h-4 w-4 fill-current" />
               <span>{updating ? "Saving pilot file..." : "Save Changes"}</span>

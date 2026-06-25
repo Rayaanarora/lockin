@@ -58,7 +58,8 @@ async function createUser(req, res) {
       instagram: user.instagram,
       github: user.github,
       interests: user.interests,
-      campus_id: user.collegeId
+      campus_id: user.collegeId,
+      verified_at: user.verifiedAt
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -87,7 +88,9 @@ async function getUser(req, res) {
       github: user.github || "",
       interests: user.interests || "",
       campus_id: user.collegeId,
-      campus_name: user.collegeRef?.shortName || ""
+      campus_name: user.collegeRef?.shortName || "",
+      verified_at: user.verifiedAt,
+      avatar_url: user.avatarUrl || null
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -120,7 +123,7 @@ async function getLockStatus(req, res) {
 
 async function updateUser(req, res) {
   const { id } = req.params;
-  const { name, department, bio, instagram, github, interests, location, college, collegeId, campusId } = req.body;
+  const { name, department, bio, instagram, github, interests, location, college, collegeId, campusId, avatarUrl } = req.body;
 
   const effectiveCollegeId = collegeId || campusId;
 
@@ -136,6 +139,7 @@ async function updateUser(req, res) {
         interests: interests !== undefined ? interests.trim() : undefined,
         location: location !== undefined ? location.trim() : undefined,
         college: college !== undefined ? college.trim() : undefined,
+        avatarUrl: avatarUrl !== undefined ? avatarUrl : undefined,
         collegeId: effectiveCollegeId !== undefined ? (effectiveCollegeId ? Number(effectiveCollegeId) : null) : undefined
       }
     });
@@ -152,7 +156,9 @@ async function updateUser(req, res) {
       github: user.github,
       interests: user.interests,
       location: user.location,
-      campus_id: user.collegeId
+      campus_id: user.collegeId,
+      verified_at: user.verifiedAt,
+      avatar_url: user.avatarUrl || null
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -328,7 +334,9 @@ async function getPublicProfile(req, res) {
         github: user.github,
         interests: user.interests,
         campus_id: user.collegeId,
-        campus_name: user.collegeRef?.shortName || ""
+        campus_name: user.collegeRef?.shortName || "",
+        verified_at: user.verifiedAt,
+        avatar_url: user.avatarUrl || null
       },
       stats: {
         totalMissions,
@@ -381,6 +389,58 @@ async function getPublicProfile(req, res) {
   }
 }
 
+async function searchUsers(req, res) {
+  const q = req.query.q || '';
+  const currentUserId = req.query.currentUserId ? Number(req.query.currentUserId) : null;
+
+  if (q.trim().length < 2) {
+    return res.json([]);
+  }
+
+  const cleanQuery = q.trim();
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { name: { contains: cleanQuery, mode: "insensitive" } },
+              { department: { contains: cleanQuery, mode: "insensitive" } }
+            ]
+          },
+          currentUserId ? { id: { not: currentUserId } } : {}
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        college: true,
+        reputationScore: true,
+        avatarUrl: true
+      },
+      take: 20
+    });
+
+    res.json(users.map(u => ({
+      id: u.id,
+      name: u.name,
+      department: u.department,
+      college: u.college || 'SRM Institute of Science and Technology KTR',
+      reputationScore: u.reputationScore,
+      avatar_url: u.avatarUrl || null
+    })));
+  } catch (error) {
+    if (isDbUnavailable(error)) {
+      res.json([]);
+      return;
+    }
+    console.error("Error searching users", error);
+    res.status(500).json({ error: "Failed to search users." });
+  }
+}
+
 module.exports = {
   createUser,
   getUser,
@@ -388,5 +448,6 @@ module.exports = {
   updateUser,
   getLeaderboard,
   getUserHeat,
-  getPublicProfile
+  getPublicProfile,
+  searchUsers
 };

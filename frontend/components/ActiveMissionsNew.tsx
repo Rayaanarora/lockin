@@ -405,13 +405,13 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
       
       {/* Immersive Header Card */}
       <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#161211]/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 h-48 w-48 rounded-full bg-luxuryGold/5 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 h-48 w-48 rounded-full bg-cherryRed/5 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -ml-16 -mb-16 h-48 w-48 rounded-full bg-cherryRed/5 blur-3xl pointer-events-none" />
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 text-left">
             <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-cherryRed flex items-center gap-1.5">
-              <Compass className="h-3.5 w-3.5 text-luxuryGold animate-spin" style={{ animationDuration: "12s" }} /> ACTIVE FLIGHTS
+              <Compass className="h-3.5 w-3.5 text-cherryRed animate-spin" style={{ animationDuration: "12s" }} /> ACTIVE FLIGHTS
             </span>
             <h2 className="text-2xl md:text-3xl font-black text-cotton tracking-tight">Execution Queue</h2>
             <p className="text-xs text-zinc-500 font-semibold max-w-md">
@@ -424,7 +424,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
               <span className="block text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">
                 Completed
               </span>
-              <span className="text-xl font-black text-luxuryGold tracking-tight">
+              <span className="text-xl font-black text-cherryRed tracking-tight">
                 {missions.filter((m) => m.status === "Completed").length}
               </span>
             </div>
@@ -472,9 +472,9 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-4 rounded-2xl border border-luxuryGold/35 bg-luxuryGold/5 p-5 shadow-[0_4px_25px_rgba(197,168,128,0.08)] backdrop-blur-md"
+          className="flex items-start gap-4 rounded-2xl border border-cherryRed/35 bg-cherryRed/5 p-5 shadow-[0_4px_25px_rgba(210,4,45,0.08)] backdrop-blur-md"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-luxuryGold/10 border border-luxuryGold/20 text-luxuryGold shrink-0 animate-pulse">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cherryRed/10 border border-cherryRed/20 text-cherryRed shrink-0 animate-pulse">
             <ShieldAlert className="h-5 w-5" />
           </div>
           <div className="text-left">
@@ -492,7 +492,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
       <div>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <div className="h-8 w-8 rounded-full border-2 border-luxuryGold/20 border-t-luxuryGold animate-spin" />
+            <div className="h-8 w-8 rounded-full border-2 border-cherryRed/20 border-t-cherryRed animate-spin" />
             <span className="text-xs font-black uppercase tracking-widest text-zinc-500 animate-pulse">
               Syncing Runway Log...
             </span>
@@ -522,16 +522,16 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
 
               if (isRequest) {
                 statusLabel = "Application";
-                statusColor = "border-luxuryGold/30 bg-luxuryGold/5 text-luxuryGold";
+                statusColor = "border-zinc-800 bg-zinc-900/50 text-zinc-400";
               } else if (active) {
                 statusLabel = isSolo ? "Solo Active" : "Approved";
-                statusColor = "border-emerald-500/30 bg-emerald-500/5 text-emerald-400";
+                statusColor = "border-cherryRed/30 bg-cherryRed/5 text-cherryRed";
               } else if (mission.status === "Executing") {
                 statusLabel = "LOCKED IN";
-                statusColor = "border-cherryRed/50 bg-cherryRed/20 text-cherryRed shadow-[0_0_20px_rgba(222,33,30,0.15)] animate-pulse";
+                statusColor = "border-cherryRed/50 bg-[#D2042D] text-cotton shadow-[0_0_20px_rgba(210,4,45,0.15)]";
               } else if (mission.status === "Completed") {
                 statusLabel = "Completed";
-                statusColor = "border-luxuryGold/35 bg-luxuryGold/10 text-luxuryGold shadow-[0_0_15px_rgba(197,168,128,0.155)]";
+                statusColor = "border-zinc-800 bg-zinc-900/50 text-cotton shadow-[0_0_15px_rgba(255,255,255,0.05)]";
               } else if (mission.status === "Missed") {
                 statusLabel = "Missed";
                 statusColor = "border-cherryRed/25 bg-cherryRed/10 text-cherryRed";
@@ -553,7 +553,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05, type: "spring", stiffness: 180 }}
                   className={`relative flex flex-col justify-between overflow-hidden rounded-3xl border bg-zinc-950/40 p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:border-white/10 ${
-                    needsReview ? "border-luxuryGold/30 shadow-[0_0_25px_rgba(197,168,128,0.06)]" : "border-white/5"
+                    needsReview ? "border-cherryRed/30 shadow-[0_0_25px_rgba(210,4,45,0.06)]" : "border-white/5"
                   }`}
                 >
                   <div className="absolute top-0 right-0 -mr-6 -mt-6 h-20 w-20 rounded-full bg-white/[0.01] pointer-events-none" />
@@ -577,7 +577,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                     {/* Timing & Location Grid */}
                     <div className="grid grid-cols-2 gap-3 text-xs font-bold text-zinc-400 mb-5 text-left">
                       <div className="flex items-center gap-2.5 rounded-2xl border border-white/5 bg-[#1B1716]/30 p-3">
-                        <CalendarClock className="h-4 w-4 text-luxuryGold shrink-0" />
+                        <CalendarClock className="h-4 w-4 text-cherryRed shrink-0" />
                         <span className="text-zinc-300 truncate">
                           {isSolo ? "Start Anytime" : (due ? "Ready" : timeLeft(mission.datetime))}
                         </span>
@@ -599,25 +599,25 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                       <motion.div
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="rounded-2xl border border-luxuryGold/20 bg-luxuryGold/5 p-4 text-left space-y-3.5"
+                        className="rounded-2xl border border-cherryRed/20 bg-cherryRed/5 p-4 text-left space-y-3.5"
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <span className="text-[9px] font-black tracking-widest uppercase text-luxuryGold block">
+                            <span className="text-[9px] font-black tracking-widest uppercase text-cherryRed block">
                               CANDIDATE PROFILE
                             </span>
                             <p className="text-xs text-cotton font-bold mt-1">
                               Dept: {mission.participant_department}
                             </p>
                           </div>
-                          <div className="rounded-xl border border-white/5 bg-zinc-950/60 px-3 py-1.5 text-[10px] font-black text-luxuryGold flex items-center gap-1.5">
-                            <Sparkles className="h-3 w-3 text-luxuryGold" /> {mission.participant_reputation} Aura
+                          <div className="rounded-xl border border-white/5 bg-zinc-950/60 px-3 py-1.5 text-[10px] font-black text-cherryRed flex items-center gap-1.5">
+                            <Sparkles className="h-3 w-3 text-cherryRed" /> {mission.participant_reputation} Aura
                           </div>
                         </div>
                         
                         <button
                           onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}
-                          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-luxuryGold text-xs font-black uppercase tracking-wider text-black transition hover:bg-luxuryGold/95 active:scale-[0.98] shadow-md"
+                          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cherryRed text-xs font-black uppercase tracking-wider text-white transition hover:bg-cherryRed/95 active:scale-[0.98] shadow-md"
                         >
                           <Check className="h-4 w-4 stroke-[3]" /> Approve Crew Request
                         </button>
@@ -665,7 +665,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                                         setShowTimerSelector(null);
                                         await handleAttendance(mission.id, true);
                                       }}
-                                      className="h-10 rounded-xl border border-white/5 bg-zinc-950/60 hover:bg-luxuryMaroon/15 hover:border-luxuryMaroon/30 transition text-center"
+                                      className="h-10 rounded-xl border border-white/5 bg-zinc-950/60 hover:bg-[#D2042D]/10 hover:border-[#D2042D]/35 transition text-center"
                                     >
                                       {opt.label}
                                     </button>
@@ -712,8 +712,8 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
 
                             {/* Participant OTP Entry box */}
                             {!isCreator && due && (
-                              <div className="rounded-2xl border border-luxuryGold/20 bg-luxuryGold/5 p-4 text-left space-y-3">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold block">
+                              <div className="rounded-2xl border border-cherryRed/20 bg-cherryRed/5 p-4 text-left space-y-3">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed block">
                                   ENTER ACCESS KEY
                                 </span>
                                 <p className="text-xs text-zinc-400 font-semibold leading-relaxed">
@@ -727,7 +727,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                                     placeholder="0000"
                                     value={inputCodes[mission.id] || ""}
                                     onChange={(e) => setInputCodes({ ...inputCodes, [mission.id]: e.target.value.replace(/\D/g, "") })}
-                                    className="h-11 w-24 rounded-xl border border-white/5 bg-zinc-950/60 text-center text-base font-black tracking-widest text-cotton outline-none focus:border-luxuryGold focus:ring-1 focus:ring-luxuryGold/25 transition"
+                                    className="h-11 w-24 rounded-xl border border-white/5 bg-zinc-950/60 text-center text-base font-black tracking-widest text-cotton outline-none focus:border-cherryRed focus:ring-1 focus:ring-cherryRed/25 transition"
                                   />
                                   <button
                                     onClick={() => handleAttendance(mission.id, true)}
@@ -804,7 +804,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                               Runway Checklist
                             </h4>
                             {missionTasks[mission.id] && (
-                              <span className="text-[10px] font-black text-luxuryGold tracking-wider">
+                              <span className="text-[10px] font-black text-cherryRed tracking-wider">
                                 {missionTasks[mission.id].filter(t => t.completed).length} / {missionTasks[mission.id].length} DONE
                               </span>
                             )}
@@ -827,7 +827,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                             <button
                               type="button"
                               onClick={() => handleAddTask(mission.id)}
-                              className="h-9 px-3.5 rounded-xl bg-luxuryGold/10 border border-luxuryGold/30 text-[10px] text-luxuryGold font-black hover:bg-luxuryGold/20 hover:scale-[1.02] active:scale-[0.98] transition shrink-0"
+                              className="h-9 px-3.5 rounded-xl bg-cherryRed/10 border border-cherryRed/30 text-[10px] text-cherryRed font-black hover:bg-cherryRed/20 hover:scale-[1.02] active:scale-[0.98] transition shrink-0"
                             >
                               Add
                             </button>
@@ -849,7 +849,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                                     className="flex items-center gap-2.5 text-xs font-semibold text-cotton/90 text-left truncate flex-1"
                                   >
                                     {t.completed ? (
-                                      <CheckCircle2 className="h-4.5 w-4.5 text-luxuryGold shrink-0 fill-luxuryGold/10" />
+                                      <CheckCircle2 className="h-4.5 w-4.5 text-cherryRed shrink-0 fill-cherryRed/10" />
                                     ) : (
                                       <Square className="h-4.5 w-4.5 text-zinc-600 shrink-0" />
                                     )}
@@ -873,7 +873,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                           {(missionTasks[mission.id] || []).length > 0 ? (
                             <div className="flex justify-between items-center rounded-xl border border-white/5 bg-zinc-900/40 p-3 text-xs font-bold text-zinc-400">
                               <span>Log Progress:</span>
-                              <span className="font-black text-luxuryGold text-sm">
+                              <span className="font-black text-cherryRed text-sm">
                                 {(missionTasks[mission.id] || []).filter(t => t.completed).length} / {(missionTasks[mission.id] || []).length} Tasks
                               </span>
                             </div>
@@ -885,7 +885,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                               <select
                                 value={tasksCompletedInput[mission.id] || "0"}
                                 onChange={(e) => setTasksCompletedInput({ ...tasksCompletedInput, [mission.id]: e.target.value })}
-                                className="h-10 w-full rounded-xl border border-white/5 bg-zinc-950 text-xs text-cotton outline-none focus:border-luxuryGold px-2 font-bold"
+                                className="h-10 w-full rounded-xl border border-white/5 bg-zinc-950 text-xs text-cotton outline-none focus:border-cherryRed px-2 font-bold"
                               >
                                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                                   <option key={n} value={String(n)} className="bg-zinc-950 text-cotton">{n} Tasks Completed</option>
@@ -896,7 +896,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
 
                           <button
                             onClick={() => initiateFinishSession(mission)}
-                            className="w-full flex h-11 items-center justify-center gap-2 rounded-xl bg-luxuryGold text-xs font-black uppercase tracking-wider text-black transition hover:bg-luxuryGold/95 hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-luxuryGold/10"
+                            className="w-full flex h-11 items-center justify-center gap-2 rounded-xl bg-cherryRed text-xs font-black uppercase tracking-wider text-white transition hover:bg-cherryRed/95 hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-cherryRed/10"
                           >
                             Complete Focus Session
                           </button>
@@ -933,9 +933,9 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                         {!isSolo && mission.status !== "Pending" && (
                           <button
                             onClick={() => setChatMission(mission)}
-                            className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#1B1716]/40 text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white hover:bg-[#1B1716]/80 active:scale-[0.97] transition"
+                            className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#1B1716]/44 text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white hover:bg-[#1B1716]/80 active:scale-[0.97] transition"
                           >
-                            <MessageSquare className="h-4 w-4 text-luxuryGold" />
+                            <MessageSquare className="h-4 w-4 text-cherryRed" />
                             <span>Chatroom</span>
                           </button>
                         )}
@@ -943,9 +943,9 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                         {mission.status === "Completed" && (
                           <button
                             onClick={() => handleViewMissionRecap(mission.id)}
-                            className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl border border-luxuryGold/35 bg-luxuryGold/5 text-xs font-black uppercase tracking-wider text-luxuryGold hover:bg-luxuryGold/15 active:scale-[0.97] transition shadow-[0_0_15px_rgba(197,168,128,0.08)]"
+                            className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl border border-cherryRed/35 bg-cherryRed/5 text-xs font-black uppercase tracking-wider text-cherryRed hover:bg-cherryRed/15 active:scale-[0.97] transition shadow-[0_0_15px_rgba(210,4,45,0.08)]"
                           >
-                            <Trophy className="h-4 w-4 text-luxuryGold" />
+                            <Trophy className="h-4 w-4 text-cherryRed" />
                             <span>View recap</span>
                           </button>
                         )}
@@ -986,7 +986,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
         <DialogContent className="border-white/10 bg-zinc-950/98 text-white max-w-sm rounded-[32px] backdrop-blur-2xl shadow-2xl p-6.5">
           <DialogHeader className="border-b border-white/5 pb-3">
             <DialogTitle className="text-base font-black tracking-tight text-white uppercase flex items-center gap-2">
-              <FileText className="h-5 w-5 text-luxuryGold" />
+              <FileText className="h-5 w-5 text-cherryRed" />
               FOCUS REFLECTION LOG
             </DialogTitle>
           </DialogHeader>
@@ -997,7 +997,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
               </p>
               <h4 className="text-sm font-bold text-white leading-tight mt-0.5">{activeReflectionMission?.title}</h4>
               <p className="text-[11px] text-zinc-400 font-semibold mt-1 flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-luxuryGold stroke-[2.5]" />
+                <Check className="h-3.5 w-3.5 text-cherryRed stroke-[2.5]" />
                 Completed: {
                   activeReflectionMission ? (
                     (missionTasks[activeReflectionMission.id] || []).length > 0 
@@ -1016,7 +1016,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                 value={reflectionText}
                 onChange={(e) => setReflectionText(e.target.value)}
                 placeholder="Briefly reflect on your focus, flow, and output..."
-                className="min-h-20 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl resize-none focus:border-luxuryGold"
+                className="min-h-20 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl resize-none focus:border-cherryRed"
               />
             </div>
 
@@ -1028,7 +1028,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                 value={lessonsLearned}
                 onChange={(e) => setLessonsLearned(e.target.value)}
                 placeholder="What did you learn? What will you optimize?"
-                className="min-h-20 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl resize-none focus:border-luxuryGold"
+                className="min-h-20 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl resize-none focus:border-cherryRed"
               />
             </div>
 
@@ -1050,8 +1050,8 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#1B1716]/30 h-24 cursor-pointer hover:bg-white/5 hover:border-luxuryGold/40 transition-all shadow-inner group">
-                  <Plus className="h-5 w-5 text-zinc-500 group-hover:text-luxuryGold group-hover:scale-110 transition-all mb-1" />
+                <label className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#1B1716]/30 h-24 cursor-pointer hover:bg-white/5 hover:border-cherryRed/40 transition-all shadow-inner group">
+                  <Plus className="h-5 w-5 text-zinc-500 group-hover:text-cherryRed group-hover:scale-110 transition-all mb-1" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400 transition-colors">
                     Upload Progress Image
                   </span>
@@ -1084,7 +1084,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                 placeholder="e.g. github.com/username/project"
                 value={attachLink}
                 onChange={(e) => setAttachLink(e.target.value)}
-                className="h-10 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl focus:border-luxuryGold"
+                className="h-10 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl focus:border-cherryRed"
               />
             </div>
 
@@ -1098,7 +1098,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                 type="button"
                 onClick={() => setIsPublicReflection(!isPublicReflection)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isPublicReflection ? "bg-luxuryGold" : "bg-zinc-800"
+                  isPublicReflection ? "bg-cherryRed" : "bg-zinc-800"
                 }`}
               >
                 <span
@@ -1108,11 +1108,11 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                 />
               </button>
             </div>
-
+ 
             <button
               onClick={submitFinishSession}
               disabled={submittingReflection}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-luxuryGold text-xs font-black uppercase tracking-wider text-black shadow-lg hover:bg-luxuryGold/95 active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cherryRed text-xs font-black uppercase tracking-wider text-white shadow-lg hover:bg-cherryRed/95 active:scale-[0.98] disabled:opacity-50"
             >
               {submittingReflection ? "Locking in recap..." : "Finalize log & claim Aura"}
             </button>
@@ -1124,14 +1124,14 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
       {activeFocusMission && (
         <div 
           className="fixed inset-0 bg-[#0F0C0B] z-[990] flex flex-col justify-between p-6 sm:p-10 select-none overflow-y-auto text-cotton"
-          style={{ backgroundImage: "radial-gradient(circle at 50% 30%, rgba(197, 168, 128, 0.05), transparent 45%), radial-gradient(circle at 10% 80%, rgba(129, 1, 0, 0.05), transparent 35%), linear-gradient(to bottom, #110D0C, #090707)" }}
+          style={{ backgroundImage: "radial-gradient(circle at 50% 30%, rgba(210, 4, 45, 0.05), transparent 45%), radial-gradient(circle at 10% 80%, rgba(129, 1, 0, 0.05), transparent 35%), linear-gradient(to bottom, #110D0C, #090707)" }}
         >
           {/* Subtle Ambient Particles Floating */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30 z-0">
             {[...Array(6)].map((_, i) => (
               <motion.div
                 key={i}
-                className="absolute rounded-full bg-luxuryGold/20 filter blur-xl animate-pulse"
+                className="absolute rounded-full bg-cherryRed/20 filter blur-xl animate-pulse"
                 style={{
                   width: `${100 + i * 50}px`,
                   height: `${100 + i * 50}px`,
@@ -1167,13 +1167,9 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
               
               {/* Premium Glow Rings behind */}
               <div 
-                className="absolute h-64 w-64 sm:h-76 sm:w-76 rounded-full border border-luxuryGold/10 blur-[8px] pointer-events-none"
+                className="absolute h-64 w-64 sm:h-76 sm:w-76 rounded-full border border-cherryRed/10 blur-[8px] pointer-events-none"
                 style={{
-                  boxShadow: `0 0 50px ${
-                    activeTimerDuration > 0
-                      ? "rgba(197, 168, 128, 0.12)"
-                      : "rgba(222, 33, 30, 0.12)"
-                  }`
+                  boxShadow: `0 0 50px rgba(210, 4, 45, 0.12)`
                 }}
               />
               
@@ -1192,16 +1188,14 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                   cx="100"
                   cy="100"
                   r="85"
-                  className="stroke-luxuryGold fill-transparent"
+                  className="stroke-cherryRed fill-transparent"
                   strokeWidth="7"
                   strokeDasharray="534"
                   strokeDashoffset={534 - (534 * getTimerPercentage()) / 100}
                   strokeLinecap="round"
                   style={{
-                    stroke: activeTimerDuration > 0 ? "#C5A880" : "#DE211E",
-                    filter: activeTimerDuration > 0 
-                      ? "drop-shadow(0 0 8px rgba(197,168,128,0.5))" 
-                      : "drop-shadow(0 0 8px rgba(222,33,30,0.5))"
+                    stroke: "#D2042D",
+                    filter: "drop-shadow(0 0 8px rgba(210,4,45,0.5))"
                   }}
                 />
               </svg>
@@ -1220,7 +1214,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
             <div className="w-full max-w-sm space-y-4 bg-zinc-950/60 border border-white/5 p-5 rounded-3xl shadow-2xl backdrop-blur-xl">
               <div className="flex justify-between items-center text-left">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Runway Checklist</span>
-                <span className="text-[10px] font-black text-luxuryGold tracking-wider">
+                <span className="text-[10px] font-black text-cherryRed tracking-wider">
                   {(missionTasks[activeFocusMission.id] || []).filter(t => t.completed).length} / {(missionTasks[activeFocusMission.id] || []).length} DONE
                 </span>
               </div>
@@ -1241,7 +1235,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                 />
                 <button
                   onClick={() => handleAddTask(activeFocusMission.id)}
-                  className="h-9 px-4 rounded-xl bg-luxuryGold/10 border border-luxuryGold/30 text-[10px] text-luxuryGold font-black hover:bg-luxuryGold/20 active:scale-95 transition shrink-0"
+                  className="h-9 px-4 rounded-xl bg-cherryRed/10 border border-cherryRed/30 text-[10px] text-cherryRed font-black hover:bg-cherryRed/20 active:scale-95 transition shrink-0"
                 >
                   Add
                 </button>
@@ -1260,7 +1254,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                         className="flex items-center gap-2 text-xs font-semibold text-cotton/90 truncate flex-1 text-left"
                       >
                         {t.completed ? (
-                          <CheckCircle2 className="h-4.5 w-4.5 text-luxuryGold shrink-0" />
+                          <CheckCircle2 className="h-4.5 w-4.5 text-cherryRed shrink-0 animate-pulse" />
                         ) : (
                           <Square className="h-4.5 w-4.5 text-zinc-600 shrink-0" />
                         )}
@@ -1292,7 +1286,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
               </button>
               <button
                 onClick={() => initiateFinishSession(activeFocusMission)}
-                className="flex-1 flex h-12 items-center justify-center gap-2 rounded-xl bg-luxuryGold text-xs font-black uppercase tracking-wider text-black hover:bg-luxuryGold/95 active:scale-[0.98] transition shadow-[0_0_20px_rgba(197,168,128,0.2)]"
+                className="flex-1 flex h-12 items-center justify-center gap-2 rounded-xl bg-cherryRed text-xs font-black uppercase tracking-wider text-white hover:bg-[#810100] active:scale-[0.98] transition shadow-[0_0_20px_rgba(210,4,45,0.2)]"
               >
                 Complete Runway
               </button>

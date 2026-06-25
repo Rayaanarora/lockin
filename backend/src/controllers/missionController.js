@@ -35,6 +35,10 @@ async function createMission(req, res) {
       select: { collegeId: true }
     });
 
+    if (!creatorUser) {
+      return res.status(400).json({ error: "User session is invalid. Please log out and sign in again." });
+    }
+
     const verificationCode = String(Math.floor(1000 + Math.random() * 9000));
     const mission = await prisma.mission.create({
       data: {
@@ -159,7 +163,7 @@ async function getMissionFeed(req, res) {
 
       const acceptedParticipants = (m.participations || [])
         .map((p) => {
-          if (!p.user) return null;
+          if (!p.user || p.user.id === m.createdBy) return null;
           return {
             id: p.user.id,
             name: p.user.name,
@@ -208,6 +212,15 @@ async function acceptMission(req, res) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      const userExists = await tx.user.findUnique({
+        where: { id: Number(userId) },
+        select: { id: true }
+      });
+
+      if (!userExists) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
       const activeCount = await tx.participation.count({
         where: {
           userId: Number(userId),
@@ -277,6 +290,9 @@ async function acceptMission(req, res) {
       status: result.status
     });
   } catch (error) {
+    if (error.message === "USER_NOT_FOUND") {
+      return res.status(400).json({ error: "User session is invalid. Please log out and sign in again." });
+    }
     if (error.message === "LOCKED_OUT") {
       return res.status(423).json({ error: "Runway full. Mark attendance on your active missions before accepting more." });
     }
@@ -416,7 +432,7 @@ async function getActiveMissions(req, res) {
       const acceptedParticipants = (m.participations || [])
         .filter(p => ["Accepted", "Executing", "Completed"].includes(p.status))
         .map((p) => {
-          if (!p.user) return null;
+          if (!p.user || p.user.id === m.createdBy) return null;
           return {
             id: p.user.id,
             name: p.user.name,
@@ -761,32 +777,32 @@ async function getCategories(req, res) {
       categories.map((c) => ({
         id: c.id,
         categoryName: c.categoryName,
-        emoji: c.emoji || "✨",
+        emoji: c.emoji || null,
         colorHex: c.colorHex || "#a1a1aa"
       }))
     );
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
     res.json([
-      { id: 1, categoryName: "Coding", emoji: "💻", colorHex: "#3b82f6" },
-      { id: 2, categoryName: "AI", emoji: "🤖", colorHex: "#8b5cf6" },
-      { id: 3, categoryName: "Startups", emoji: "🚀", colorHex: "#f59e0b" },
-      { id: 4, categoryName: "Hackathons", emoji: "⚡", colorHex: "#ef4444" },
-      { id: 5, categoryName: "Open Source", emoji: "🌐", colorHex: "#10b981" },
-      { id: 6, categoryName: "Design", emoji: "🎨", colorHex: "#ec4899" },
-      { id: 7, categoryName: "Content Creation", emoji: "📱", colorHex: "#f97316" },
-      { id: 8, categoryName: "Fitness", emoji: "💪", colorHex: "#14b8a6" },
-      { id: 9, categoryName: "Study Sessions", emoji: "📚", colorHex: "#6366f1" },
-      { id: 10, categoryName: "Research", emoji: "🔬", colorHex: "#0ea5e9" },
-      { id: 11, categoryName: "Placements", emoji: "🎯", colorHex: "#e11d48" },
-      { id: 12, categoryName: "Competitive Programming", emoji: "🏆", colorHex: "#eab308" },
-      { id: 13, categoryName: "Reading", emoji: "📖", colorHex: "#a855f7" },
-      { id: 14, categoryName: "Languages", emoji: "🗣️", colorHex: "#06b6d4" },
-      { id: 15, categoryName: "Career", emoji: "💼", colorHex: "#64748b" },
-      { id: 16, categoryName: "Projects", emoji: "🛠️", colorHex: "#f43f5e" },
-      { id: 17, categoryName: "Networking", emoji: "🤝", colorHex: "#22c55e" },
-      { id: 18, categoryName: "Events", emoji: "🎪", colorHex: "#d946ef" },
-      { id: 19, categoryName: "Other", emoji: "✨", colorHex: "#a1a1aa" }
+      { id: 1, categoryName: "Coding", emoji: null, colorHex: "#3b82f6" },
+      { id: 2, categoryName: "AI", emoji: null, colorHex: "#8b5cf6" },
+      { id: 3, categoryName: "Startups", emoji: null, colorHex: "#f59e0b" },
+      { id: 4, categoryName: "Hackathons", emoji: null, colorHex: "#ef4444" },
+      { id: 5, categoryName: "Open Source", emoji: null, colorHex: "#10b981" },
+      { id: 6, categoryName: "Design", emoji: null, colorHex: "#ec4899" },
+      { id: 7, categoryName: "Content Creation", emoji: null, colorHex: "#f97316" },
+      { id: 8, categoryName: "Fitness", emoji: null, colorHex: "#14b8a6" },
+      { id: 9, categoryName: "Study Sessions", emoji: null, colorHex: "#6366f1" },
+      { id: 10, categoryName: "Research", emoji: null, colorHex: "#0ea5e9" },
+      { id: 11, categoryName: "Placements", emoji: null, colorHex: "#e11d48" },
+      { id: 12, categoryName: "Competitive Programming", emoji: null, colorHex: "#eab308" },
+      { id: 13, categoryName: "Reading", emoji: null, colorHex: "#a855f7" },
+      { id: 14, categoryName: "Languages", emoji: null, colorHex: "#06b6d4" },
+      { id: 15, categoryName: "Career", emoji: null, colorHex: "#64748b" },
+      { id: 16, categoryName: "Projects", emoji: null, colorHex: "#f43f5e" },
+      { id: 17, categoryName: "Networking", emoji: null, colorHex: "#22c55e" },
+      { id: 18, categoryName: "Events", emoji: null, colorHex: "#d946ef" },
+      { id: 19, categoryName: "Other", emoji: null, colorHex: "#a1a1aa" }
     ]);
   }
 }

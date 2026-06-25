@@ -7,12 +7,14 @@ const {
   updateUser,
   getLeaderboard,
   getUserHeat,
-  getPublicProfile
+  getPublicProfile,
+  searchUsers
 } = require("../controllers/userController");
 
 const router = express.Router();
 
 router.post("/", asyncHandler(createUser));
+router.get("/search", asyncHandler(searchUsers));
 router.get("/leaderboard", asyncHandler(getLeaderboard));
 router.get("/:id", asyncHandler(getUser));
 router.get("/:id/lock", asyncHandler(getLockStatus));

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Flame, Activity, User as UserIcon, Sparkles } from "lucide-react";
+import { Flame, Activity, User as UserIcon, Rss } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface NavProps {
@@ -11,15 +11,15 @@ interface NavProps {
 
 export default function Nav({ tab, setTab }: NavProps) {
   const items = [
-    { key: "feed", label: "Missions", icon: Flame, color: "text-cherryRed" },
-    { key: "discover", label: "Discover", icon: Sparkles, color: "text-luxuryGold" },
-    { key: "active", label: "Queue", icon: Activity, color: "text-[#C5A880]" },
-    { key: "profile", label: "Profile", icon: UserIcon, color: "text-cotton/80" }
+    { key: "missions", label: "Missions", icon: Flame, color: "text-cherryRed" },
+    { key: "feed", label: "Feed", icon: Rss, color: "text-cherryRed" },
+    { key: "active", label: "Queue", icon: Activity, color: "text-white" },
+    { key: "profile", label: "Profile", icon: UserIcon, color: "text-white/80" }
   ] as const;
 
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-5 z-40 md:hidden mx-auto max-w-[390px] px-5">
-      <div className="relative flex items-center justify-between rounded-[26px] border border-white/[0.08] bg-[#141110]/85 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl">
+      <div className="relative flex items-center justify-between rounded-[26px] border border-white/[0.08] bg-black/85 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl">
         {items.map(({ key, label, icon: Icon, color }) => {
           const isActive = tab === key;
           return (
@@ -42,7 +42,7 @@ export default function Nav({ tab, setTab }: NavProps) {
               />
               <span
                 className={`text-[9px] font-black uppercase tracking-[.14em] transition-all duration-200 leading-none ${
-                  isActive ? "text-cotton" : "text-zinc-600"
+                  isActive ? "text-white" : "text-zinc-600"
                 }`}
               >
                 {label}

@@ -4,11 +4,13 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote, Trash2, X } from "lucide-react";
 import { toPng } from "html-to-image";
+import ShareToFeedSheet from "./ShareToFeedSheet";
 
 interface RecapProps {
   isOpen: boolean;
   onClose: () => void;
   recapData: {
+    id?: number;
     recapType?: string;
     shareId?: string;
     sessionDuration?: number;
@@ -56,6 +58,7 @@ export default function LockinRecapCard({
   const [copied, setCopied] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTrashing, setIsTrashing] = useState(false);
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
   const {
     recapType = "session",
@@ -78,12 +81,12 @@ export default function LockinRecapCard({
 
   const streakVal = recapData.streak !== undefined ? recapData.streak : (recapData.currentStreak !== undefined ? recapData.currentStreak : 0);
   const categoryVal = recapData.categorySnapshot || recapData.topCategory || "None";
-  
+
   const isPeriod = recapType !== "session";
-  
+
   let statusText = isFailed ? "RUNWAY CRASHED" : "LOCKED IN";
   let subtitleText = recapData.missionTitle || recapData.missionName || "Focus Session";
-  
+
   if (isFailed) {
     statusText = "RUNWAY CRASHED";
   } else if (isPeriod) {
@@ -318,7 +321,7 @@ export default function LockinRecapCard({
           className="w-full max-w-[340px] sm:max-w-[380px] my-auto flex flex-col items-center"
         >
           {/* Card perspective container */}
-          <div 
+          <div
             onClick={() => setIsFlipped(!isFlipped)}
             className="cursor-pointer relative w-full select-none animate-fade-in"
             style={{
@@ -351,8 +354,8 @@ export default function LockinRecapCard({
                 }}
               >
                 {/* Accent stripe on the left edge */}
-                <div 
-                  className="absolute left-0 top-0 bottom-0 w-[3px]" 
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-[3px]"
                   style={{ backgroundColor: tierColor }}
                 />
 
@@ -381,21 +384,21 @@ export default function LockinRecapCard({
                 )}
 
                 {/* Ambient Background Grid Pattern */}
-                <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
-                     style={{ 
-                       backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)", 
-                       backgroundSize: "20px 20px", 
-                       backgroundPosition: "0 0, 10px 10px" 
-                     }} 
+                <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
+                  style={{
+                    backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)",
+                    backgroundSize: "20px 20px",
+                    backgroundPosition: "0 0, 10px 10px"
+                  }}
                 />
 
                 {/* Ambient glow orbs */}
-                <div 
-                  className="absolute -right-24 -top-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none" 
+                <div
+                  className="absolute -right-24 -top-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none"
                   style={{ backgroundColor: glowColor }}
                 />
-                <div 
-                  className="absolute -left-24 -bottom-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none" 
+                <div
+                  className="absolute -left-24 -bottom-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none"
                   style={{ backgroundColor: glowColor }}
                 />
 
@@ -417,7 +420,7 @@ export default function LockinRecapCard({
                     <span className="text-[10px] sm:text-[12px] font-black tracking-[0.25em] text-[#EDEBDE]">LOCKIN</span>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
-                    <span 
+                    <span
                       className="font-black text-[9px] sm:text-[10px] uppercase tracking-[0.2em] leading-none"
                       style={{ color: tierColor }}
                     >
@@ -454,7 +457,7 @@ export default function LockinRecapCard({
                       </>
                     )}
                   </div>
-                  <div 
+                  <div
                     className="text-[9px] sm:text-[10px] font-black tracking-[0.2em] uppercase mt-1"
                     style={{ color: tierColor }}
                   >
@@ -514,23 +517,23 @@ export default function LockinRecapCard({
                 }}
               >
                 {/* Ambient glow orbs */}
-                <div 
-                  className="absolute -right-24 -bottom-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none" 
+                <div
+                  className="absolute -right-24 -bottom-24 w-52 h-52 rounded-full blur-[80px] pointer-events-none"
                   style={{ backgroundColor: glowColor }}
                 />
-                
+
                 {/* Circuit Grid pattern */}
-                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-                     style={{ 
-                       backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)", 
-                       backgroundSize: "24px 24px", 
-                       backgroundPosition: "0 0, 12px 12px" 
-                     }} 
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                  style={{
+                    backgroundImage: "radial-gradient(#EDEBDE 1px, transparent 1px), radial-gradient(#EDEBDE 1px, transparent 1px)",
+                    backgroundSize: "24px 24px",
+                    backgroundPosition: "0 0, 12px 12px"
+                  }}
                 />
 
                 {/* Accent stripe on the right edge */}
-                <div 
-                  className="absolute right-0 top-0 bottom-0 w-[3px]" 
+                <div
+                  className="absolute right-0 top-0 bottom-0 w-[3px]"
                   style={{ backgroundColor: tierColor }}
                 />
 
@@ -596,9 +599,9 @@ export default function LockinRecapCard({
                         <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-zinc-500">
                           Project Link
                         </div>
-                        <a 
-                          href={link.startsWith("http") ? link : `https://${link}`} 
-                          target="_blank" 
+                        <a
+                          href={link.startsWith("http") ? link : `https://${link}`}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 rounded-xl border border-white/5 bg-black/40 px-3 py-2 text-[10px] sm:text-[11px] font-bold text-luxuryGold hover:bg-white/5 transition truncate"
                           onClick={(e) => e.stopPropagation()}
@@ -609,16 +612,16 @@ export default function LockinRecapCard({
                     )}
                     {!reflectionText && !lessonsLearned && !screenshot && !link && (
                       <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                        <div 
+                        <div
                           className="p-5.5 rounded-3xl border border-white/10 bg-black/30 relative overflow-hidden group shadow-inner"
                           style={{ boxShadow: `inset 0 0 20px ${glowColor}` }}
                         >
-                          <Flame 
-                            className="h-14 w-14 animate-pulse" 
-                            style={{ 
+                          <Flame
+                            className="h-14 w-14 animate-pulse"
+                            style={{
                               color: tierColor,
-                              filter: `drop-shadow(0 0 16px ${tierColor}70)` 
-                            }} 
+                              filter: `drop-shadow(0 0 16px ${tierColor}70)`
+                            }}
                           />
                         </div>
                         <div className="text-center space-y-1">
@@ -672,15 +675,23 @@ export default function LockinRecapCard({
                 Trash Card
               </button>
             ) : (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 hover:brightness-95 text-black font-black px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase"
-                style={{ backgroundColor: tierColor, color: tier === "gold" || tier === "silver" ? "#120F0D" : "#EDEBDE" }}
-              >
-                <Download size={13} />
-                {saving ? "Exporting..." : "Export Card"}
-              </button>
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 hover:brightness-95 text-black font-black px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition disabled:opacity-50 tracking-wider uppercase truncate"
+                  style={{ backgroundColor: tierColor, color: tier === "gold" || tier === "silver" ? "#120F0D" : "#EDEBDE" }}
+                >
+                  <Download size={13} />
+                  {saving ? "Exporting..." : "Export Card"}
+                </button>
+                <button
+                  onClick={() => setIsShareSheetOpen(true)}
+                  className="flex-1 bg-cherryRed text-white font-black px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-red-800 tracking-wider uppercase truncate"
+                >
+                  Post to Feed
+                </button>
+              </>
             )}
 
             <button
@@ -692,6 +703,13 @@ export default function LockinRecapCard({
             </button>
           </div>
         </motion.div>
+
+        <ShareToFeedSheet
+          isOpen={isShareSheetOpen}
+          onClose={() => setIsShareSheetOpen(false)}
+          recapId={recapData.id}
+          recapData={recapData}
+        />
       </motion.div>
     </AnimatePresence>
   );

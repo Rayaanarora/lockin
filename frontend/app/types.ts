@@ -14,6 +14,8 @@ export interface User {
   interests?: string;
   campus_id?: number;
   campus_name?: string;
+  verified_at?: string;
+  avatar_url?: string | null;
 }
 
 export interface Mission {
@@ -66,3 +68,57 @@ export interface InterestCategory {
   emoji: string;
   color: string;
 }
+
+export interface Post {
+  id: number;
+  userId: number;
+  recapId?: number | null;
+  imageUrl?: string | null;
+  caption?: string | null;
+  visibility: "college" | "followers" | "everyone";
+  createdAt: string;
+  user: {
+    id: number;
+    name: string;
+    department: string;
+    college: string;
+    reputationScore: number;
+    avatarUrl?: string | null;
+  };
+  recap?: {
+    id: number;
+    sessionDuration: number;
+    tasksCompleted: number;
+    streak: number;
+    categorySnapshot: string;
+    missionTitle: string;
+    generatedAt: string;
+  } | null;
+  commentCount: number;
+  reactionCounts: {
+    "🔥": number;
+    "💀": number;
+    "❤️": number;
+    "🧠": number;
+  };
+  userReactions: {
+    "🔥": boolean;
+    "💀": boolean;
+    "❤️": boolean;
+    "🧠": boolean;
+  };
+}
+
+export interface Comment {
+  id: number;
+  postId: number;
+  userId: number;
+  text: string;
+  createdAt: string;
+  user: {
+    id: number;
+    name: string;
+    department: string;
+  };
+}
+

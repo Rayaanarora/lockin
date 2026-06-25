@@ -251,26 +251,39 @@ async function finishSession(req, res) {
       }
     });
 
-    // 11. Create a FeedItem
-    await prisma.feedItem.create({
-      data: {
-        userId: numericUserId,
-        type: "mission_completed",
-        title: isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`,
-        description: reflection?.reflectionText || null,
-        metadata: {
-          sessionDuration,
-          tasksCompleted: tasksCompleted || 0,
-          category: mission.category?.categoryName || "Other",
-          missionType: mission.missionType || "group",
-          participantCount,
-          screenshot: reflection?.screenshot || null,
-          link: reflection?.link || null,
-          isFailed: isFailed
-        },
-        recapId: recap.id
-      }
-    });
+    // 11. Create a FeedItem and Post if public
+    if (recap.isPublic) {
+      await prisma.feedItem.create({
+        data: {
+          userId: numericUserId,
+          type: "mission_completed",
+          title: isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`,
+          description: reflection?.reflectionText || null,
+          metadata: {
+            sessionDuration,
+            tasksCompleted: tasksCompleted || 0,
+            category: mission.category?.categoryName || "Other",
+            missionType: mission.missionType || "group",
+            participantCount,
+            screenshot: reflection?.screenshot || null,
+            link: reflection?.link || null,
+            isFailed: isFailed
+          },
+          recapId: recap.id
+        }
+      });
+
+      await prisma.post.create({
+        data: {
+          userId: numericUserId,
+          recapId: recap.id,
+          imageUrl: reflection?.screenshot || null,
+          caption: reflection?.reflectionText || (isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`),
+          visibility: "everyone"
+        }
+      });
+    }
+
 
     res.status(201).json({
       ...recap,

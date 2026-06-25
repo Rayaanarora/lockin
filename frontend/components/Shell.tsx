@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { Flame, Activity, User as UserIcon, Sparkles } from "lucide-react";
+import { Flame, Activity, User as UserIcon, Rss } from "lucide-react";
 import { User } from "../app/types";
 
 interface ShellProps {
@@ -15,7 +15,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
   const isDesktopDashboard = !!user && !!tab && !!setTab;
 
   return (
-    <div className="min-h-screen w-full bg-[#0D0B0A] flex items-center justify-center p-0 overflow-hidden">
+    <div className="min-h-screen w-full bg-[#000000] flex items-center justify-center p-0 overflow-hidden">
       <main
         className={`relative flex text-white antialiased overflow-hidden
           ${isDesktopDashboard
@@ -23,7 +23,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
             : "h-screen w-full md:h-[860px] md:max-w-[430px] md:flex-col md:rounded-[44px] md:border md:border-white/[0.07] md:shadow-[0_40px_120px_rgba(0,0,0,0.98)] md:ring-1 md:ring-white/[0.04]"
           }
         `}
-        style={{ background: "linear-gradient(160deg, #161210 0%, #0D0A09 100%)" }}
+        style={{ background: "linear-gradient(160deg, #09090b 0%, #000000 100%)" }}
       >
         {/* Grid noise */}
         <div className="grid-noise pointer-events-none absolute inset-0 opacity-100 mix-blend-overlay z-0" />
@@ -39,13 +39,13 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
           transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="pointer-events-none absolute -left-20 bottom-28 h-[480px] w-[480px] rounded-full bg-luxuryMaroon/8 blur-[150px]"
+          className="pointer-events-none absolute -left-20 bottom-28 h-[480px] w-[480px] rounded-full bg-cherryRed/5 blur-[150px]"
           style={{ willChange: "transform, opacity" }}
           animate={{ y: [0, -35, 0], opacity: [0.25, 0.45, 0.25], scale: [1, 1.04, 1] }}
           transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="pointer-events-none absolute right-1/3 bottom-12 h-72 w-72 rounded-full bg-luxuryGold/5 blur-[90px]"
+          className="pointer-events-none absolute right-1/3 bottom-12 h-72 w-72 rounded-full bg-white/5 blur-[90px]"
           style={{ willChange: "opacity" }}
           animate={{ opacity: [0.15, 0.28, 0.15] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
@@ -73,10 +73,10 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
               {/* Nav */}
               <nav className="space-y-1">
                 {[
-                  { key: "feed", label: "Missions Feed", icon: Flame, color: "text-cherryRed" },
-                  { key: "discover", label: "Discover", icon: Sparkles, color: "text-luxuryGold" },
-                  { key: "active", label: "Active Queue", icon: Activity, color: "text-[#C5A880]" },
-                  { key: "profile", label: "Profile", icon: UserIcon, color: "text-cotton/80" }
+                  { key: "missions", label: "Missions", icon: Flame, color: "text-cherryRed" },
+                  { key: "feed", label: "Social Feed", icon: Rss, color: "text-cherryRed" },
+                  { key: "active", label: "Active Queue", icon: Activity, color: "text-white" },
+                  { key: "profile", label: "Profile", icon: UserIcon, color: "text-white/80" }
                 ].map((item) => {
                   const isActive = tab === item.key;
                   const Icon = item.icon;
@@ -109,12 +109,12 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
             {/* User widget */}
             <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4">
               <div className="flex items-center gap-3.5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-white/[0.07] bg-black/50 text-[13px] font-black text-cotton">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-white/[0.07] bg-black/50 text-[13px] font-black text-white">
                   {user.name ? user.name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase() : "??"}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-cotton truncate leading-tight">{user.name}</p>
-                  <p className="text-[11px] font-medium text-luxuryGold/90 mt-1 flex items-center gap-1 leading-none">
+                  <p className="text-[13px] font-semibold text-white truncate leading-tight">{user.name}</p>
+                  <p className="text-[11px] font-medium text-white/70 mt-1 flex items-center gap-1 leading-none">
                     <img src="/aura-bolt.png" alt="Aura" className="h-3 w-3 object-contain shrink-0" />
                     <span>{user.reputation_score ?? 0} Aura</span>
                   </p>

@@ -138,25 +138,25 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       .then((data: InterestCategory[]) => setInterestCategories(data))
       .catch(() => {
         setInterestCategories([
-          { id: 1, name: "Coding", emoji: "💻", color: "#3b82f6" },
-          { id: 2, name: "AI", emoji: "🤖", color: "#8b5cf6" },
-          { id: 3, name: "Startups", emoji: "🚀", color: "#f59e0b" },
-          { id: 4, name: "Hackathons", emoji: "⚡", color: "#ef4444" },
-          { id: 5, name: "Open Source", emoji: "🌐", color: "#10b981" },
-          { id: 6, name: "Design", emoji: "🎨", color: "#ec4899" },
-          { id: 7, name: "Content Creation", emoji: "📱", color: "#f97316" },
-          { id: 8, name: "Fitness", emoji: "💪", color: "#14b8a6" },
-          { id: 9, name: "Study Sessions", emoji: "📚", color: "#6366f1" },
-          { id: 10, name: "Research", emoji: "🔬", color: "#0ea5e9" },
-          { id: 11, name: "Placements", emoji: "🎯", color: "#e11d48" },
-          { id: 12, name: "Competitive Programming", emoji: "🏆", color: "#eab308" },
-          { id: 13, name: "Reading", emoji: "📖", color: "#a855f7" },
-          { id: 14, name: "Languages", emoji: "🗣️", color: "#06b6d4" },
-          { id: 15, name: "Career", emoji: "💼", color: "#64748b" },
-          { id: 16, name: "Projects", emoji: "🛠️", color: "#f43f5e" },
-          { id: 17, name: "Networking", emoji: "🤝", color: "#22c55e" },
-          { id: 18, name: "Events", emoji: "🎪", color: "#d946ef" },
-          { id: 19, name: "Other", emoji: "✨", color: "#a1a1aa" }
+          { id: 1, name: "Coding", emoji: null, color: "#3b82f6" },
+          { id: 2, name: "AI", emoji: null, color: "#8b5cf6" },
+          { id: 3, name: "Startups", emoji: null, color: "#f59e0b" },
+          { id: 4, name: "Hackathons", emoji: null, color: "#ef4444" },
+          { id: 5, name: "Open Source", emoji: null, color: "#10b981" },
+          { id: 6, name: "Design", emoji: null, color: "#ec4899" },
+          { id: 7, name: "Content Creation", emoji: null, color: "#f97316" },
+          { id: 8, name: "Fitness", emoji: null, color: "#14b8a6" },
+          { id: 9, name: "Study Sessions", emoji: null, color: "#6366f1" },
+          { id: 10, name: "Research", emoji: null, color: "#0ea5e9" },
+          { id: 11, name: "Placements", emoji: null, color: "#e11d48" },
+          { id: 12, name: "Competitive Programming", emoji: null, color: "#eab308" },
+          { id: 13, name: "Reading", emoji: null, color: "#a855f7" },
+          { id: 14, name: "Languages", emoji: null, color: "#06b6d4" },
+          { id: 15, name: "Career", emoji: null, color: "#64748b" },
+          { id: 16, name: "Projects", emoji: null, color: "#f43f5e" },
+          { id: 17, name: "Networking", emoji: null, color: "#22c55e" },
+          { id: 18, name: "Events", emoji: null, color: "#d946ef" },
+          { id: 19, name: "Other", emoji: null, color: "#a1a1aa" }
         ]);
       });
   }, []);
@@ -604,7 +604,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
           { icon: Zap, color: "text-cherryRed", text: "Accept missions from campus builders" },
           { icon: Timer, color: "text-zinc-300", text: "Focus Lock — prove the work is done" },
           { icon: Star, color: "text-cherryRed", text: "Rate the vibe, earn Aura points" },
-          { icon: Trophy, color: "text-luxuryGold", text: "Climb your campus leaderboard" },
+          { icon: Trophy, color: "text-cherryRed", text: "Climb your campus leaderboard" },
         ].map(({ icon: Icon, color, text }, i) => (
           <motion.div
             key={text}
@@ -624,7 +624,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.68 }}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/30 bg-cherryRed py-4 text-[13px] font-bold text-cotton shadow-[0_0_32px_rgba(129,1,0,.3)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/30 bg-cherryRed py-4 text-[13px] font-bold text-white shadow-[0_0_32px_rgba(210,4,45,.35)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
       >
         <Flame className="h-4 w-4 fill-current" />
         Let's Lock In
@@ -650,7 +650,7 @@ function CampusStep({
   return (
     <div className="space-y-6">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
           Step 1 of 3
         </span>
         <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
@@ -759,7 +759,7 @@ function CampusStep({
                 setForm((f: any) => ({ ...f, campusName: e.target.value }))
               }
               placeholder="e.g. VIT Bhopal, Lovely Professional University..."
-              className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
+              className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
             />
             <p className="text-[9px] text-zinc-600 leading-tight">
               Make sure spelling is exact. This is how your campus community will find you.
@@ -778,7 +778,7 @@ function CampusStep({
               setForm((f: any) => ({ ...f, college_id: e.target.value }))
             }
             placeholder="e.g. RA2211003010123"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 uppercase focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 uppercase focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
               validation.college_id ? "border-cherryRed/50" : ""
             }`}
           />
@@ -796,7 +796,7 @@ function CampusStep({
               setForm((f: any) => ({ ...f, department: e.target.value }))
             }
             placeholder="e.g. CSE, 3rd Year"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
               validation.department ? "border-cherryRed/50" : ""
             }`}
           />
@@ -814,7 +814,7 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
   return (
     <div className="space-y-6">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
           Step 2 of 3
         </span>
         <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
@@ -835,7 +835,7 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
               setForm((f: any) => ({ ...f, name: e.target.value }))
             }
             placeholder="e.g. Faheem"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
               validation.name ? "border-cherryRed/50" : ""
             }`}
           />
@@ -863,7 +863,7 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
             }
             placeholder="What are you building? What do you vibe with?"
             rows={3}
-            className="w-full resize-none rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-zinc-700 outline-none transition focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
+            className="w-full resize-none rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-zinc-700 outline-none transition focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
           />
         </div>
 
@@ -879,7 +879,7 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
               setForm((f: any) => ({ ...f, location: e.target.value }))
             }
             placeholder="e.g. Main Library, Block B Canteen, IT Lab"
-            className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
+            className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
           />
         </div>
 
@@ -895,7 +895,7 @@ function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCa
   return (
     <div className="space-y-6">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
           Step 3 of 3
         </span>
         <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
@@ -919,7 +919,7 @@ function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCa
                 setForm((f: any) => ({ ...f, instagram: e.target.value.replace("@", "") }))
               }
               placeholder="username"
-              className="h-11 border-white/10 bg-black/40 pl-7 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
+              className="h-11 border-white/10 bg-black/40 pl-7 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
             />
           </div>
         </div>
@@ -938,7 +938,7 @@ function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCa
                 setForm((f: any) => ({ ...f, github: e.target.value.replace("@", "") }))
               }
               placeholder="username"
-              className="h-11 border-white/10 bg-black/40 pl-7 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
+              className="h-11 border-white/10 bg-black/40 pl-7 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
             />
           </div>
         </div>
@@ -958,7 +958,7 @@ function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCa
                   onClick={() => toggleInterest(String(cat.id))}
                   className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95 ${
                     selected
-                      ? "border-luxuryGold bg-luxuryGold/10 text-white"
+                      ? "border-cherryRed bg-cherryRed/10 text-white"
                       : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
                   }`}
                   style={{
@@ -967,7 +967,6 @@ function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCa
                     color: selected ? cat.color : undefined
                   }}
                 >
-                  <span className="text-sm">{cat.emoji}</span>
                   {cat.name}
                   {selected && <Check className="h-3 w-3" />}
                 </button>
@@ -1078,7 +1077,7 @@ function TutorialStep({
           animate={{ opacity: 1, y: 0 }}
           onClick={onSubmit}
           disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/35 bg-[#810100] py-4 text-sm font-black uppercase tracking-widest text-cotton shadow-[0_0_30px_rgba(129,1,0,0.25)] transition-all hover:bg-[#810100]/95 active:scale-[0.97] disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/35 bg-cherryRed py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
         >
           <Flame className="h-4 w-4 fill-current" />
           {busy ? "Activating Pilot..." : "Initialize Lock-In"}
@@ -1093,7 +1092,7 @@ function EmailStep({ form, setForm, validation, onNext, busy }: any) {
   return (
     <div className="space-y-6">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
           Student Verification
         </span>
         <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
@@ -1115,7 +1114,7 @@ function EmailStep({ form, setForm, validation, onNext, busy }: any) {
               setForm((f: any) => ({ ...f, email: e.target.value }))
             }
             placeholder="e.g. name@srmist.edu.in"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
               validation.email ? "border-cherryRed/50" : ""
             }`}
           />
@@ -1127,7 +1126,7 @@ function EmailStep({ form, setForm, validation, onNext, busy }: any) {
         type="button"
         disabled={busy || !form.email}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-[#810100] py-4 text-sm font-sans font-medium text-cotton shadow-[0_0_30px_rgba(129,1,0,0.25)] transition-all hover:bg-[#810100]/95 active:scale-[0.97] disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-cherryRed py-4 text-sm font-sans font-medium text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
       >
         {busy ? "Sending..." : "Send Verification Code →"}
       </button>
@@ -1140,7 +1139,7 @@ function OtpStep({ form, setForm, validation, onNext, busy, devOtp }: any) {
   return (
     <div className="space-y-6">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-luxuryGold">
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
           Check Your Inbox
         </span>
         <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
@@ -1163,7 +1162,7 @@ function OtpStep({ form, setForm, validation, onNext, busy, devOtp }: any) {
               setForm((f: any) => ({ ...f, otpCode: e.target.value.replace(/[^0-9]/g, "") }))
             }
             placeholder="XXXXXX"
-            className={`h-11 border-white/10 bg-black/40 text-center text-lg font-mono font-bold tracking-widest text-white placeholder-zinc-800 focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10 ${
+            className={`h-11 border-white/10 bg-black/40 text-center text-lg font-mono font-bold tracking-widest text-white placeholder-zinc-800 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
               validation.otpCode ? "border-cherryRed/50" : ""
             }`}
           />
@@ -1172,8 +1171,8 @@ function OtpStep({ form, setForm, validation, onNext, busy, devOtp }: any) {
 
         {/* Development Mode Helper */}
         {devOtp && (
-          <div className="rounded-xl border border-luxuryGold/20 bg-luxuryGold/5 p-3 text-[11px] font-sans font-semibold text-luxuryGold/90 leading-normal flex items-start gap-2 text-left">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-luxuryGold" />
+          <div className="rounded-xl border border-cherryRed/20 bg-cherryRed/5 p-3 text-[11px] font-sans font-semibold text-cherryRed/90 leading-normal flex items-start gap-2 text-left">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-cherryRed" />
             <div>
               <p className="font-bold text-white uppercase tracking-wider text-[9px] mb-0.5">Local Dev Mode</p>
               Use OTP: <span className="font-mono bg-black/40 px-1.5 py-0.5 rounded border border-white/5 font-black text-white">{devOtp}</span> (printed to terminal)
@@ -1186,7 +1185,7 @@ function OtpStep({ form, setForm, validation, onNext, busy, devOtp }: any) {
         type="button"
         disabled={busy || form.otpCode.length !== 6}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-[#810100] py-4 text-sm font-sans font-medium text-cotton shadow-[0_0_30px_rgba(129,1,0,0.25)] transition-all hover:bg-[#810100]/95 active:scale-[0.97] disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-cherryRed py-4 text-sm font-sans font-medium text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
       >
         {busy ? "Verifying..." : "Verify Code & Continue →"}
       </button>
@@ -1206,7 +1205,7 @@ function NextButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-luxuryGold/35 bg-luxuryGold py-4 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_20px_rgba(197,168,128,0.2)] transition-all hover:bg-luxuryGold/95 active:scale-[0.97]"
+      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/35 bg-cherryRed py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97]"
     >
       {label}
       <ChevronRight className="h-4 w-4" />

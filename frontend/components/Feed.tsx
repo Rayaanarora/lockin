@@ -213,7 +213,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                   boxShadow: selected ? `0 0 14px ${c.colorHex}28` : "none"
                 }}
               >
-                {c.emoji && <span className="text-xs">{c.emoji}</span>}
                 {c.categoryName}
               </button>
             );
@@ -295,20 +294,20 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               {/* Swipe overlay — accept */}
               <motion.div
                 style={{ opacity: opacityAccept }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-luxuryGold/[0.12] to-transparent backdrop-blur-[2px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-cherryRed/[0.12] to-transparent backdrop-blur-[2px]"
               >
-                <div className="rounded-2xl border border-luxuryGold/40 bg-black/80 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-luxuryGold uppercase shadow-[0_0_30px_rgba(197,168,128,.3)]">
-                  ✓ Lock In
+                <div className="rounded-2xl border border-cherryRed/40 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(210,4,45,.35)] flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-cherryRed stroke-[3]" /> Lock In
                 </div>
               </motion.div>
 
               {/* Swipe overlay — pass */}
               <motion.div
                 style={{ opacity: opacityPass }}
-                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-cherryRed/[0.15] to-transparent backdrop-blur-[2px]"
+                className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-white/[0.08] to-transparent backdrop-blur-[2px]"
               >
-                <div className="rounded-2xl border border-cherryRed/50 bg-black/80 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-cherryRed uppercase shadow-[0_0_30px_rgba(129,1,0,.4)]">
-                  ✕ Pass
+                <div className="rounded-2xl border border-white/20 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(255,255,255,.1)] flex items-center gap-1.5">
+                  <X className="h-4 w-4 text-white stroke-[3]" /> Pass
                 </div>
               </motion.div>
 
@@ -345,7 +344,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                       color: currentMission.category_color || "#ffa3a3"
                     }}
                   >
-                    {currentMission.category_emoji && <span className="text-[10px]">{currentMission.category_emoji}</span>}
                     {currentMission.category_name || "Mission"}
                   </span>
                 </div>
@@ -363,7 +361,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               {/* Meta block */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
-                  <CalendarClock className="h-4 w-4 text-luxuryGold shrink-0 opacity-80" />
+                  <CalendarClock className="h-4 w-4 text-white shrink-0 opacity-80" />
                   <span className="text-[12px] font-medium text-cotton/85">
                     {formatDate(currentMission.datetime)}
                   </span>
@@ -403,7 +401,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               <div key={i} className={`h-1 rounded-full transition-all ${i === 0 ? "w-5 bg-cherryRed/60" : "w-1.5 bg-white/10"}`} />
             ))}
           </div>
-          <span className="swipe-hint text-luxuryGold/50">Lock In →</span>
+          <span className="swipe-hint text-cherryRed/70">Lock In →</span>
         </div>
       )}
 
@@ -679,7 +677,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-luxuryGold/25 bg-luxuryGold text-[12px] font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(197,168,128,0.18)] hover:bg-luxuryGold/90 transition active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-cherryRed/25 bg-cherryRed text-[12px] font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(210,4,45,0.22)] hover:bg-cherryRed/90 transition active:scale-[0.98] disabled:opacity-50"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
               {submitting ? "Launching..." : "Launch Runway"}
