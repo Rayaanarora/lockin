@@ -7,6 +7,7 @@ import SocialFeed from "../../components/SocialFeed";
 import Header from "../../components/Header";
 import Nav from "../../components/Nav";
 import ProfileGate from "../../components/ProfileGate";
+import LoadingScreen from "../../components/LoadingScreen";
 import { User } from "../types";
 import { Flame } from "lucide-react";
 
@@ -62,13 +63,7 @@ export default function FeedPage() {
   }, []);
 
   if (loading) {
-    return (
-      <Shell>
-        <div className="flex min-h-screen items-center justify-center">
-          <Flame className="h-10 w-10 text-cherryRed animate-pulse" />
-        </div>
-      </Shell>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {

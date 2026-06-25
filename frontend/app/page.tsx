@@ -15,6 +15,7 @@ import Feed from "../components/Feed";
 import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
 import SocialFeed from "../components/SocialFeed";
+import LoadingScreen from "../components/LoadingScreen";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
@@ -187,13 +188,7 @@ export default function Home() {
   }, [tab, user, locked]);
 
   if (loading) {
-    return (
-      <Shell>
-        <div className="flex min-h-screen items-center justify-center">
-          <Flame className="h-10 w-10 text-cherryRed animate-pulse" />
-        </div>
-      </Shell>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {
