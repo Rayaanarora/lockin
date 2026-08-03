@@ -165,6 +165,42 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       });
   }, []);
 
+  // Detect email-verification redirect: Supabase fires SIGNED_IN after the
+  // user clicks the confirmation link, which reloads the page and loses
+  // React state (tempUserId). Recover by calling /api/auth/profile here.
+  useEffect(() => {
+    if (!supabase) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        // If there is already a tempUserId (in-memory session), nothing to do.
+        if (tempUserId) return;
+        // Also skip if the user is already fully onboarded — page.tsx handles that.
+        try {
+          const syncRes = await api("/auth/profile", { method: "POST" });
+          if (syncRes?.user) {
+            const isIncomplete = !syncRes.user.department || !syncRes.user.college;
+            if (isIncomplete) {
+              setTempUserId(syncRes.user.id);
+              setForm(f => ({
+                ...f,
+                campusId: "",
+                campusName: "",
+                name: syncRes.user.name || f.name,
+              }));
+              setDirection(1);
+              setStep(3);
+            }
+            // If complete, page.tsx's own auth listener will call onReady.
+          }
+        } catch (e) {
+          console.warn("[ProfileGate] Could not sync profile on SIGNED_IN:", e);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tempUserId]);
+
   const filteredCampuses = campusSearch.trim()
     ? campuses.filter((c) =>
         c.name.toLowerCase().includes(campusSearch.toLowerCase()) ||
@@ -321,8 +357,24 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   }
 
   async function submit() {
-    if (!tempUserId) {
-      setError("Session expired. Please verify your email again.");
+    let resolvedUserId = tempUserId;
+
+    // If tempUserId was lost (e.g. page reload after email verification),
+    // try to recover it from the active Supabase session.
+    if (!resolvedUserId && supabase) {
+      try {
+        const syncRes = await api("/auth/profile", { method: "POST" });
+        if (syncRes?.user?.id) {
+          resolvedUserId = syncRes.user.id;
+          setTempUserId(resolvedUserId);
+        }
+      } catch (e) {
+        console.warn("[submit] Could not recover userId:", e);
+      }
+    }
+
+    if (!resolvedUserId) {
+      setError("Session expired. Please log in again.");
       setStep(1);
       return;
     }
@@ -337,7 +389,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
         })
         .join(", ");
 
-      const user = await api(`/users/${tempUserId}`, {
+      const user = await api(`/users/${resolvedUserId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
