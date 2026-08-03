@@ -1,0 +1,290 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               Int             @id @default(autoincrement()) @map("user_id")
+  supabaseId       String?         @unique @map("supabase_id")
+  name             String          @db.VarChar(50)
+  email            String?         @unique @db.VarChar(100)
+  emailVerified    Boolean         @default(false) @map("email_verified")
+  verifiedAt       DateTime?       @map("verified_at")
+  department       String?         @db.VarChar(50)
+  reputationScore  Int             @default(0) @map("reputation_score")
+  college          String?         @db.VarChar(100)
+  location         String?         @db.VarChar(100)
+  collegeId        Int?            @map("college_id")
+  bio              String?         @db.VarChar(150)
+  instagram        String?         @db.VarChar(50)
+  github           String?         @db.VarChar(50)
+  interests        String?         @db.Text
+  avatarUrl        String?         @map("avatar_url") @db.Text
+  collegeRef       College?        @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  missions         Mission[]       @relation("CreatedMissions")
+  participations   Participation[]
+  messages         Message[]
+  sessionRecaps    SessionRecap[]
+  dailyActivities  DailyActivity[]
+  following        Follow[]        @relation("Following")
+  followers        Follow[]        @relation("Followers")
+  feedItems        FeedItem[]
+  userInterests    UserInterest[]
+  posts            Post[]
+  comments         Comment[]
+  reactions        Reaction[]
+
+  @@map("users")
+}
+
+model College {
+  id             Int       @id @default(autoincrement()) @map("college_id")
+  collegeName    String    @map("college_name") @db.VarChar(200)
+  shortName      String    @map("short_name") @db.VarChar(100)
+  collegeType    String    @map("college_type") @db.VarChar(50)
+  city           String    @db.VarChar(100)
+  state          String    @db.VarChar(100)
+  country        String    @default("India") @db.VarChar(50)
+  officialDomain String?   @map("official_domain") @db.VarChar(100)
+  emailDomain    String?   @map("email_domain") @db.VarChar(100)
+  users          User[]
+  missions       Mission[]
+
+  @@index([emailDomain])
+  @@index([collegeType])
+  @@map("college")
+}
+
+model Category {
+  id            Int            @id @default(autoincrement()) @map("category_id")
+  categoryName  String         @unique @map("category_name") @db.VarChar(50)
+  emoji         String?        @db.VarChar(10)
+  colorHex      String?        @map("color_hex") @db.VarChar(7)
+  missions      Mission[]
+  userInterests UserInterest[]
+
+  @@map("category")
+}
+
+model UserInterest {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  categoryId Int      @map("category_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, categoryId])
+  @@map("user_interest")
+}
+
+model Mission {
+  id               Int             @id @default(autoincrement()) @map("mission_id")
+  title            String          @map("mission_title") @db.VarChar(100)
+  description      String          @default("") @db.Text
+  datetime         DateTime?       @map("mission_time")
+  location         String?         @db.VarChar(100)
+  categoryId       Int?            @map("category_id")
+  createdBy        Int?            @map("created_by")
+  collegeId        Int?            @map("college_id")
+  focusDuration    Int             @default(25) @map("focus_duration")
+  verificationCode String?         @map("verification_code") @db.VarChar(10)
+  missionType      String          @default("group") @map("mission_type") @db.VarChar(20)
+  coverColor       String?         @map("cover_color") @db.VarChar(50)
+  coverImage       String?         @map("cover_image") @db.Text
+  category         Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  creator          User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
+  collegeRef       College?        @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  participations   Participation[]
+  messages         Message[]
+  sessionRecaps    SessionRecap[]
+  tasks            Task[]
+
+  @@map("mission")
+}
+
+model Task {
+  id          Int       @id @default(autoincrement()) @map("task_id")
+  title       String    @db.VarChar(200)
+  completed   Boolean   @default(false)
+  position    Int       @default(0)
+  missionId   Int       @map("mission_id")
+  mission     Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("task")
+}
+
+model Skill {
+  id                 Int     @id @default(autoincrement()) @map("skill_id")
+  skillName          String  @map("skill_name") @db.VarChar(50)
+  verificationSource String? @map("verification_source") @db.VarChar(50)
+
+  @@map("skill")
+}
+
+model Participation {
+  id                    Int       @id @default(autoincrement()) @map("participation_id")
+  userId                Int       @map("user_id")
+  missionId             Int       @map("mission_id")
+  status                String    @db.VarChar(20)
+  showedUp              Boolean?  @map("showed_up")
+  workStartedAt         DateTime? @map("work_started_at")
+  workDuration          Int       @default(25) @map("work_duration")
+  creatorVibeRating     String?   @map("creator_vibe_rating") @db.VarChar(10)
+  participantVibeRating String?   @map("participant_vibe_rating") @db.VarChar(10)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission               Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionId], name: "unique_user_mission")
+  @@map("participation")
+}
+
+model Message {
+  id        Int      @id @default(autoincrement()) @map("message_id")
+  missionId Int      @map("mission_id")
+  senderId  Int      @map("sender_id")
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model SessionRecap {
+  id               Int      @id @default(autoincrement()) @map("recap_id")
+  userId           Int      @map("user_id")
+  missionId        Int?     @map("mission_id")
+  missionTitle     String?  @map("mission_title")
+  categoryId       Int?     @map("category_id")
+  categorySnapshot String?  @map("category_snapshot")
+  sessionDuration  Int      @map("session_duration")
+  tasksCompleted   Int      @map("tasks_completed")
+  streak           Int      @default(0)
+  missionRank      Int?     @map("mission_rank")
+  cardVersion      Int      @default(1) @map("card_version")
+  shareId          String   @unique @map("share_id")
+  recapType        String   @map("recap_type")
+  achievements     Json?
+  participantCount Int?     @map("participant_count")
+  aiInsight        String?  @map("ai_insight")
+  reflectionText   String?  @map("reflection_text") @db.Text
+  lessonsLearned   String?  @map("lessons_learned") @db.Text
+  isPublic         Boolean  @default(true) @map("is_public")
+  metadata         Json?
+  generatedAt      DateTime @default(now()) @map("generated_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission          Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  posts            Post[]
+
+  @@index([userId, generatedAt])
+  @@index([userId, categorySnapshot, generatedAt])
+  @@index([shareId])
+  @@map("session_recap")
+}
+
+model DailyActivity {
+  id                Int      @id @default(autoincrement()) @map("activity_id")
+  userId            Int      @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date              DateTime @db.Date
+  missionsCompleted Int      @default(0) @map("missions_completed")
+  focusMinutes      Int      @default(0) @map("focus_minutes")
+  tasksCompleted    Int      @default(0) @map("tasks_completed")
+  auraEarned        Int      @default(0) @map("aura_earned")
+
+  @@unique([userId, date])
+  @@map("daily_activity")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement()) @map("follow_id")
+  followerId  Int      @map("follower_id")
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId Int      @map("following_id")
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([followerId, followingId])
+  @@map("follow")
+}
+
+model FeedItem {
+  id          Int      @id @default(autoincrement()) @map("feed_item_id")
+  userId      Int      @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   @db.VarChar(30)
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  metadata    Json     @default("{}")
+  recapId     Int?     @map("recap_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("feed_item")
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String   @db.VarChar(100)
+  code      String   @db.VarChar(100)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, used])
+  @@map("otp")
+}
+
+model Post {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  recapId     Int?      @map("recap_id")
+  imageUrl    String?   @map("image_url") @db.Text
+  caption     String?   @db.VarChar(300)
+  visibility  String    @default("college") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recap       SessionRecap?  @relation(fields: [recapId], references: [id], onDelete: SetNull)
+  comments    Comment[]
+  reactions   Reaction[]
+
+  @@index([userId, createdAt])
+  @@map("post")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  text      String   @db.VarChar(300)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comment")
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  emoji     String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, emoji])
+  @@map("reaction")
+}

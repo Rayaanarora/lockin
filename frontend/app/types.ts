@@ -65,7 +65,7 @@ export interface Message {
 export interface InterestCategory {
   id: number;
   name: string;
-  emoji: string;
+  emoji: string | null;
   color: string;
 }
 

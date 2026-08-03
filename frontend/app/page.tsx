@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Flame } from "lucide-react";
-import { io } from "socket.io-client";
 import { User } from "./types";
 
 // Import custom modular components
@@ -88,44 +87,44 @@ export default function Home() {
   }, []);
 
 
-  // Socket.io connection state
+  // Request Notification permission & Subscribe to Supabase Realtime Notifications
   useEffect(() => {
-    if (!user) return;
-
-    // Connect socket
-    const socket = io(SOCKET_URL);
-
-    // Register user
-    socket.emit("register", user.id);
-
-    // Listen for push notifications
-    socket.on("push_notification", (data: { title: string; message: string; type: string }) => {
-      // 1. Show in-app Toast
-      setToast(data);
-      // Auto dismiss after 4 seconds
-      const timer = setTimeout(() => {
-        setToast((current) => (current && current.message === data.message ? null : current));
-      }, 4000);
-
-      // 2. Issue browser native HTML5 Notification
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        try {
-          new Notification(data.title, { body: data.message });
-        } catch (e) {
-          console.warn("Failed to trigger native notification:", e);
-        }
-      }
-    });
-
-    // Request Notification permission
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "default") {
         Notification.requestPermission();
       }
     }
 
+    if (!user || !supabase) return;
+
+    const channel = supabase.channel(`notifications:${user.id}`);
+
+    channel.on(
+      "broadcast",
+      { event: "push_notification" },
+      ({ payload }: { payload: { title: string; message: string; type: string; missionId?: number } }) => {
+        // 1. Show in-app Toast
+        setToast(payload);
+        // Auto dismiss after 4 seconds
+        setTimeout(() => {
+          setToast((current) => (current && current.message === payload.message ? null : current));
+        }, 4000);
+
+        // 2. Issue browser native HTML5 Notification
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          try {
+            new Notification(payload.title, { body: payload.message });
+          } catch (e) {
+            console.warn("Failed to trigger native notification:", e);
+          }
+        }
+      }
+    );
+
+    channel.subscribe();
+
     return () => {
-      socket.disconnect();
+      channel.unsubscribe();
     };
   }, [user?.id]);
 
