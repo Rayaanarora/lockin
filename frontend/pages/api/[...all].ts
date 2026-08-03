@@ -1,14 +1,8 @@
-import { NextApiRequest, NextApiResponse } from "next";
-// @ts-ignore
-import app from "../../backend/server";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export const config = {
-  api: {
-    bodyParser: false,
-    externalResolver: true,
-  },
-};
-
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  return app(req, res);
+// This catch-all no longer routes to Express.
+// All routes are now native Next.js API handlers under pages/api/.
+// If you see this response, a route was not matched by any handler.
+export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+  res.status(404).json({ error: "API route not found. Check your request path." });
 }
