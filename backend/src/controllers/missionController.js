@@ -269,14 +269,23 @@ async function acceptMission(req, res) {
         where: { id: Number(userId) },
         select: { name: true }
       });
-      if (mission && mission.createdBy && req.activeSockets) {
-        const hostSocket = req.activeSockets.get(Number(mission.createdBy));
-        if (hostSocket) {
-          hostSocket.emit("push_notification", {
-            title: "New Join Request!",
-            message: `${applicant?.name || "Someone"} requested to join your runway: "${mission.title}"`,
-            type: "join_request",
-            missionId: Number(id)
+      if (mission && mission.createdBy) {
+        const supabaseClient = require("../config/supabase");
+        if (supabaseClient) {
+          const channel = supabaseClient.channel(`notifications:${mission.createdBy}`);
+          channel.subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+              channel.send({
+                type: "broadcast",
+                event: "push_notification",
+                payload: {
+                  title: "New Join Request!",
+                  message: `${applicant?.name || "Someone"} requested to join your runway: "${mission.title}"`,
+                  type: "join_request",
+                  missionId: Number(id)
+                }
+              }).catch(err => console.error("Realtime notification broadcast failed:", err));
+            }
           });
         }
       }
@@ -734,14 +743,23 @@ async function approveParticipant(req, res) {
         where: { id: Number(creatorId) },
         select: { name: true }
       });
-      if (mission && req.activeSockets) {
-        const participantSocket = req.activeSockets.get(Number(participantId));
-        if (participantSocket) {
-          participantSocket.emit("push_notification", {
-            title: "Request Approved!",
-            message: `${host?.name || "Host"} approved your request to join: "${mission.title}"`,
-            type: "request_approved",
-            missionId: Number(id)
+      if (mission) {
+        const supabaseClient = require("../config/supabase");
+        if (supabaseClient) {
+          const channel = supabaseClient.channel(`notifications:${participantId}`);
+          channel.subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+              channel.send({
+                type: "broadcast",
+                event: "push_notification",
+                payload: {
+                  title: "Request Approved!",
+                  message: `${host?.name || "Host"} approved your request to join: "${mission.title}"`,
+                  type: "request_approved",
+                  missionId: Number(id)
+                }
+              }).catch(err => console.error("Realtime notification broadcast failed:", err));
+            }
           });
         }
       }

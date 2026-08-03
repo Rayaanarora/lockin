@@ -1,10 +1,7 @@
 require("dotenv").config();
 
-const http = require("http");
 const express = require("express");
 const cors = require("cors");
-const helmet = require("helmet");
-const { Server } = require("socket.io");
 
 const userRoutes = require("./src/routes/userRoutes");
 const missionRoutes = require("./src/routes/missionRoutes");
@@ -22,24 +19,6 @@ const postRoutes = require("./src/routes/posts");
 const app = express();
 const port = process.env.PORT || 4000;
 
-// Create HTTP server
-const server = http.createServer(app);
-
-// Setup Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      callback(null, origin || "*");
-    },
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
-
-// Set io on app object to be used in controllers
-app.set("io", io);
-
-app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -50,15 +29,6 @@ app.use(
 );
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
-
-const activeSockets = new Map();
-app.set("activeSockets", activeSockets);
-
-app.use((req, res, next) => {
-  req.activeSockets = activeSockets;
-  req.io = io;
-  next();
-});
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "LOCKIN API" });
@@ -81,30 +51,10 @@ app.use("/api/posts", requireAuth, postRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-// Socket.IO events handling
-io.on("connection", (socket) => {
-  socket.on("register", (userId) => {
-    socket.userId = Number(userId);
-    activeSockets.set(Number(userId), socket);
-    console.log(`User ${userId} registered socket ${socket.id}`);
+if (require.main === module) {
+  app.listen(port, process.env.HOST || "0.0.0.0", () => {
+    console.log(`LOCKIN API running on port ${port}`);
   });
+}
 
-  socket.on("join_mission", (missionId) => {
-    socket.join(`mission_${missionId}`);
-  });
-
-  socket.on("leave_mission", (missionId) => {
-    socket.leave(`mission_${missionId}`);
-  });
-
-  socket.on("disconnect", () => {
-    if (socket.userId) {
-      activeSockets.delete(socket.userId);
-      console.log(`User ${socket.userId} disconnected socket ${socket.id}`);
-    }
-  });
-});
-
-server.listen(port, process.env.HOST || "0.0.0.0", () => {
-  console.log(`LOCKIN API running on port ${port}`);
-});
+module.exports = app;

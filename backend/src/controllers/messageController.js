@@ -100,17 +100,39 @@ async function sendMessage(req, res) {
       sender_name: msg.sender.name
     };
 
-    // Emit real-time message through Socket.IO
-    if (req.app.get("io")) {
-      req.app.get("io").to(`mission_${missionId}`).emit("new_message", response);
+    // Broadcast real-time message through Supabase Realtime
+    const supabaseClient = require("../config/supabase");
+    if (supabaseClient) {
+      const channel = supabaseClient.channel(`mission_chat:${missionId}`);
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          channel.send({
+            type: "broadcast",
+            event: "new_message",
+            payload: response
+          }).catch(err => console.error("Realtime broadcast failed:", err));
+        }
+      });
     }
 
     res.status(201).json(response);
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
     const response = memoryStore.sendMessage(missionId, senderId, message.trim());
-    if (req.app.get("io")) {
-      req.app.get("io").to(`mission_${missionId}`).emit("new_message", response);
+    
+    // Broadcast real-time message through Supabase Realtime
+    const supabaseClient = require("../config/supabase");
+    if (supabaseClient) {
+      const channel = supabaseClient.channel(`mission_chat:${missionId}`);
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          channel.send({
+            type: "broadcast",
+            event: "new_message",
+            payload: response
+          }).catch(err => console.error("Realtime broadcast failed:", err));
+        }
+      });
     }
     res.status(201).json(response);
   }
