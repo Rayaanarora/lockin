@@ -7,11 +7,13 @@ const {
   updateUserInterests
 } = require("../controllers/interestController");
 
+const { requireAuth } = require("../middleware/auth");
+
 const router = express.Router();
 
 router.get("/categories", asyncHandler(getInterestCategories));
-router.post("/", asyncHandler(saveInterests));
-router.get("/:userId", asyncHandler(getUserInterests));
-router.put("/:userId", asyncHandler(updateUserInterests));
+router.post("/", requireAuth, asyncHandler(saveInterests));
+router.get("/:userId", requireAuth, asyncHandler(getUserInterests));
+router.put("/:userId", requireAuth, asyncHandler(updateUserInterests));
 
 module.exports = router;

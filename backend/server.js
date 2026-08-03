@@ -64,17 +64,19 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "LOCKIN API" });
 });
 
-app.use("/api/users", userRoutes);
-app.use("/api/missions", missionRoutes);
-app.use("/api/messages", messageRoutes);
-app.use("/api/recaps", recapRoutes);
-app.use("/api/tasks", taskRoutes);
-app.use("/api/follow", followRoutes);
-app.use("/api/feed", feedRoutes);
-app.use("/api/colleges", collegeRoutes);
+const { requireAuth } = require("./src/middleware/auth");
+
 app.use("/api/auth", authRoutes);
+app.use("/api/users", requireAuth, userRoutes);
+app.use("/api/missions", missionRoutes);
+app.use("/api/messages", requireAuth, messageRoutes);
+app.use("/api/recaps", requireAuth, recapRoutes);
+app.use("/api/tasks", requireAuth, taskRoutes);
+app.use("/api/follow", requireAuth, followRoutes);
+app.use("/api/feed", requireAuth, feedRoutes);
+app.use("/api/colleges", requireAuth, collegeRoutes);
 app.use("/api/interests", interestRoutes);
-app.use("/api/posts", postRoutes);
+app.use("/api/posts", requireAuth, postRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -103,6 +105,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(port, () => {
+server.listen(port, process.env.HOST || "0.0.0.0", () => {
   console.log(`LOCKIN API running on port ${port}`);
 });

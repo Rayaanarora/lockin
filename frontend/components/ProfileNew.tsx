@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
@@ -109,6 +110,9 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
       await api("/auth/logout", { method: "POST" });
     } catch (e) {
       console.error("Logout API call failed", e);
+    }
+    if (supabase) {
+      await supabase.auth.signOut().catch(() => {});
     }
     localStorage.removeItem("lockin_user_id");
     window.location.reload();

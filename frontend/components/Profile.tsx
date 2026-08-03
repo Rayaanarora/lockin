@@ -26,7 +26,7 @@ import { Input } from "./ui/input";
 import RecapCard from "./RecapCard";
 import HeatMap from "./HeatMap";
 import PublicProfile from "./PublicProfile";
-import { uploadImage } from "../lib/supabase";
+import { uploadImage, supabase } from "../lib/supabase";
 import FollowListModal from "./FollowListModal";
 
 interface ProfileProps {
@@ -126,6 +126,9 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
       await api("/auth/logout", { method: "POST" });
     } catch (e) {
       console.error("Logout API call failed", e);
+    }
+    if (supabase) {
+      await supabase.auth.signOut().catch(() => {});
     }
     localStorage.removeItem("lockin_user_id");
     window.location.reload();

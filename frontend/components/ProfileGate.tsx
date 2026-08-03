@@ -32,6 +32,8 @@ import {
 import { Input } from "./ui/input";
 import { User, InterestCategory } from "../app/types";
 
+import { supabase } from "../lib/supabase";
+
 interface ProfileGateProps {
   onReady: (user: User) => void;
   api: (path: string, options?: RequestInit) => Promise<any>;
@@ -100,9 +102,11 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [interestCategories, setInterestCategories] = useState<InterestCategory[]>([]);
   const [devOtp, setDevOtp] = useState("");
   const [tempUserId, setTempUserId] = useState<number | null>(null);
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
 
   const [form, setForm] = useState({
     email: "",
+    password: "",
     otpCode: "",
     campusId: "" as string | number,
     campusName: "",
@@ -168,76 +172,101 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       )
     : campuses;
 
-  async function handleSendOtp() {
+  async function handleAuthSubmit() {
     if (!form.email || !form.email.includes("@")) {
       setValidation({ email: "Valid student email is required." });
       return;
     }
-    setBusy(true);
-    setError("");
-    setValidation({});
-    try {
-      const res = await api("/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email })
-      });
-      if (res.success) {
-        if (res.dev_otp) {
-          setDevOtp(res.dev_otp);
-        }
-        setForm(f => ({
-          ...f,
-          campusId: "",
-          campusName: ""
-        }));
-        setDirection(1);
-        setStep(2);
-      } else {
-        setError(res.error || "Failed to send OTP.");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to send OTP.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleVerifyOtp() {
-    if (!form.otpCode || form.otpCode.trim().length !== 6) {
-      setValidation({ otpCode: "Enter 6-digit OTP code." });
+    if (mode !== "forgot" && (!form.password || form.password.length < 6)) {
+      setValidation({ password: "Password must be at least 6 characters." });
       return;
     }
+
     setBusy(true);
     setError("");
     setValidation({});
+
     try {
-      const res = await api("/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, code: form.otpCode.trim() })
-      });
-      if (res.success) {
-        const isIncomplete = !res.user.department || !res.user.college;
-        if (res.isNewUser || isIncomplete) {
-          setTempUserId(res.user.id);
-          setForm(f => ({
-            ...f,
-            campusId: "",
-            campusName: "",
-            name: res.user.name || f.name
-          }));
-          setDirection(1);
-          setStep(3);
-        } else {
-          localStorage.setItem("lockin_user_id", String(res.user.id));
-          onReady(res.user);
+      // 1. Verify email domain matches a supported college
+      const checkRes = await api(`/auth/check-domain?email=${encodeURIComponent(form.email)}`);
+      if (!checkRes.success) {
+        setError(checkRes.error || "Domain not supported.");
+        setBusy(false);
+        return;
+      }
+
+      if (!supabase) throw new Error("Supabase is not initialized.");
+
+      if (mode === "signup") {
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+        });
+
+        if (signUpErr) throw signUpErr;
+
+        if (data.user && !data.session) {
+          // Verification link sent
+          setStep(2);
+        } else if (data.session) {
+          const syncRes = await api("/auth/profile", {
+            method: "POST"
+          });
+          const isIncomplete = !syncRes.user.department || !syncRes.user.college;
+          if (isIncomplete) {
+            setTempUserId(syncRes.user.id);
+            setForm(f => ({
+              ...f,
+              campusId: "",
+              campusName: "",
+              name: syncRes.user.name || f.name
+            }));
+            setDirection(1);
+            setStep(3);
+          } else {
+            localStorage.setItem("lockin_user_id", String(syncRes.user.id));
+            onReady(syncRes.user);
+          }
         }
-      } else {
-        setError(res.error || "Invalid or expired OTP.");
+      } else if (mode === "login") {
+        const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+
+        if (signInErr) throw signInErr;
+
+        if (data.session) {
+          const syncRes = await api("/auth/profile", {
+            method: "POST"
+          });
+          const isIncomplete = !syncRes.user.department || !syncRes.user.college;
+          if (isIncomplete) {
+            setTempUserId(syncRes.user.id);
+            setForm(f => ({
+              ...f,
+              campusId: "",
+              campusName: "",
+              name: syncRes.user.name || f.name
+            }));
+            setDirection(1);
+            setStep(3);
+          } else {
+            localStorage.setItem("lockin_user_id", String(syncRes.user.id));
+            onReady(syncRes.user);
+          }
+        }
+      } else if (mode === "forgot") {
+        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(form.email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (resetErr) throw resetErr;
+
+        setStep(2);
       }
     } catch (err: any) {
-      setError(err.message || "Invalid or expired OTP.");
+      setError(err.message || "Authentication operation failed.");
     } finally {
       setBusy(false);
     }
@@ -245,11 +274,12 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
   async function goNext() {
     if (step === 1) {
-      await handleSendOtp();
+      await handleAuthSubmit();
       return;
     }
     if (step === 2) {
-      await handleVerifyOtp();
+      setMode("login");
+      setStep(1);
       return;
     }
     if (!validateStep(step)) return;
@@ -453,6 +483,8 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                   validation={validation}
                   onNext={goNext}
                   busy={busy}
+                  mode={mode}
+                  setMode={setMode}
                 />
               </motion.div>
             )}
@@ -473,7 +505,8 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                   validation={validation}
                   onNext={goNext}
                   busy={busy}
-                  devOtp={devOtp}
+                  mode={mode}
+                  setMode={setMode}
                 />
               </motion.div>
             )}
@@ -1093,22 +1126,29 @@ function TutorialStep({
 }
 
 /* ─── STEP 1: EMAIL VERIFICATION ──────────────────────────────────── */
-function EmailStep({ form, setForm, validation, onNext, busy }: any) {
+function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode }: any) {
   return (
     <div className="space-y-6">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
-          Student Verification
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed font-mono">
+          {mode === "login" ? "Student Login" : mode === "signup" ? "Student Signup" : "Password Recovery"}
         </span>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
-          Enter Your Email
+        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase font-display">
+          {mode === "login" ? "Welcome Back" : mode === "signup" ? "Create Account" : "Reset Password"}
         </h2>
-        <p className="mt-1 text-xs text-zinc-500">Use your college email domain to unlock your campus feed.</p>
+        <p className="mt-1 text-xs text-zinc-500 font-sans">
+          {mode === "login" 
+            ? "Log in with your college credentials." 
+            : mode === "signup" 
+              ? "Use your college email domain to unlock your campus feed." 
+              : "Enter your email to receive a password reset link."}
+        </p>
       </div>
 
       <div className="space-y-4">
+        {/* Email input */}
         <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 font-mono">
             <Mail className="h-3.5 w-3.5" />
             College Email Address
           </label>
@@ -1119,80 +1159,123 @@ function EmailStep({ form, setForm, validation, onNext, busy }: any) {
               setForm((f: any) => ({ ...f, email: e.target.value }))
             }
             placeholder="e.g. name@srmist.edu.in"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
+            className={`h-11 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
               validation.email ? "border-cherryRed/50" : ""
             }`}
           />
           {validation.email && <FieldError msg={validation.email} />}
         </div>
-      </div>
 
-      <button
-        type="button"
-        disabled={busy || !form.email}
-        onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-cherryRed py-4 text-sm font-sans font-medium text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
-      >
-        {busy ? "Sending..." : "Send Verification Code →"}
-      </button>
-    </div>
-  );
-}
-
-/* ─── STEP 2: OTP VERIFICATION ────────────────────────────────────── */
-function OtpStep({ form, setForm, validation, onNext, busy, devOtp }: any) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
-          Check Your Inbox
-        </span>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
-          Enter OTP Code
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">We sent a 6-digit verification code to {form.email}.</p>
-      </div>
-
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-            <KeyRound className="h-3.5 w-3.5" />
-            6-Digit Verification Code
-          </label>
-          <Input
-            type="text"
-            maxLength={6}
-            value={form.otpCode}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm((f: any) => ({ ...f, otpCode: e.target.value.replace(/[^0-9]/g, "") }))
-            }
-            placeholder="XXXXXX"
-            className={`h-11 border-white/10 bg-black/40 text-center text-lg font-mono font-bold tracking-widest text-white placeholder-zinc-800 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
-              validation.otpCode ? "border-cherryRed/50" : ""
-            }`}
-          />
-          {validation.otpCode && <FieldError msg={validation.otpCode} />}
-        </div>
-
-        {/* Development Mode Helper */}
-        {devOtp && (
-          <div className="rounded-xl border border-cherryRed/20 bg-cherryRed/5 p-3 text-[11px] font-sans font-semibold text-cherryRed/90 leading-normal flex items-start gap-2 text-left">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-cherryRed" />
-            <div>
-              <p className="font-bold text-white uppercase tracking-wider text-[9px] mb-0.5">Local Dev Mode</p>
-              Use OTP: <span className="font-mono bg-black/40 px-1.5 py-0.5 rounded border border-white/5 font-black text-white">{devOtp}</span> (printed to terminal)
-            </div>
+        {/* Password input (only shown for login and signup modes) */}
+        {mode !== "forgot" && (
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 font-mono">
+              <KeyRound className="h-3.5 w-3.5" />
+              Password
+            </label>
+            <Input
+              type="password"
+              value={form.password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setForm((f: any) => ({ ...f, password: e.target.value }))
+              }
+              placeholder="Min. 6 characters"
+              className={`h-11 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
+                validation.password ? "border-cherryRed/50" : ""
+              }`}
+            />
+            {validation.password && <FieldError msg={validation.password} />}
           </div>
         )}
       </div>
 
+      {/* Button */}
       <button
         type="button"
-        disabled={busy || form.otpCode.length !== 6}
+        disabled={busy || !form.email || (mode !== "forgot" && !form.password)}
         onClick={onNext}
         className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-cherryRed py-4 text-sm font-sans font-medium text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
       >
-        {busy ? "Verifying..." : "Verify Code & Continue →"}
+        {busy 
+          ? "Processing..." 
+          : mode === "login" 
+            ? "Log In →" 
+            : mode === "signup" 
+              ? "Sign Up →" 
+              : "Send Reset Link →"}
+      </button>
+
+      {/* Mode selectors */}
+      <div className="flex flex-col gap-2.5 items-center pt-2">
+        {mode === "login" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white transition font-mono"
+            >
+              Don't have an account? Sign Up
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("forgot")}
+              className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition font-mono"
+            >
+              Forgot Password?
+            </button>
+          </>
+        ) : mode === "signup" ? (
+          <button
+            type="button"
+            onClick={() => setMode("login")}
+            className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white transition font-mono"
+          >
+            Already have an account? Log In
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMode("login")}
+            className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white transition font-mono"
+          >
+            Back to Log In
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── STEP 2: EMAIL VERIFICATION CHECK INBOX ──────────────────────── */
+function OtpStep({ form, onNext, busy, mode, setMode }: any) {
+  return (
+    <div className="space-y-6 text-center">
+      <div className="flex flex-col items-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cherryRed/30 bg-cherryRed/10 shadow-[0_0_30px_rgba(129,1,0,0.2)] mb-4">
+          <Mail className="h-7 w-7 text-cherryRed animate-pulse" />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed font-mono">
+          {mode === "forgot" ? "Check Email" : "Verification Required"}
+        </span>
+        <h2 className="mt-1 text-xl font-black tracking-tight text-white uppercase font-display">
+          {mode === "forgot" ? "Reset Link Sent" : "Verify Student Email"}
+        </h2>
+        <p className="mt-2 text-xs text-zinc-400 leading-relaxed max-w-[280px] mx-auto font-sans">
+          {mode === "forgot"
+            ? `We have sent a secure password reset link to ${form.email}. Please follow the link in your inbox to reset your password.`
+            : `We have sent a verification confirmation link to ${form.email}. Please click the link to verify your email and unlock your campus feed.`}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setMode("login");
+          onNext(); // Will trigger goNext, going back to Login
+        }}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-4 text-xs font-display font-black uppercase tracking-widest text-white transition-all hover:bg-white/10 active:scale-[0.97]"
+      >
+        Back to Log In
       </button>
     </div>
   );

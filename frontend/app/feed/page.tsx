@@ -10,25 +10,51 @@ import ProfileGate from "../../components/ProfileGate";
 import LoadingScreen from "../../components/LoadingScreen";
 import { User } from "../types";
 import { Flame } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 async function api(path: string, options: RequestInit = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  let authHeaders: Record<string, string> = {};
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+    }
+  }
+
   try {
     const response = await fetch(`${API}${path}`, {
       headers: {
         "Content-Type": "application/json",
         "bypass-tunnel-reminder": "true",
+        ...authHeaders,
         ...(options.headers || {})
       },
+      signal: controller.signal,
       ...options
     });
+    clearTimeout(timeoutId);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (
+        (response.status === 401 && data.error === "Invalid or expired session token.") ||
+        (response.status === 404 && data.error === "User not found.")
+      ) {
+        if (typeof window !== "undefined") {
+          if (supabase) await supabase.auth.signOut().catch(() => {});
+          localStorage.removeItem("lockin_user_id");
+          window.location.reload();
+        }
+      }
       throw new Error(data.error || "Request failed");
     }
     return data;
   } catch (err) {
+    clearTimeout(timeoutId);
     throw err;
   }
 }
@@ -42,24 +68,32 @@ export default function FeedPage() {
     // Force dark mode
     document.documentElement.classList.remove("light");
 
-    const id = localStorage.getItem("lockin_user_id");
-    if (!id) {
+    if (!supabase) {
       setLoading(false);
       return;
     }
-    api(`/users/${id}`)
-      .then((nextUser) => {
-        if (!nextUser.department || !nextUser.college) {
-          localStorage.removeItem("lockin_user_id");
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        try {
+          const nextUser = await api("/auth/me");
+          if (nextUser.incomplete) {
+            setUser(null);
+          } else {
+            setUser(nextUser);
+          }
+        } catch {
           setUser(null);
-        } else {
-          setUser(nextUser);
         }
-      })
-      .catch(() => {
-        localStorage.removeItem("lockin_user_id");
-      })
-      .finally(() => setLoading(false));
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) {

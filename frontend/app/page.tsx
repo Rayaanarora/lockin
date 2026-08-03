@@ -17,6 +17,8 @@ import Profile from "../components/Profile";
 import SocialFeed from "../components/SocialFeed";
 import LoadingScreen from "../components/LoadingScreen";
 
+import { supabase } from "../lib/supabase";
+
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const SOCKET_URL = API.replace("/api", "");
 
@@ -24,11 +26,20 @@ async function api(path: string, options: RequestInit = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+  let authHeaders: Record<string, string> = {};
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      authHeaders["Authorization"] = `Bearer ${session.access_token}`;
+    }
+  }
+
   try {
     const response = await fetch(`${API}${path}`, {
       headers: { 
         "Content-Type": "application/json", 
         "bypass-tunnel-reminder": "true",
+        ...authHeaders,
         ...(options.headers || {}) 
       },
       signal: controller.signal,
@@ -38,10 +49,13 @@ async function api(path: string, options: RequestInit = {}) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (
-        (response.status === 404 && data.error === "User not found.") ||
-        (response.status === 400 && data.error && data.error.includes("User session is invalid"))
+        (response.status === 401 && data.error === "Invalid or expired session token.") ||
+        (response.status === 404 && data.error === "User not found.")
       ) {
         if (typeof window !== "undefined") {
+          if (supabase) {
+            await supabase.auth.signOut().catch(() => {});
+          }
           localStorage.removeItem("lockin_user_id");
           window.location.reload();
         }
@@ -116,20 +130,22 @@ export default function Home() {
   }, [user?.id]);
 
   async function refreshUser() {
-    const id = localStorage.getItem("lockin_user_id");
-    if (!id) return;
+    if (!supabase) return;
     try {
-      const nextUser = await api(`/users/${id}`);
-      const lock = await api(`/users/${id}/lock`);
-      if (!nextUser.department || !nextUser.college) {
-        localStorage.removeItem("lockin_user_id");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         setUser(null);
-      } else {
-        setUser(nextUser);
-        setLocked(lock.locked);
+        return;
       }
+      const nextUser = await api("/auth/me");
+      if (nextUser.incomplete) {
+        setUser(null);
+        return;
+      }
+      const lock = await api(`/users/${nextUser.id}/lock`);
+      setUser(nextUser);
+      setLocked(lock.locked);
     } catch {
-      localStorage.removeItem("lockin_user_id");
       setUser(null);
     }
   }
@@ -138,23 +154,35 @@ export default function Home() {
     // Force dark mode on mount
     document.documentElement.classList.remove("light");
 
-    const id = localStorage.getItem("lockin_user_id");
-    if (!id) {
+    if (!supabase) {
       setLoading(false);
       return;
     }
-    Promise.all([api(`/users/${id}`), api(`/users/${id}/lock`)])
-      .then(([nextUser, lock]) => {
-        if (!nextUser.department || !nextUser.college) {
-          localStorage.removeItem("lockin_user_id");
+
+    // Set up auth state change listener to sync login sessions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        try {
+          const nextUser = await api("/auth/me");
+          if (nextUser.incomplete) {
+            setUser(null);
+          } else {
+            setUser(nextUser);
+            const lock = await api(`/users/${nextUser.id}/lock`);
+            setLocked(lock.locked);
+          }
+        } catch {
           setUser(null);
-        } else {
-          setUser(nextUser);
-          setLocked(lock.locked);
         }
-      })
-      .catch(() => localStorage.removeItem("lockin_user_id"))
-      .finally(() => setLoading(false));
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const screen = useMemo(() => {

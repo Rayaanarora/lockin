@@ -1,17 +1,18 @@
 const express = require("express");
 const asyncHandler = require("../utils/asyncHandler");
+const { requireAuth } = require("../middleware/auth");
 const {
-  sendOtp,
-  verifyOtp,
+  checkDomain,
+  syncProfile,
   getMe,
   logout
 } = require("../controllers/authController");
 
 const router = express.Router();
 
-router.post("/send-otp", asyncHandler(sendOtp));
-router.post("/verify-otp", asyncHandler(verifyOtp));
-router.get("/me", asyncHandler(getMe));
-router.post("/logout", asyncHandler(logout));
+router.get("/check-domain", asyncHandler(checkDomain));
+router.post("/profile", requireAuth, asyncHandler(syncProfile));
+router.get("/me", requireAuth, asyncHandler(getMe));
+router.post("/logout", requireAuth, asyncHandler(logout));
 
 module.exports = router;
