@@ -27,7 +27,10 @@ import {
   Heart,
   Mail,
   KeyRound,
-  X
+  X,
+  Sparkles,
+  Lightbulb,
+  Target
 } from "lucide-react";
 import { Input } from "./ui/input";
 import { User, InterestCategory } from "../app/types";
@@ -51,36 +54,36 @@ interface Campus {
 
 const TUTORIAL_STEPS = [
   {
-    icon: Zap,
+    icon: Sparkles,
+    color: "text-amber-400",
+    bg: "bg-amber-500/10 border-amber-500/30",
+    glow: "shadow-[0_0_30px_rgba(245,158,11,0.15)]",
+    title: "Discover & Drop Ideas",
+    body: "Browse raw missions & project ideas posted by students on your campus. Join an existing build or launch your own runway for others to join.",
+  },
+  {
+    icon: Users,
     color: "text-cherryRed",
     bg: "bg-cherryRed/10 border-cherryRed/30",
     glow: "shadow-[0_0_30px_rgba(129,1,0,0.2)]",
-    title: "Launch or Accept",
-    body: "Spot a mission on your campus feed. Swipe to Accept or launch your own runway for others to join.",
-  },
-  {
-    icon: Timer,
-    color: "text-white",
-    bg: "bg-white/8 border-white/20",
-    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
-    title: "Focus Lock",
-    body: "Meet up. Creator shares a 4-digit OTP. Participant enters it to start a 15–90 min Focus Lock countdown. No distractions.",
+    title: "Find Your Co-Builder",
+    body: "Team up with fellow builders who match your energy. Host generates a 4-digit OTP to lock in for a 15–90 min deep focus sprint.",
   },
   {
     icon: Star,
-    color: "text-cherryRed",
-    bg: "bg-cherryRed/10 border-cherryRed/30",
-    glow: "shadow-[0_0_30px_rgba(129,1,0,0.2)]",
-    title: "Vibe Check",
-    body: "Timer done? Rate each other's vibe. W Vibe earns +2 Aura. L Vibe costs -1. Honest vibes only.",
+    color: "text-white",
+    bg: "bg-white/8 border-white/20",
+    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
+    title: "Vibe Check & Chemistry",
+    body: "Sprint finished? Rate the session vibe. Great collaboration earns +2 Aura points to boost both your campus reputations.",
   },
   {
     icon: Trophy,
     color: "text-cherryRed",
     bg: "bg-cherryRed/10 border-cherryRed/30",
     glow: "shadow-[0_0_30px_rgba(129,1,0,0.2)]",
-    title: "Aura & Leaderboard",
-    body: "Aura Points stack up with every completed mission. Climb your campus leaderboard. Reputation is earned, not claimed.",
+    title: "Campus Reputation & Aura",
+    body: "Stack Aura with every completed mission. Climb your college leaderboard and stand out as a top builder in your domain.",
   },
 ];
 
@@ -656,13 +659,44 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
 /* ─── STEP 0: SPLASH ──────────────────────────────────────────────── */
 function SplashStep({ onNext }: { onNext: () => void }) {
+  const features = [
+    {
+      icon: Sparkles,
+      iconColor: "text-amber-400",
+      badgeBg: "bg-amber-400/10 border-amber-400/20",
+      title: "Discover & Drop Ideas",
+      desc: "Explore raw side projects, hackathons & late-night builds on campus.",
+    },
+    {
+      icon: Users,
+      iconColor: "text-cherryRed",
+      badgeBg: "bg-cherryRed/10 border-cherryRed/30",
+      title: "Find Your Co-Builder",
+      desc: "Connect with people who share your drive and build on your wavelength.",
+    },
+    {
+      icon: Lock,
+      iconColor: "text-white",
+      badgeBg: "bg-white/10 border-white/20",
+      title: "Focus Lock & Execute",
+      desc: "OTP verification & timed sprints — no distractions, pure proof of work.",
+    },
+    {
+      icon: Trophy,
+      iconColor: "text-amber-400",
+      badgeBg: "bg-amber-400/10 border-amber-400/20",
+      title: "Aura & Campus Rank",
+      desc: "Rate session vibes, earn Aura points & climb your college leaderboard.",
+    },
+  ];
+
   return (
-    <div className="flex flex-col items-center text-center space-y-7 pt-6">
+    <div className="flex flex-col items-center text-center space-y-6 pt-4">
       <motion.div
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.08, type: "spring", stiffness: 220, damping: 20 }}
-        className="flex h-[88px] w-[88px] items-center justify-center rounded-[26px] border border-white/[0.09] bg-black/70 p-2 shadow-[0_0_60px_rgba(129,1,0,0.2),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md"
+        className="flex h-[84px] w-[84px] items-center justify-center rounded-[24px] border border-white/[0.1] bg-black/80 p-2 shadow-[0_0_60px_rgba(210,4,45,0.25),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-md"
       >
         <img src="/logo.png" alt="LOCKIN Logo" className="h-full w-full object-contain" />
       </motion.div>
@@ -671,11 +705,11 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}
-        className="space-y-2"
+        className="space-y-1.5"
       >
-        <h1 className="text-[40px] font-display font-bold tracking-[0.06em] text-white leading-none">LOCKIN</h1>
-        <p className="text-[13px] font-normal text-zinc-400 leading-relaxed max-w-[240px] mx-auto">
-          Stop chatting. Start executing.
+        <h1 className="text-[38px] font-display font-bold tracking-[0.06em] text-white leading-none">LOCKIN</h1>
+        <p className="text-[13px] font-medium text-zinc-300 leading-relaxed max-w-[280px] mx-auto">
+          Where campus ideas turn into proof of work.
         </p>
       </motion.div>
 
@@ -683,23 +717,27 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="grid grid-cols-1 gap-2 w-full text-left"
+        className="grid grid-cols-1 gap-2.5 w-full text-left"
       >
-        {[
-          { icon: Zap, color: "text-cherryRed", text: "Accept missions from campus builders" },
-          { icon: Timer, color: "text-zinc-300", text: "Focus Lock — prove the work is done" },
-          { icon: Star, color: "text-cherryRed", text: "Rate the vibe, earn Aura points" },
-          { icon: Trophy, color: "text-cherryRed", text: "Climb your campus leaderboard" },
-        ].map(({ icon: Icon, color, text }, i) => (
+        {features.map(({ icon: Icon, iconColor, badgeBg, title, desc }, i) => (
           <motion.div
-            key={text}
+            key={title}
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.36 + i * 0.07 }}
-            className="flex items-center gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-4 py-3"
+            transition={{ delay: 0.34 + i * 0.07 }}
+            className="group flex items-center gap-3.5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 transition-all duration-200 hover:border-white/15 hover:bg-white/[0.05]"
           >
-            <Icon className={`h-[15px] w-[15px] shrink-0 ${color}`} />
-            <span className="text-[12px] font-normal text-zinc-300">{text}</span>
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${badgeBg}`}>
+              <Icon className={`h-4 w-4 ${iconColor}`} />
+            </div>
+            <div className="space-y-0.5 min-w-0 flex-1">
+              <h3 className="text-[12px] font-bold tracking-wide text-white">
+                {title}
+              </h3>
+              <p className="text-[11px] font-normal leading-snug text-zinc-400">
+                {desc}
+              </p>
+            </div>
           </motion.div>
         ))}
       </motion.div>
@@ -707,15 +745,18 @@ function SplashStep({ onNext }: { onNext: () => void }) {
       <motion.button
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.68 }}
+        transition={{ delay: 0.65 }}
         onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/30 bg-cherryRed py-4 text-[13px] font-bold text-white shadow-[0_0_32px_rgba(210,4,45,.35)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/40 bg-cherryRed py-3.5 text-[13px] font-bold uppercase tracking-widest text-white shadow-[0_0_32px_rgba(210,4,45,.4)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
       >
-        <Flame className="h-4 w-4 fill-current" />
-        Let's Lock In
+        <Flame className="h-4 w-4 fill-current text-white animate-pulse" />
+        <span>Let's Lock In</span>
+        <ChevronRight className="h-4 w-4 text-white/70" />
       </motion.button>
 
-      <p className="text-[10px] font-normal text-zinc-700 pb-2">Campus-only. No randos. Just builders.</p>
+      <p className="text-[10px] font-mono text-zinc-600 pb-1">
+        Verified college emails only • Built for campus builders
+      </p>
     </div>
   );
 }
