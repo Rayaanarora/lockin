@@ -671,7 +671,7 @@ function SplashStep({ onNext }: { onNext: () => void }) {
       icon: Users,
       iconColor: "text-cherryRed",
       badgeBg: "bg-cherryRed/10 border-cherryRed/30",
-      title: "FOCUS CREATE PROVE",
+      title: "FOCUS, CREATE, IMPROVE",
       desc: "OTP verification & timed sprints — no distractions, pure proof of work.",
     },
     {
