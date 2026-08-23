@@ -10,7 +10,7 @@ export const Root = () => {
         durationInFrames={1050} // 35 seconds @ 30fps
         fps={30}
         width={1080}
-        height={1920}
+        height={1350}
         defaultProps={{
           musicEnabled: true,
         }}
@@ -21,7 +21,7 @@ export const Root = () => {
         durationInFrames={1050}
         fps={30}
         width={1080}
-        height={1920}
+        height={1350}
         defaultProps={{
           musicEnabled: false,
         }}
