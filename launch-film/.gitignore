@@ -1,0 +1,5 @@
+node_modules/
+venv/
+*.mp4
+assets/audio/*.mp3
+assets/audio/*.wav
