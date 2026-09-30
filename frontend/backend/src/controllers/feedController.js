@@ -4,7 +4,7 @@ const { isDbUnavailable } = require("../utils/dbFallback");
 // GET /api/feed
 async function getFeed(req, res) {
   const userId = Number(req.query.userId);
-  const filter = req.query.filter || "all"; // "all" | "following" | "campus"
+  const filter = req.query.filter || "campus"; // Default to campus-exclusive feed
   const limit = Number(req.query.limit) || 20;
   const cursor = req.query.cursor ? Number(req.query.cursor) : undefined;
 
@@ -24,8 +24,8 @@ async function getFeed(req, res) {
       const followingIds = follows.map(f => f.followingId);
       // Include following users + current user themselves
       whereClause.userId = { in: [...followingIds, userId] };
-    } else if (filter === "campus") {
-      // Find current user's college
+    } else {
+      // Campus exclusive feed: Only users from the current user's college
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { collegeId: true }
@@ -33,7 +33,6 @@ async function getFeed(req, res) {
       if (user && user.collegeId) {
         whereClause.user = { collegeId: user.collegeId };
       } else {
-        // If user has no college, campus feed is just empty or fallback to user's own
         whereClause.userId = userId;
       }
     }

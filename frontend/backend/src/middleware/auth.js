@@ -3,9 +3,6 @@ const prisma = require("../config/db");
 
 async function requireAuth(req, res, next) {
   try {
-    if (!supabase) {
-      return res.status(503).json({ error: "Auth service not configured." });
-    }
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Authentication required." });

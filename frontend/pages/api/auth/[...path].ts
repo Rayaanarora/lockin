@@ -18,6 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const user = await getAuthUser(req, res);
       if (!user) return;
       (req as any).user = user;
+      (req as any).supabaseUser = user;
       return await syncProfile(req, res);
     }
 
@@ -25,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const user = await getAuthUser(req, res);
       if (!user) return;
       (req as any).user = user;
+      (req as any).supabaseUser = user;
       return await getMe(req, res);
     }
 
@@ -32,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const user = await getAuthUser(req, res);
       if (!user) return;
       (req as any).user = user;
+      (req as any).supabaseUser = user;
       return await logout(req, res);
     }
 

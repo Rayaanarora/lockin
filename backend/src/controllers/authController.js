@@ -100,12 +100,13 @@ async function checkDomain(req, res) {
  * Creates a skeleton profile for first-time signups.
  */
 async function syncProfile(req, res) {
-  if (!req.supabaseUser) {
+  const supabaseUser = req.supabaseUser || req.user;
+  if (!supabaseUser) {
     return res.status(401).json({ error: "Not authenticated." });
   }
 
-  const email = req.supabaseUser.email;
-  const supabaseId = req.supabaseUser.id;
+  const email = supabaseUser.email;
+  const supabaseId = supabaseUser.id;
 
   try {
     // Find existing user by supabaseId or email
@@ -193,34 +194,49 @@ async function syncProfile(req, res) {
  * Returns the currently authenticated user details.
  */
 async function getMe(req, res) {
-  if (!req.supabaseUser) {
+  const supabaseUser = req.supabaseUser || req.user;
+  if (!supabaseUser) {
     return res.status(401).json({ error: "Not authenticated." });
   }
 
-  if (!req.user) {
+  // If req.user is already a fully loaded DB user with college, use it; otherwise fetch from DB
+  let dbUser = (req.user && req.user.college !== undefined) ? req.user : null;
+  if (!dbUser) {
+    dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { supabaseId: supabaseUser.id },
+          { email: supabaseUser.email }
+        ]
+      },
+      include: { collegeRef: true }
+    });
+  }
+
+  if (!dbUser) {
     return res.json({
       incomplete: true,
-      email: req.supabaseUser.email,
-      name: req.supabaseUser.email.split("@")[0]
+      email: supabaseUser.email,
+      name: supabaseUser.email.split("@")[0]
     });
   }
 
   res.json({
-    id: req.user.id,
-    name: req.user.name,
-    email: req.user.email,
-    email_verified: req.user.emailVerified,
-    college: req.user.college,
-    college_id: req.user.email, // Legacy mapping
-    department: req.user.department,
-    reputation_score: req.user.reputationScore,
-    bio: req.user.bio,
-    instagram: req.user.instagram,
-    github: req.user.github,
-    interests: req.user.interests,
-    campus_id: req.user.collegeId,
-    campus_name: req.user.collegeRef?.shortName || "",
-    verified_at: req.user.verifiedAt
+    id: dbUser.id,
+    name: dbUser.name,
+    email: dbUser.email,
+    email_verified: dbUser.emailVerified,
+    college: dbUser.college,
+    college_id: dbUser.email, // Legacy mapping
+    department: dbUser.department,
+    reputation_score: dbUser.reputationScore,
+    bio: dbUser.bio,
+    instagram: dbUser.instagram,
+    github: dbUser.github,
+    interests: dbUser.interests,
+    campus_id: dbUser.collegeId,
+    campus_name: dbUser.collegeRef?.shortName || "",
+    verified_at: dbUser.verifiedAt
   });
 }
 

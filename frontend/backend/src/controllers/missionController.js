@@ -830,18 +830,27 @@ async function getCampuses(req, res) {
     const colleges = await prisma.college.findMany({
       orderBy: { shortName: "asc" }
     });
+    // Prioritize SRM KTR, followed by other SRM campuses, then alphabetical
+    const sorted = [...colleges].sort((a, b) => {
+      const aIsKtr = a.shortName === "SRM KTR" || a.collegeName?.includes("Kattankulathur");
+      const bIsKtr = b.shortName === "SRM KTR" || b.collegeName?.includes("Kattankulathur");
+      if (aIsKtr && !bIsKtr) return -1;
+      if (!aIsKtr && bIsKtr) return 1;
+      return (a.shortName || a.collegeName || "").localeCompare(b.shortName || b.collegeName || "");
+    });
     // Return in a format compatible with the existing frontend
     res.json(
-      colleges.map((c) => ({
+      sorted.map((c) => ({
         id: c.id,
-        name: c.shortName,
+        name: c.shortName ? `${c.shortName} (${c.collegeName})` : c.collegeName,
+        shortName: c.shortName,
         location: `${c.city}, ${c.state}`
       }))
     );
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
     res.json([
-      { id: 1, name: "SRM IST, Kattankulathur (KTR)", location: "Chennai, Tamil Nadu" }
+      { id: 1634, name: "SRM KTR (SRM Institute of Science and Technology, Kattankulathur)", location: "Chengalpattu, Tamil Nadu" }
     ]);
   }
 }

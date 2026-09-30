@@ -1,5 +1,15 @@
 [
   {
+    "college_name": "SRM Institute of Science and Technology, Kattankulathur",
+    "short_name": "SRM KTR",
+    "college_type": "Private Engineering",
+    "city": "Chengalpattu",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "srmist.edu.in",
+    "email_domain": "srmist.edu.in"
+  },
+  {
     "college_name": "Birla Institute of Technology and Science, Pilani - Dubai Campus",
     "short_name": "BITS Pilani Dubai",
     "college_type": "BITS",
@@ -768,16 +778,6 @@
     "country": "India",
     "official_domain": "sssihl.edu.in",
     "email_domain": "sssihl.edu.in"
-  },
-  {
-    "college_name": "SRM Institute of Science and Technology",
-    "short_name": "SRMIST",
-    "college_type": "Deemed University",
-    "city": "Chennai",
-    "state": "Tamil Nadu",
-    "country": "India",
-    "official_domain": "srmist.edu.in",
-    "email_domain": "srmist.edu.in"
   },
   {
     "college_name": "Suresh Gyan Vihar University",
@@ -2890,16 +2890,6 @@
     "email_domain": "sirmvit.edu"
   },
   {
-    "college_name": "SRM Institute of Science and Technology, Kattankulathur",
-    "short_name": "SRM KTR",
-    "college_type": "Private Engineering",
-    "city": "Chengalpattu",
-    "state": "Tamil Nadu",
-    "country": "India",
-    "official_domain": "srmist.edu.in",
-    "email_domain": "srmist.edu.in"
-  },
-  {
     "college_name": "SRM Institute of Science and Technology, NCR Campus",
     "short_name": "SRM NCR",
     "college_type": "Private Engineering",
@@ -4078,5 +4068,255 @@
     "country": "India",
     "official_domain": "telanganauniversity.ac.in",
     "email_domain": "telanganauniversity.ac.in"
+  },
+  {
+    "college_name": "SRM University Delhi-NCR, Sonepat",
+    "short_name": "SRM Sonepat",
+    "college_type": "Private Engineering",
+    "city": "Sonepat",
+    "state": "Haryana",
+    "country": "India",
+    "official_domain": "srmuniversity.ac.in",
+    "email_domain": "srmuniversity.ac.in"
+  },
+  {
+    "college_name": "Krea University",
+    "short_name": "Krea",
+    "college_type": "Liberal Arts",
+    "city": "Sri City",
+    "state": "Andhra Pradesh",
+    "country": "India",
+    "official_domain": "krea.edu.in",
+    "email_domain": "krea.edu.in"
+  },
+  {
+    "college_name": "College of Engineering, Pune",
+    "short_name": "COEP",
+    "college_type": "Government Engineering",
+    "city": "Pune",
+    "state": "Maharashtra",
+    "country": "India",
+    "official_domain": "coep.ac.in",
+    "email_domain": "coep.ac.in"
+  },
+  {
+    "college_name": "Pune Institute of Computer Technology",
+    "short_name": "PICT",
+    "college_type": "Private Engineering",
+    "city": "Pune",
+    "state": "Maharashtra",
+    "country": "India",
+    "official_domain": "pict.edu",
+    "email_domain": "pict.edu"
+  },
+  {
+    "college_name": "Amrita Vishwa Vidyapeetham, Coimbatore",
+    "short_name": "Amrita Coimbatore",
+    "college_type": "Deemed University",
+    "city": "Coimbatore",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "amrita.edu",
+    "email_domain": "cb.students.amrita.edu"
+  },
+  {
+    "college_name": "Amrita Vishwa Vidyapeetham, Amritapuri",
+    "short_name": "Amrita Amritapuri",
+    "college_type": "Deemed University",
+    "city": "Kollam",
+    "state": "Kerala",
+    "country": "India",
+    "official_domain": "amrita.edu",
+    "email_domain": "am.students.amrita.edu"
+  },
+  {
+    "college_name": "Amrita Vishwa Vidyapeetham, Bengaluru",
+    "short_name": "Amrita Bengaluru",
+    "college_type": "Deemed University",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "amrita.edu",
+    "email_domain": "blr.students.amrita.edu"
+  },
+  {
+    "college_name": "Chaitanya Bharathi Institute of Technology",
+    "short_name": "CBIT",
+    "college_type": "Autonomous",
+    "city": "Hyderabad",
+    "state": "Telangana",
+    "country": "India",
+    "official_domain": "cbit.ac.in",
+    "email_domain": "cbit.ac.in"
+  },
+  {
+    "college_name": "Vasavi College of Engineering",
+    "short_name": "VCE",
+    "college_type": "Autonomous",
+    "city": "Hyderabad",
+    "state": "Telangana",
+    "country": "India",
+    "official_domain": "vce.ac.in",
+    "email_domain": "vce.ac.in"
+  },
+  {
+    "college_name": "VNR Vignana Jyothi Institute of Engineering and Technology",
+    "short_name": "VNR VJIET",
+    "college_type": "Autonomous",
+    "city": "Hyderabad",
+    "state": "Telangana",
+    "country": "India",
+    "official_domain": "vnrvjiet.in",
+    "email_domain": "vnrvjiet.in"
+  },
+  {
+    "college_name": "Gokaraju Rangaraju Institute of Engineering and Technology",
+    "short_name": "GRIET",
+    "college_type": "Autonomous",
+    "city": "Hyderabad",
+    "state": "Telangana",
+    "country": "India",
+    "official_domain": "griet.ac.in",
+    "email_domain": "griet.ac.in"
+  },
+  {
+    "college_name": "CVR College of Engineering",
+    "short_name": "CVR",
+    "college_type": "Autonomous",
+    "city": "Hyderabad",
+    "state": "Telangana",
+    "country": "India",
+    "official_domain": "cvr.ac.in",
+    "email_domain": "cvr.ac.in"
+  },
+  {
+    "college_name": "Shri Ram College of Commerce",
+    "short_name": "SRCC DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "srcc.du.ac.in",
+    "email_domain": "srcc.du.ac.in"
+  },
+  {
+    "college_name": "St. Stephens College",
+    "short_name": "St. Stephens DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "ststephens.edu",
+    "email_domain": "ststephens.edu"
+  },
+  {
+    "college_name": "Hindu College",
+    "short_name": "Hindu College DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "hinducollege.ac.in",
+    "email_domain": "hinducollege.ac.in"
+  },
+  {
+    "college_name": "Hansraj College",
+    "short_name": "Hansraj DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "hansrajcollege.ac.in",
+    "email_domain": "hansrajcollege.ac.in"
+  },
+  {
+    "college_name": "Miranda House",
+    "short_name": "Miranda House DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "mirandahouse.ac.in",
+    "email_domain": "mirandahouse.ac.in"
+  },
+  {
+    "college_name": "Lady Shri Ram College for Women",
+    "short_name": "LSR DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "lsr.edu.in",
+    "email_domain": "lsr.edu.in"
+  },
+  {
+    "college_name": "Kirori Mal College",
+    "short_name": "KMC DU",
+    "college_type": "Central University",
+    "city": "Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "kmc.du.ac.in",
+    "email_domain": "kmc.du.ac.in"
+  },
+  {
+    "college_name": "FLAME University",
+    "short_name": "FLAME",
+    "college_type": "Liberal Arts",
+    "city": "Pune",
+    "state": "Maharashtra",
+    "country": "India",
+    "official_domain": "flame.edu.in",
+    "email_domain": "flame.edu.in"
+  },
+  {
+    "college_name": "BML Munjal University",
+    "short_name": "BMU",
+    "college_type": "Private University",
+    "city": "Gurugram",
+    "state": "Haryana",
+    "country": "India",
+    "official_domain": "bmu.edu.in",
+    "email_domain": "bmu.edu.in"
+  },
+  {
+    "college_name": "Chitkara University",
+    "short_name": "Chitkara",
+    "college_type": "Private University",
+    "city": "Rajpura",
+    "state": "Punjab",
+    "country": "India",
+    "official_domain": "chitkara.edu.in",
+    "email_domain": "chitkara.edu.in"
+  },
+  {
+    "college_name": "Institute of Engineering and Management",
+    "short_name": "IEM Kolkata",
+    "college_type": "Autonomous",
+    "city": "Kolkata",
+    "state": "West Bengal",
+    "country": "India",
+    "official_domain": "iem.edu.in",
+    "email_domain": "iem.edu.in"
+  },
+  {
+    "college_name": "National Institute of Design",
+    "short_name": "NID Ahmedabad",
+    "college_type": "Design Institute",
+    "city": "Ahmedabad",
+    "state": "Gujarat",
+    "country": "India",
+    "official_domain": "nid.edu",
+    "email_domain": "nid.edu"
+  },
+  {
+    "college_name": "National Institute of Fashion Technology, Delhi",
+    "short_name": "NIFT Delhi",
+    "college_type": "Design Institute",
+    "city": "New Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "nift.ac.in",
+    "email_domain": "nift.ac.in"
   }
 ]
