@@ -4,7 +4,6 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
 import { Download, Share2, Check, Flame, Clock, Award, HelpCircle, BookOpen, Quote, Trash2, X } from "lucide-react";
 import { toPng } from "html-to-image";
-import ShareToFeedSheet from "./ShareToFeedSheet";
 
 interface RecapProps {
   isOpen: boolean;
@@ -59,7 +58,6 @@ export default function LockinRecapCard({
   const [copied, setCopied] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTrashing, setIsTrashing] = useState(false);
-  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [cardImage, setCardImage] = useState<string | null>(null);
 
@@ -317,39 +315,6 @@ export default function LockinRecapCard({
       alert(`Here is your share link: ${shareUrl}`);
     }
   }, [recapData.shareId, hours, mins]);
-  
-  const handlePostToFeedClick = async () => {
-    if (!cardRef.current || generatingImage) return;
-
-    try {
-      setGeneratingImage(true);
-      
-      const wasFlipped = isFlipped;
-      if (wasFlipped) {
-        setIsFlipped(false);
-        // Wait for flip animation
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      }
-
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2.0,
-        cacheBust: true,
-      });
-
-      if (wasFlipped) {
-        setIsFlipped(true);
-      }
-
-      setCardImage(dataUrl);
-      setIsShareSheetOpen(true);
-    } catch (err) {
-      console.error("Failed to generate card image:", err);
-      // Fallback
-      setIsShareSheetOpen(true);
-    } finally {
-      setGeneratingImage(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -789,15 +754,19 @@ export default function LockinRecapCard({
                   <Download size={13} />
                   {saving ? "Exporting..." : "Export Card"}
                 </button>
-                <button
-                  onClick={handlePostToFeedClick}
-                  disabled={generatingImage}
-                  className="flex-1 bg-cherryRed text-white font-black px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs transition hover:bg-red-800 tracking-wider uppercase truncate disabled:opacity-50"
-                >
-                  {generatingImage ? "Processing..." : "Post to Feed"}
-                </button>
               </>
             )}
+
+            <button
+              onClick={() => {
+                const text = `🎯 *LOCKIN MISSION CARD // ${subtitleText.toUpperCase()}*\n⚡ Status: ${statusText}\n🔥 Focus: ${longestLockText}\n✨ Aura: +${streakVal}\n\n"Dost toh sabke paas hote hain. Par karne waale kitne hain?"\nJoin the squad: ${typeof window !== "undefined" ? window.location.origin : ""}`;
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+              }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center border transition bg-[#25D366]/10 border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20 shrink-0"
+              title="Share to WhatsApp"
+            >
+              <span className="text-[10px] font-black tracking-tight">WA</span>
+            </button>
 
             <button
               onClick={handleShare}
@@ -808,17 +777,6 @@ export default function LockinRecapCard({
             </button>
           </div>
         </motion.div>
-
-        <ShareToFeedSheet
-          isOpen={isShareSheetOpen}
-          onClose={() => {
-            setIsShareSheetOpen(false);
-            setCardImage(null);
-          }}
-          recapId={recapData.id}
-          recapData={recapData}
-          preGeneratedCardImage={cardImage}
-        />
       </motion.div>
     </AnimatePresence>
   );

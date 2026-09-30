@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from "framer-motion";
-import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users, Share2 } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -11,6 +11,12 @@ import { CometCard } from "./ui/comet-card";
 
 // Feature flag: set to false to completely revert the 3D card tilt animation back to original card styling
 const ENABLE_3D_COMET_TILT = true;
+
+const getDefaultDatetime = () => {
+  const d = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  d.setMinutes(0, 0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 interface FeedProps {
   user: User;
@@ -27,6 +33,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const [activeCategory, setActiveCategory] = useState("all");
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
+  const [createError, setCreateError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -38,7 +45,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     title: "",
     description: "",
     location: user.location || "SRM KTR Library",
-    datetime: "",
+    datetime: getDefaultDatetime(),
     categoryId: "1",
     missionType: "group"
   });
@@ -103,8 +110,11 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         api(`/users/${user.id}/lock`)
       ]);
       setLocked(lock.locked);
-      const passed = JSON.parse(localStorage.getItem(`lockin_passed_${user.id}`) || "[]");
-      setMissions(feed.filter((item: Mission) => !passed.includes(item.id)));
+      // Swiped-left cards come back on refresh! Purge local storage rejection.
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`lockin_passed_${user.id}`);
+      }
+      setMissions(feed);
       setIndex(0);
     } catch (err: any) {
       setError(err.message || "Failed to load feed.");
@@ -133,9 +143,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         setTab?.("active");
       } else {
         await api(`/missions/${currentMission.id}/pass`, { method: "POST" });
-        const key = `lockin_passed_${user.id}`;
-        const passed = JSON.parse(localStorage.getItem(key) || "[]");
-        localStorage.setItem(key, JSON.stringify([...new Set([...passed, currentMission.id])]));
+        // Swiped-left cards come back on refresh — no localStorage rejection saved!
       }
       setIndex((curr) => curr + 1);
       x.set(0);
@@ -149,6 +157,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   async function handleCreateMission(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setCreateError("");
     setError("");
     try {
       const isSolo = form.missionType === "solo";
@@ -157,7 +166,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         creator_id: user.id,
         categoryId: Number(form.categoryId),
         location: isSolo ? "Solo" : form.location,
-        datetime: isSolo ? new Date().toISOString() : form.datetime,
+        datetime: isSolo ? new Date().toISOString() : (form.datetime ? new Date(form.datetime).toISOString() : new Date().toISOString()),
         coverColor: coverColor || null,
         coverImage: coverImage || null
       };
@@ -172,7 +181,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       setTab?.("active");
       setForm({
         title: "", description: "", location: user.location || "SRM KTR Library",
-        datetime: "", categoryId: categories[0]?.id ? String(categories[0].id) : "1", missionType: "group"
+        datetime: getDefaultDatetime(), categoryId: categories[0]?.id ? String(categories[0].id) : "1", missionType: "group"
       });
       setTasks([]);
       setCoverColor("");
@@ -180,6 +189,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       setShowCustomizeCover(false);
       await load(activeCategory);
     } catch (err: any) {
+      setCreateError(err.message || "Could not launch mission.");
       setError(err.message || "Could not launch mission.");
     } finally {
       setSubmitting(false);
@@ -200,9 +210,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       <div className="mb-5 flex items-center justify-between border-b border-white/[0.06] pb-4">
         <div>
           <span className="text-[9px] font-black uppercase tracking-[0.22em] text-cherryRed/80">
-            Discovery
+            Campus Quests
           </span>
-          <h2 className="text-[22px] font-bold text-white tracking-tight mt-0.5 leading-tight">Active Runways</h2>
+          <h2 className="text-[22px] font-bold text-white tracking-tight mt-0.5 leading-tight">Live Missions</h2>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -270,9 +280,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-cherryRed/25 bg-cherryRed/[0.06] p-4">
           <AlertCircle className="h-4 w-4 text-cherryRed shrink-0 mt-0.5 animate-pulse" />
           <div className="text-left">
-            <h4 className="text-[10px] font-black uppercase tracking-wider text-white">Runway Full</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-white">Mission Queue Full</h4>
             <p className="text-[10px] font-medium text-zinc-500 leading-relaxed mt-0.5">
-              3 active missions running. Mark attendance or clear to unlock.
+              3 active missions running. Mark attendance or complete to unlock.
             </p>
           </div>
         </div>
@@ -298,7 +308,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               onDragEnd={(_, info) => {
                 if (info.offset.x > 120) {
                   if (locked) {
-                    setError("Runway limit reached. Complete active queue first.");
+                    setError("Mission queue full. Complete active queue first.");
                     x.set(0);
                   } else {
                     handleAction("accept");
@@ -385,16 +395,32 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                             )}
                           </div>
                         </div>
-                        <span
-                          className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-[0.14em] uppercase"
-                          style={{
-                            borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(129,1,0,.3)",
-                            backgroundColor: currentMission.category_color ? `${currentMission.category_color}12` : "rgba(129,1,0,.08)",
-                            color: currentMission.category_color || "#ffa3a3"
-                          }}
-                        >
-                          {currentMission.category_name || "Mission"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const origin = typeof window !== "undefined" ? window.location.origin : "https://lockin.campus";
+                              const text = `🔥 *MISSION ALERT ON LOCKIN*\n\n*${currentMission.title}*\n${currentMission.description}\n\n📍 *Location:* ${currentMission.location || "Campus"}\n⏰ *Time:* ${formatDate(currentMission.datetime)}\n👤 *Host:* ${currentMission.creator_name || "Campus Peer"}\n\n👉 *Lock in with us on LOCKIN:* ${origin}`;
+                              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                            }}
+                            className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+                            title="Share mission to WhatsApp"
+                          >
+                            <Share2 className="h-2.5 w-2.5" />
+                            <span>Share</span>
+                          </button>
+                          <span
+                            className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-[0.14em] uppercase"
+                            style={{
+                              borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(129,1,0,.3)",
+                              backgroundColor: currentMission.category_color ? `${currentMission.category_color}12` : "rgba(129,1,0,.08)",
+                              color: currentMission.category_color || "#ffa3a3"
+                            }}
+                          >
+                            {currentMission.category_name || "Mission"}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="space-y-2 text-left">
@@ -452,8 +478,15 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               </div>
               <h3 className="text-[14px] font-black text-cotton uppercase tracking-wider">Feed Cleared</h3>
               <p className="mt-2 text-[12px] font-normal text-zinc-500 leading-relaxed max-w-[220px]">
-                No runways nearby. Launch one yourself or swap filters.
+                No active missions nearby. Launch one yourself or reset filters.
               </p>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="mt-4 flex items-center gap-2 rounded-xl border border-cherryRed/35 bg-cherryRed/20 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-cherryRed/30 transition shadow-[0_0_20px_rgba(210,4,45,0.2)]"
+              >
+                <Plus className="h-3.5 w-3.5" /> Launch Mission
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -510,8 +543,14 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateMission} className="space-y-4 mt-1">
+            {createError && (
+              <div className="rounded-xl border border-cherryRed/35 bg-cherryRed/15 p-2.5 text-xs text-cherryRed font-semibold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-cherryRed" />
+                <span>{createError}</span>
+              </div>
+            )}
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Runway Type</label>
+              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Mission Type</label>
               <div className="grid grid-cols-2 gap-1.5 bg-black/40 p-1 rounded-[14px] border border-white/[0.06]">
                 {["group", "solo"].map((t) => (
                   <button
@@ -571,15 +610,24 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               {form.missionType === "group" && (
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Location</label>
-                  <select
+                  <Input
+                    list="campus-locations-list"
                     value={form.location}
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-white/[0.08] bg-black/40 px-2.5 text-[12px] text-white outline-none focus:border-luxuryGold/40 cursor-pointer"
-                  >
-                    {["SRM KTR Library","SRM KTR Tech Park","SRM KTR Java Canteen","SRM KTR Bio-Tech Block","SRM KTR Cafe Court","SRM KTR UB Block"].map((spot) => (
-                      <option key={spot} value={spot} className="bg-zinc-950 text-white">{spot}</option>
-                    ))}
-                  </select>
+                    placeholder="e.g. Central Library, Tech Park, Canteen"
+                    className="h-10 border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-600"
+                    required
+                  />
+                  <datalist id="campus-locations-list">
+                    <option value="SRM KTR Library" />
+                    <option value="SRM KTR Tech Park" />
+                    <option value="SRM KTR Java Canteen" />
+                    <option value="SRM KTR Bio-Tech Block" />
+                    <option value="SRM KTR UB Block" />
+                    <option value="Campus Central Library" />
+                    <option value="Hostel Common Room" />
+                    <option value="Online / Discord" />
+                  </datalist>
                 </div>
               )}
             </div>
@@ -747,7 +795,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               className="flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-cherryRed/25 bg-cherryRed text-[12px] font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(210,4,45,0.22)] hover:bg-cherryRed/90 transition active:scale-[0.98] disabled:opacity-50"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
-              {submitting ? "Launching..." : "Launch Runway"}
+              {submitting ? "Launching..." : "Launch Mission"}
             </button>
           </form>
         </DialogContent>

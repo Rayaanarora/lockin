@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, CheckSquare, Square, FileText, Flame, Play, Pause, Users, Calendar, Download } from "lucide-react";
 import { User, Mission } from "../app/types";
@@ -54,41 +54,73 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
   const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);
 
-  // Timer Tick Effect
+  // Exact target timestamp refs to survive background tab throttling
+  const endTimeRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+
+  // Timer Tick Effect (survives tab switching and background throttling)
   useEffect(() => {
     let interval: any = null;
+
     if (timerRunning && activeFocusMission) {
-      interval = setInterval(() => {
-        setTimeLeftSeconds((prev) => {
-          if (activeTimerDuration > 0) {
-            // Countdown
-            if (prev <= 1) {
-              setTimerRunning(false);
-              clearInterval(interval);
-              // Simple audio beep
-              if (typeof window !== "undefined") {
-                try {
-                  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-                  const osc = ctx.createOscillator();
-                  osc.type = "sine";
-                  osc.frequency.setValueAtTime(800, ctx.currentTime);
-                  osc.connect(ctx.destination);
-                  osc.start();
-                  osc.stop(ctx.currentTime + 0.2);
-                } catch (e) {
-                  console.warn("AudioContext block", e);
-                }
+      if (activeTimerDuration > 0) {
+        if (!endTimeRef.current) {
+          endTimeRef.current = Date.now() + timeLeftSeconds * 1000;
+        }
+      } else {
+        if (!startTimeRef.current) {
+          startTimeRef.current = Date.now() - timeLeftSeconds * 1000;
+        }
+      }
+
+      const syncTick = () => {
+        if (activeTimerDuration > 0 && endTimeRef.current) {
+          const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+          setTimeLeftSeconds(remaining);
+          if (remaining <= 0) {
+            setTimerRunning(false);
+            endTimeRef.current = null;
+            if (typeof window !== "undefined") {
+              try {
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+              } catch (e) {
+                console.warn("AudioContext block", e);
               }
-              return 0;
             }
-            return prev - 1;
-          } else {
-            // Stopwatch
-            return prev + 1;
           }
-        });
-      }, 1000);
+        } else if (activeTimerDuration === 0 && startTimeRef.current) {
+          const elapsed = Math.max(0, Math.floor((Date.now() - startTimeRef.current) / 1000));
+          setTimeLeftSeconds(elapsed);
+        }
+      };
+
+      // Immediate tick to sync
+      syncTick();
+      interval = setInterval(syncTick, 1000);
+
+      // Visibility change handler to instantly snap back to real time when user reopens tab
+      const handleVisibility = () => {
+        if (document.visibilityState === "visible") {
+          syncTick();
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibility);
+
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener("visibilitychange", handleVisibility);
+      };
+    } else {
+      endTimeRef.current = null;
+      startTimeRef.current = null;
     }
+
     return () => clearInterval(interval);
   }, [timerRunning, activeFocusMission, activeTimerDuration]);
 

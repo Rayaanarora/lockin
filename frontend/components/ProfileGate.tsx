@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Input } from "./ui/input";
 import { User, InterestCategory } from "../app/types";
+import { StagEmblem, LockinLogo } from "./ui/LockinLogo";
 
 import { supabase } from "../lib/supabase";
 
@@ -58,8 +59,8 @@ const TUTORIAL_STEPS = [
     color: "text-amber-400",
     bg: "bg-amber-500/10 border-amber-500/30",
     glow: "shadow-[0_0_30px_rgba(245,158,11,0.15)]",
-    title: "Discover & Drop Ideas",
-    body: "Browse raw missions & project ideas posted by students on your campus. Join an existing build or launch your own runway for others to join.",
+    title: "Discover & Drop Missions",
+    body: "Browse raw missions & project quests posted by builders on your campus. Join an existing sprint or launch your own mission for others to join.",
   },
   {
     icon: Users,
@@ -124,6 +125,15 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   });
 
   const [validation, setValidation] = useState<{ [key: string]: string }>({});
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedEmail = localStorage.getItem("lockin_saved_email");
+      if (savedEmail) {
+        setForm((f) => ({ ...f, email: savedEmail }));
+      }
+    }
+  }, []);
 
   useEffect(() => {
     api("/missions/campuses")
@@ -234,6 +244,26 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
         return;
       }
 
+      // Remember verified email for future logins
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lockin_saved_email", form.email);
+      }
+
+      const matchedCollege = checkRes.college;
+      const matchedCampuses = checkRes.campuses;
+      if (matchedCampuses && matchedCampuses.length > 0) {
+        setCampuses(matchedCampuses.map((c: any) => ({
+          id: c.id,
+          name: c.shortName ? `${c.shortName} (${c.collegeName})` : c.collegeName,
+          location: c.city ? `${c.city}, ${c.state}` : undefined
+        })));
+      }
+
+      const defaultCampusId = matchedCollege ? matchedCollege.id : "";
+      const defaultCampusName = matchedCollege
+        ? (matchedCollege.shortName ? `${matchedCollege.shortName} (${matchedCollege.collegeName})` : matchedCollege.collegeName)
+        : "";
+
       if (!supabase) throw new Error("Supabase is not initialized.");
 
       if (mode === "signup") {
@@ -256,8 +286,9 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             setTempUserId(syncRes.user.id);
             setForm(f => ({
               ...f,
-              campusId: "",
-              campusName: "",
+              campusId: defaultCampusId,
+              campusName: defaultCampusName,
+              college_id: String(defaultCampusId || ""),
               name: syncRes.user.name || f.name
             }));
             setDirection(1);
@@ -284,8 +315,9 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             setTempUserId(syncRes.user.id);
             setForm(f => ({
               ...f,
-              campusId: "",
-              campusName: "",
+              campusId: defaultCampusId || syncRes.user.collegeId || "",
+              campusName: defaultCampusName || syncRes.user.college || "",
+              college_id: String(defaultCampusId || syncRes.user.collegeId || ""),
               name: syncRes.user.name || f.name
             }));
             setDirection(1);
@@ -432,7 +464,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const totalSteps = 7; // 0-6
 
   return (
-    <div className="relative min-h-screen w-full overflow-y-auto flex flex-col items-center justify-start md:justify-center py-8 px-4"
+    <div className="relative min-h-[100dvh] w-full overflow-y-auto flex flex-col items-center justify-start md:justify-center py-6 px-4 pb-24 md:pb-12"
       style={{ background: "linear-gradient(160deg, #141110 0%, #0D0A09 100%)" }}
     >
       {/* Race stripe top */}
@@ -696,18 +728,18 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.08, type: "spring", stiffness: 220, damping: 20 }}
-        className="flex h-[84px] w-[84px] items-center justify-center rounded-[24px] border border-white/[0.1] bg-black/80 p-2 shadow-[0_0_60px_rgba(210,4,45,0.25),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-md"
+        className="flex h-[88px] w-[88px] items-center justify-center rounded-[24px] border border-white/[0.1] bg-black/80 p-3 shadow-[0_0_60px_rgba(210,4,45,0.25),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-md"
       >
-        <img src="/logo.png" alt="LOCKIN Logo" className="h-full w-full object-contain" />
+        <StagEmblem size={52} className="text-white" />
       </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}
-        className="space-y-1.5"
+        className="space-y-2 flex flex-col items-center"
       >
-        <h1 className="text-[38px] font-display font-bold tracking-[0.06em] text-white leading-none">LOCKIN</h1>
+        <LockinLogo size="xl" />
         <p className="text-[13px] font-medium text-zinc-300 leading-relaxed max-w-[280px] mx-auto">
           Where campus ideas turn into proof of work.
         </p>

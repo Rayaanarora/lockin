@@ -18,7 +18,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 export default function SocialFeed({ user, api }: SocialFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [filter, setFilter] = useState<"everyone" | "following" | "college">("everyone");
+  const [filter, setFilter] = useState<"everyone" | "following" | "college">("college");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
@@ -219,9 +219,8 @@ export default function SocialFeed({ user, api }: SocialFeedProps) {
       {/* Visibility Filters Pillbar */}
       <div className="px-6 py-2 flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 border-b border-white/[0.04]">
         {[
-          { key: "everyone", label: "Everyone" },
-          { key: "following", label: "Following" },
-          { key: "college", label: "Campus Only" }
+          { key: "college", label: `${user.college ? user.college : "Campus"} Exclusive` },
+          { key: "following", label: "Following" }
         ].map((tab) => {
           const isActive = filter === tab.key;
           return (

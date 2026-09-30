@@ -115,7 +115,7 @@ async function createPost(req, res) {
 // GET /api/posts/feed
 async function getPostsFeed(req, res) {
   const userId = Number(req.query.userId);
-  const filter = req.query.filter || "everyone"; // "college" | "following" | "everyone"
+  const filter = req.query.filter || "college"; // Strictly campus exclusive by default
   const limit = Number(req.query.limit) || 10;
   const cursor = req.query.cursor ? Number(req.query.cursor) : undefined;
 
@@ -132,18 +132,7 @@ async function getPostsFeed(req, res) {
       select: { collegeId: true }
     });
 
-    if (filter === "college") {
-      const collegeId = user ? user.collegeId : null;
-      if (collegeId) {
-        whereClause = {
-          user: { collegeId: collegeId },
-          visibility: { in: ["college", "everyone"] }
-        };
-      } else {
-        // Fallback if user has no college: only show their own posts
-        whereClause = { userId };
-      }
-    } else if (filter === "following") {
+    if (filter === "following") {
       const follows = await prisma.follow.findMany({
         where: { followerId: userId },
         select: { followingId: true }
@@ -155,13 +144,17 @@ async function getPostsFeed(req, res) {
         visibility: { in: ["everyone", "followers", "college"] }
       };
     } else {
-      // "everyone" (default)
-      whereClause = {
-        OR: [
-          { visibility: "everyone" },
-          { userId: userId }
-        ]
-      };
+      // "college" / campus feed (exclusive to user's college)
+      const collegeId = user ? user.collegeId : null;
+      if (collegeId) {
+        whereClause = {
+          user: { collegeId: collegeId },
+          visibility: { in: ["college", "everyone"] }
+        };
+      } else {
+        // Fallback if user has no college: only show their own posts
+        whereClause = { userId };
+      }
     }
 
     const queryOptions = {

@@ -3,6 +3,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Flame, Activity, User as UserIcon, Rss } from "lucide-react";
 import { User } from "../app/types";
+import { StagEmblem, LockinLogo } from "./ui/LockinLogo";
 
 interface ShellProps {
   children: React.ReactNode;
@@ -15,12 +16,12 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
   const isDesktopDashboard = !!user && !!tab && !!setTab;
 
   return (
-    <div className="min-h-screen w-full bg-[#000000] flex items-center justify-center p-0 overflow-hidden">
+    <div className="min-h-[100dvh] w-full bg-[#000000] flex items-center justify-center p-0 overflow-hidden">
       <main
         className={`relative flex text-white antialiased overflow-hidden
           ${isDesktopDashboard
-            ? "h-screen w-full md:flex-row"
-            : "h-screen w-full md:h-[min(860px,90vh)] md:max-w-[430px] md:flex-col md:rounded-[44px] md:border md:border-white/[0.07] md:shadow-[0_40px_120px_rgba(0,0,0,0.98)] md:ring-1 md:ring-white/[0.04]"
+            ? "h-[100dvh] w-full md:flex-row"
+            : "h-[100dvh] w-full md:h-[min(860px,90vh)] md:max-w-[430px] md:flex-col md:rounded-[44px] md:border md:border-white/[0.07] md:shadow-[0_40px_120px_rgba(0,0,0,0.98)] md:ring-1 md:ring-white/[0.04]"
           }
         `}
         style={{ background: "linear-gradient(160deg, #09090b 0%, #000000 100%)" }}
@@ -57,16 +58,14 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
             <div className="space-y-9">
               {/* Brand */}
               <div className="flex items-center gap-3.5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.08] bg-black/60 p-1 shadow-[0_0_24px_rgba(129,1,0,0.15)]">
-                  <img src="/logo.png" alt="LOCKIN" className="h-full w-full object-contain" />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.08] bg-black/60 shadow-[0_0_24px_rgba(210,4,45,0.2)]">
+                  <StagEmblem size={24} className="text-white" />
                 </div>
                 <div>
                   <span className="text-[9px] font-semibold tracking-[0.22em] text-zinc-600 uppercase block leading-none mb-1">
                     Campus Execution
                   </span>
-                  <h1 className="text-[22px] font-display font-bold tracking-[0.06em] text-white leading-none">
-                    LOCKIN
-                  </h1>
+                  <LockinLogo size="md" />
                 </div>
               </div>
 

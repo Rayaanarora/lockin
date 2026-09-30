@@ -17,9 +17,40 @@ async function checkDomain(req, res) {
   const domain = normalizedEmail.split("@")[1];
 
   try {
-    let college = await prisma.college.findFirst({
-      where: { emailDomain: domain }
-    });
+    let college = null;
+    let campuses = [];
+
+    // Special priority handling for SRMIST domains to prioritize KTR
+    if (domain === "srmist.edu.in") {
+      college = await prisma.college.findFirst({
+        where: {
+          emailDomain: "srmist.edu.in",
+          OR: [
+            { shortName: { contains: "KTR", mode: "insensitive" } },
+            { collegeName: { contains: "Kattankulathur", mode: "insensitive" } }
+          ]
+        }
+      });
+      const srmCampuses = await prisma.college.findMany({
+        where: { emailDomain: "srmist.edu.in" }
+      });
+      campuses = srmCampuses.sort((a, b) => {
+        if (a.shortName.includes("KTR")) return -1;
+        if (b.shortName.includes("KTR")) return 1;
+        return a.shortName.localeCompare(b.shortName);
+      });
+    }
+
+    if (!college) {
+      college = await prisma.college.findFirst({
+        where: { emailDomain: domain }
+      });
+      if (college) {
+        campuses = await prisma.college.findMany({
+          where: { emailDomain: domain }
+        });
+      }
+    }
 
     if (!college) {
       const parts = domain.split(".");
@@ -28,6 +59,11 @@ async function checkDomain(req, res) {
         college = await prisma.college.findFirst({
           where: { emailDomain: baseDomain }
         });
+        if (college) {
+          campuses = await prisma.college.findMany({
+            where: { emailDomain: baseDomain }
+          });
+        }
       }
     }
 
@@ -44,7 +80,13 @@ async function checkDomain(req, res) {
         name: college.shortName,
         full_name: college.collegeName,
         college_type: college.collegeType
-      }
+      },
+      campuses: campuses.map((c) => ({
+        id: c.id,
+        name: c.shortName,
+        full_name: c.collegeName,
+        city: c.city
+      }))
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -105,16 +147,23 @@ async function syncProfile(req, res) {
           reputationScore: 100
         }
       });
-    } else if (!user.supabaseId) {
-      // Link pre-existing database row to the new Supabase Auth identity
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          supabaseId: supabaseId,
-          emailVerified: true,
-          verifiedAt: new Date()
-        }
-      });
+    } else {
+      const updateData = {};
+      if (!user.supabaseId) {
+        updateData.supabaseId = supabaseId;
+        updateData.emailVerified = true;
+        updateData.verifiedAt = new Date();
+      }
+      if (!user.collegeId && college) {
+        updateData.collegeId = college.id;
+        if (!user.college) updateData.college = college.shortName;
+      }
+      if (Object.keys(updateData).length > 0) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: updateData
+        });
+      }
     }
 
     res.json({
