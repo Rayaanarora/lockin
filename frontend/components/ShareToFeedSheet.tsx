@@ -13,7 +13,14 @@ interface ShareToFeedSheetProps {
   preGeneratedCardImage?: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API_URL =
+  typeof window !== "undefined"
+    ? (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
+        ? process.env.NEXT_PUBLIC_API_URL
+        : "/api")
+    : (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
+        ? process.env.NEXT_PUBLIC_API_URL
+        : "/api");
 const MAX_IMAGES = 4;
 
 export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData, preGeneratedCardImage }: ShareToFeedSheetProps) {

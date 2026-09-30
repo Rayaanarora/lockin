@@ -14,7 +14,14 @@ interface SocialFeedProps {
   api: (path: string, options?: RequestInit) => Promise<any>;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API_URL =
+  typeof window !== "undefined"
+    ? (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
+        ? process.env.NEXT_PUBLIC_API_URL
+        : "/api")
+    : (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
+        ? process.env.NEXT_PUBLIC_API_URL
+        : "/api");
 
 export default function SocialFeed({ user, api }: SocialFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);

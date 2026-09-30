@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from "framer-motion";
-import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users, Share2 } from "lucide-react";
+import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users, Share2, RefreshCw } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -107,16 +107,17 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     try {
       const [feed, lock] = await Promise.all([
         api(`/missions/feed?userId=${user.id}&categoryId=${catId}`),
-        api(`/users/${user.id}/lock`)
+        api(`/users/${user.id}/lock`).catch(() => ({ locked: false }))
       ]);
-      setLocked(lock.locked);
+      setLocked(Boolean(lock?.locked));
       // Swiped-left cards come back on refresh! Purge local storage rejection.
       if (typeof window !== "undefined") {
         localStorage.removeItem(`lockin_passed_${user.id}`);
       }
-      setMissions(feed);
+      setMissions(Array.isArray(feed) ? feed : []);
       setIndex(0);
     } catch (err: any) {
+      console.error("Feed load error:", err);
       setError(err.message || "Failed to load feed.");
     }
   }
@@ -480,13 +481,22 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               <p className="mt-2 text-[12px] font-normal text-zinc-500 leading-relaxed max-w-[220px]">
                 No active missions nearby. Launch one yourself or reset filters.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowCreate(true)}
-                className="mt-4 flex items-center gap-2 rounded-xl border border-cherryRed/35 bg-cherryRed/20 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-cherryRed/30 transition shadow-[0_0_20px_rgba(210,4,45,0.2)]"
-              >
-                <Plus className="h-3.5 w-3.5" /> Launch Mission
-              </button>
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory("all"); load("all"); }}
+                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-zinc-300 hover:bg-white/10 transition"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Reload All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-cherryRed/35 bg-cherryRed/20 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-cherryRed/30 transition shadow-[0_0_20px_rgba(210,4,45,0.2)]"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Launch Mission
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

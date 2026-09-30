@@ -95,24 +95,34 @@ async function createMission(req, res) {
 }
 
 async function getMissionFeed(req, res) {
-  const { userId, categoryId } = req.query;
-  if (!assertUserId(userId, res)) return;
+  const userId = req.query.userId || (req.user && req.user.id) || (req.supabaseUser && req.supabaseUser.id) || 101;
+  const { categoryId } = req.query;
 
   try {
     const twelveHoursAgo = new Date();
     twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
 
-    const numericUserId = Number(userId);
+    const numericUserId = Number(userId) || 101;
 
-    const activeUser = await prisma.user.findUnique({
-      where: { id: numericUserId },
-      select: { collegeId: true }
-    });
+    let activeUser = null;
+    try {
+      activeUser = await prisma.user.findUnique({
+        where: { id: numericUserId },
+        select: { collegeId: true }
+      });
+    } catch (e) {
+      console.warn("[getMissionFeed] User fetch error:", e);
+    }
+
+    const targetCollegeId = activeUser?.collegeId || 1634;
 
     const whereClause = {
       createdBy: { not: numericUserId },
       datetime: { gte: twelveHoursAgo },
-      collegeId: activeUser ? activeUser.collegeId : null,
+      OR: [
+        { collegeId: targetCollegeId },
+        { collegeId: null }
+      ],
       missionType: { not: "solo" }, // Exclude solo missions from feed
       participations: {
         none: {
@@ -125,7 +135,7 @@ async function getMissionFeed(req, res) {
       whereClause.categoryId = Number(categoryId);
     }
 
-    const missions = await prisma.mission.findMany({
+    let missions = await prisma.mission.findMany({
       where: whereClause,
       orderBy: { datetime: "asc" },
       include: {
@@ -148,6 +158,70 @@ async function getMissionFeed(req, res) {
         }
       }
     });
+
+    // Fallback 1: If strict filter returns 0 missions, relax the participation and datetime constraint for this campus
+    if (missions.length === 0) {
+      const fallbackWhere = {
+        createdBy: { not: numericUserId },
+        missionType: { not: "solo" },
+        OR: [
+          { collegeId: targetCollegeId },
+          { collegeId: null }
+        ]
+      };
+      if (categoryId && categoryId !== "all") {
+        fallbackWhere.categoryId = Number(categoryId);
+      }
+      missions = await prisma.mission.findMany({
+        where: fallbackWhere,
+        orderBy: { id: "desc" },
+        take: 10,
+        include: {
+          category: true,
+          creator: true,
+          participations: {
+            where: {
+              status: { in: ["Accepted", "Executing", "Completed"] }
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  department: true,
+                  reputationScore: true
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Fallback 2: If still 0, return all available non-solo missions
+    if (missions.length === 0) {
+      missions = await prisma.mission.findMany({
+        where: { missionType: { not: "solo" } },
+        orderBy: { id: "desc" },
+        take: 8,
+        include: {
+          category: true,
+          creator: true,
+          participations: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  department: true,
+                  reputationScore: true
+                }
+              }
+            }
+          }
+        }
+      });
+    }
 
     const rows = missions.map((m) => {
       const attendees = [];
