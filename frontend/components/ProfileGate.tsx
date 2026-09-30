@@ -128,12 +128,24 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (localStorage.getItem("lockin_demo_active") === "true") {
+        const demoUserStr = localStorage.getItem("lockin_demo_user");
+        if (demoUserStr) {
+          try {
+            const parsed = JSON.parse(demoUserStr);
+            if (parsed && parsed.id) {
+              onReady(parsed);
+              return;
+            }
+          } catch (e) {}
+        }
+      }
       const savedEmail = localStorage.getItem("lockin_saved_email");
       if (savedEmail) {
         setForm((f) => ({ ...f, email: savedEmail }));
       }
     }
-  }, []);
+  }, [onReady]);
 
   useEffect(() => {
     api("/missions/campuses")
@@ -461,6 +473,52 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     }
   }
 
+  async function handleDemoLogin() {
+    setBusy(true);
+    setError("");
+    try {
+      let demoUser: User | null = null;
+      try {
+        demoUser = await api("/auth/demo");
+      } catch (err) {
+        console.warn("API /auth/demo fetch fallback:", err);
+      }
+
+      if (!demoUser || !demoUser.id) {
+        demoUser = {
+          id: 101,
+          name: "Faheem",
+          email: "faheem@srmist.edu.in",
+          email_verified: true,
+          college: "SRM KTR",
+          college_id: "faheem@srmist.edu.in",
+          department: "Networking and Communications",
+          reputation_score: 180,
+          location: "SRM KTR Library",
+          bio: "Building LOCKIN app. Let's meet up and execute.",
+          instagram: "@faheem_comm",
+          github: "faheem-git",
+          interests: "Coding, Design, Other",
+          campus_id: 1634,
+          campus_name: "SRM KTR",
+          verified_at: new Date().toISOString()
+        };
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lockin_demo_active", "true");
+        localStorage.setItem("lockin_demo_user", JSON.stringify(demoUser));
+        localStorage.setItem("lockin_user_id", String(demoUser.id));
+      }
+
+      onReady(demoUser);
+    } catch (err: any) {
+      setError(err?.message || "Failed to enter demo mode");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const totalSteps = 7; // 0-6
 
   return (
@@ -550,7 +608,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                 exit="exit"
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
-                <SplashStep onNext={goNext} />
+                <SplashStep onNext={goNext} onDemoLogin={handleDemoLogin} busy={busy} />
               </motion.div>
             )}
 
@@ -572,6 +630,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                   busy={busy}
                   mode={mode}
                   setMode={setMode}
+                  onDemoLogin={handleDemoLogin}
                 />
               </motion.div>
             )}
@@ -690,7 +749,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 }
 
 /* ─── STEP 0: SPLASH ──────────────────────────────────────────────── */
-function SplashStep({ onNext }: { onNext: () => void }) {
+function SplashStep({ onNext, onDemoLogin, busy }: { onNext: () => void; onDemoLogin?: () => void; busy?: boolean }) {
   const features = [
     {
       icon: Sparkles,
@@ -774,17 +833,34 @@ function SplashStep({ onNext }: { onNext: () => void }) {
         ))}
       </motion.div>
 
-      <motion.button
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.65 }}
-        onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/40 bg-cherryRed py-3.5 text-[13px] font-bold uppercase tracking-widest text-white shadow-[0_0_32px_rgba(210,4,45,.4)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
-      >
-        <Flame className="h-4 w-4 fill-current text-white animate-pulse" />
-        <span>Let's Lock In</span>
-        <ChevronRight className="h-4 w-4 text-white/70" />
-      </motion.button>
+      <div className="w-full space-y-2.5">
+        {onDemoLogin && (
+          <motion.button
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.58 }}
+            type="button"
+            disabled={busy}
+            onClick={onDemoLogin}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/25 via-yellow-500/15 to-amber-500/25 py-3.5 text-xs font-black uppercase tracking-widest text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.22)] transition-all hover:bg-amber-500/35 hover:border-amber-400 active:scale-[0.97]"
+          >
+            <Zap className="h-4 w-4 fill-amber-400 text-amber-400 animate-pulse" />
+            <span>⚡ Instant Demo Login (SRM KTR)</span>
+          </motion.button>
+        )}
+
+        <motion.button
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
+          onClick={onNext}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/40 bg-cherryRed py-3.5 text-[13px] font-bold uppercase tracking-widest text-white shadow-[0_0_32px_rgba(210,4,45,.4)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
+        >
+          <Flame className="h-4 w-4 fill-current text-white animate-pulse" />
+          <span>Let's Lock In</span>
+          <ChevronRight className="h-4 w-4 text-white/70" />
+        </motion.button>
+      </div>
 
       <p className="text-[10px] font-mono text-zinc-600 pb-1">
         Verified college emails only • Built for campus builders
@@ -1251,7 +1327,7 @@ function TutorialStep({
 }
 
 /* ─── STEP 1: EMAIL VERIFICATION ──────────────────────────────────── */
-function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode }: any) {
+function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode, onDemoLogin }: any) {
   return (
     <div className="space-y-6">
       <div>
@@ -1329,6 +1405,26 @@ function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode }: a
               ? "Sign Up →" 
               : "Send Reset Link →"}
       </button>
+
+      {/* Instant Demo Login option */}
+      {onDemoLogin && (
+        <div className="pt-1">
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-white/10"></div>
+            <span className="flex-shrink mx-3 text-[9px] uppercase font-mono tracking-widest text-zinc-500">Or Instant Testing</span>
+            <div className="flex-grow border-t border-white/10"></div>
+          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onDemoLogin}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 py-3.5 text-xs font-black uppercase tracking-widest text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.2)] transition-all hover:bg-amber-500/30 hover:border-amber-400 active:scale-[0.97]"
+          >
+            <Zap className="h-4 w-4 fill-amber-400 text-amber-400 animate-pulse" />
+            <span>⚡ Instant Demo Login (SRM KTR Builder)</span>
+          </button>
+        </div>
+      )}
 
       {/* Mode selectors */}
       <div className="flex flex-col gap-2.5 items-center pt-2">

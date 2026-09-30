@@ -202,12 +202,17 @@ async function getMe(req, res) {
   // If req.user is already a fully loaded DB user with college, use it; otherwise fetch from DB
   let dbUser = (req.user && req.user.college !== undefined) ? req.user : null;
   if (!dbUser) {
+    const orConditions = [{ email: supabaseUser.email }];
+    if (supabaseUser.id) {
+      orConditions.push({ supabaseId: String(supabaseUser.id) });
+      const numId = Number(supabaseUser.id);
+      if (!isNaN(numId) && numId > 0) {
+        orConditions.push({ id: numId });
+      }
+    }
     dbUser = await prisma.user.findFirst({
       where: {
-        OR: [
-          { supabaseId: supabaseUser.id },
-          { email: supabaseUser.email }
-        ]
+        OR: orConditions
       },
       include: { collegeRef: true }
     });

@@ -26,7 +26,11 @@ async function api(path: string, options: RequestInit = {}) {
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   let authHeaders: Record<string, string> = {};
-  if (supabase) {
+  const isDemo = typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true";
+  if (isDemo) {
+    authHeaders["Authorization"] = "Bearer demo-token-101";
+    authHeaders["x-demo-user-id"] = "101";
+  } else if (supabase) {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       authHeaders["Authorization"] = `Bearer ${session.access_token}`;
@@ -48,8 +52,9 @@ async function api(path: string, options: RequestInit = {}) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (
-        (response.status === 401 && data.error === "Invalid or expired session token.") ||
-        (response.status === 404 && data.error === "User not found.")
+        !isDemo &&
+        ((response.status === 401 && data.error === "Invalid or expired session token.") ||
+        (response.status === 404 && data.error === "User not found."))
       ) {
         if (typeof window !== "undefined") {
           if (supabase) {
@@ -129,6 +134,22 @@ export default function Home() {
   }, [user?.id]);
 
   async function refreshUser() {
+    const isDemo = typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true";
+    if (isDemo) {
+      try {
+        const nextUser = await api("/auth/me");
+        if (nextUser && !nextUser.incomplete) {
+          setUser(nextUser);
+          localStorage.setItem("lockin_demo_user", JSON.stringify(nextUser));
+          const lock = await api(`/users/${nextUser.id}/lock`);
+          setLocked(lock.locked);
+        }
+      } catch (e) {
+        console.warn("Failed to refresh demo user:", e);
+      }
+      return;
+    }
+
     if (!supabase) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -153,6 +174,22 @@ export default function Home() {
     // Force dark mode on mount
     document.documentElement.classList.remove("light");
 
+    // Check if demo session is active
+    if (typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true") {
+      const demoUserStr = localStorage.getItem("lockin_demo_user");
+      if (demoUserStr) {
+        try {
+          const parsed = JSON.parse(demoUserStr);
+          setUser(parsed);
+          setLoading(false);
+          api(`/users/${parsed.id}/lock`).then((lock) => {
+            if (lock && typeof lock.locked === "boolean") setLocked(lock.locked);
+          }).catch(() => {});
+          return;
+        } catch (e) {}
+      }
+    }
+
     if (!supabase) {
       setLoading(false);
       return;
@@ -160,6 +197,11 @@ export default function Home() {
 
     // Set up auth state change listener to sync login sessions
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // If demo mode is active, don't overwrite user with null
+      if (typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true") {
+        setLoading(false);
+        return;
+      }
       if (session) {
         try {
           const nextUser = await api("/auth/me");

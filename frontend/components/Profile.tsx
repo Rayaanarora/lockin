@@ -131,6 +131,8 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
       await supabase.auth.signOut().catch(() => {});
     }
     localStorage.removeItem("lockin_user_id");
+    localStorage.removeItem("lockin_demo_active");
+    localStorage.removeItem("lockin_demo_user");
     window.location.reload();
   }
 
