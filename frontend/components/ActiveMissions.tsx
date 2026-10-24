@@ -48,6 +48,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   
   // V2 reflection attachments & exit states
   const [reflectionDuration, setReflectionDuration] = useState<number>(25);
+  const [reflectionTargetMinutes, setReflectionTargetMinutes] = useState<number>(0);
   const [isFailedRun, setIsFailedRun] = useState<boolean>(false);
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
   const [attachLink, setAttachLink] = useState<string>("");
@@ -278,9 +279,13 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       if (!confirmEnd) return;
     }
 
+    const targetMins = activeFocusMission && activeFocusMission.id === mission.id ? Math.round(activeTimerDuration / 60) : 0;
+    setReflectionTargetMinutes(targetMins);
     setReflectionDuration(actualMins);
     setIsFailedRun(failed);
     setActiveReflectionMission(mission);
+    setActiveFocusMission(null);
+    setTimerRunning(false);
     setReflectionText("");
     setLessonsLearned("");
     setIsPublicReflection(true);
@@ -304,7 +309,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           tasksCompleted,
           // The server measures the session and decides crash vs. complete;
           // this only tells it which timer you picked (0 = open-ended).
-          targetMinutes: activeFocusMission && activeFocusMission.id === missionId ? Math.round(activeTimerDuration / 60) : 0,
+          targetMinutes: reflectionTargetMinutes,
 
           reflection: {
             reflectionText: reflectionText.trim() || null,

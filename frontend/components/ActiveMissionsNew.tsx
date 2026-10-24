@@ -242,6 +242,8 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
     setReflectionDuration(actualMins);
     setIsFailedRun(failed);
     setActiveReflectionMission(mission);
+    setActiveFocusMission(null);
+    setTimerRunning(false);
     setReflectionText("");
     setLessonsLearned("");
     setIsPublicReflection(true);

@@ -27,7 +27,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/75 backdrop-blur-sm",
+        "fixed inset-0 isolate z-[1100] bg-black/75 backdrop-blur-sm",
         "transition-opacity duration-300 ease-out data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 data-[ending-style]:duration-150",
         className
       )}
@@ -52,7 +52,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed z-50 grid w-full gap-5 overflow-y-auto border border-line bg-surface text-subhead text-ink shadow-lift outline-none",
+          "fixed z-[1101] grid w-full gap-5 overflow-y-auto border border-line bg-surface text-subhead text-ink shadow-lift outline-none",
           // phone: sheet
           "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-sheet p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
           // tablet+: centred
