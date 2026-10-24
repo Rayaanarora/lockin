@@ -318,10 +318,6 @@
   background-image: repeating-linear-gradient(0deg, transparent 0 2px, rgb(244 242 238) 2px 3px);
   background-size: 100% 4px;
 }
-.marquee { animation: marquee 38s linear infinite; }
-@keyframes marquee {
-  to { transform: translateX(-50%); }
-}
 
 /* ── Reduced motion ──
    Framer Motion (MotionConfig reducedMotion="user") already drops transform
@@ -331,8 +327,7 @@
   html { scroll-behavior: auto; }
   .animate-ping,
   .animate-pulse,
-  .film-grain,
-  .marquee { animation: none !important; }
+  .film-grain { animation: none !important; }
   [data-slot="dialog-content"] {
     transition-property: opacity !important;
     transform: none !important;
