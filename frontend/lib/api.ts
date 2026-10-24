@@ -65,6 +65,26 @@ async function send(path: string, options: RequestInit, token: string | null) {
 
 let signingOut = false;
 
+/*
+ * In-flight request tracking, so the UI can show one global progress bar
+ * whenever the app is waiting on the server (see components/TopLoader.tsx).
+ */
+let inflight = 0;
+const inflightListeners = new Set<(n: number) => void>();
+
+export function subscribeInflight(fn: (n: number) => void) {
+  inflightListeners.add(fn);
+  fn(inflight);
+  return () => {
+    inflightListeners.delete(fn);
+  };
+}
+
+function setInflight(delta: number) {
+  inflight = Math.max(0, inflight + delta);
+  inflightListeners.forEach((fn) => fn(inflight));
+}
+
 /**
  * Authenticated JSON request to the LOCKIN API. Identity travels only as the
  * Supabase access token; the server derives who you are from it.
@@ -74,6 +94,15 @@ let signingOut = false;
  * - Reads (GET) retry once on network failure or a 502/503/504.
  */
 export async function api(path: string, options: RequestInit = {}) {
+  setInflight(1);
+  try {
+    return await request(path, options);
+  } finally {
+    setInflight(-1);
+  }
+}
+
+async function request(path: string, options: RequestInit) {
   const demo = isDemoSession();
   const method = (options.method || "GET").toUpperCase();
   let token = demo ? "demo-token" : await accessToken();

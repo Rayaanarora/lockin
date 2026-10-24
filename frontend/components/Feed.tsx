@@ -50,13 +50,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const [exitDir, setExitDir] = useState<Dir>("left");
   const [busy, setBusy] = useState(false);
   const [lockedFlash, setLockedFlash] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-
-  // One clock for the whole board: countdowns tick together.
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -292,7 +285,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
           <AnimatePresence custom={exitDir} initial={false} mode="popLayout">
             {currentMission ? (
-              <SwipeCard key={currentMission.id} mission={currentMission} now={now} exitDir={exitDir} onSwipe={(dir) => handleAction(dir === "right" ? "accept" : "pass")} />
+              <SwipeCard key={currentMission.id} mission={currentMission} exitDir={exitDir} onSwipe={(dir) => handleAction(dir === "right" ? "accept" : "pass")} />
             ) : loaded ? (
               <motion.div
                 key="empty"
@@ -691,7 +684,21 @@ function Field({ label, hint, htmlFor, children }: { label: string; hint?: strin
   );
 }
 
-function CardBody({ mission, now }: { mission: Mission; now: number }) {
+/**
+ * Ticking clock for countdowns. Lives in the card, not the whole board, so the
+ * page doesn't re-render every second (that made swiping feel laggy on phones).
+ */
+function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+function CardBody({ mission }: { mission: Mission }) {
+  const now = useNow();
   const t = countdown(mission.datetime, now);
   const hoursUntil = (new Date(mission.datetime).getTime() - now) / 3600e3;
   const soon = Math.min(1, Math.max(0.04, 1 - hoursUntil / 48));
@@ -768,7 +775,7 @@ const flyOut = {
   })
 };
 
-const SwipeCard = React.forwardRef<HTMLElement, { mission: Mission; now: number; exitDir: Dir; onSwipe: (dir: Dir) => void }>(function SwipeCard({ mission, now, exitDir, onSwipe }, forwarded) {
+const SwipeCard = React.forwardRef<HTMLElement, { mission: Mission; exitDir: Dir; onSwipe: (dir: Dir) => void }>(function SwipeCard({ mission, exitDir, onSwipe }, forwarded) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-240, 240], [-8, 8]);
   const acceptOpacity = useTransform(x, [30, SWIPE_THRESHOLD], [0, 1]);
@@ -828,7 +835,7 @@ const SwipeCard = React.forwardRef<HTMLElement, { mission: Mission; now: number;
       aria-roledescription="Mission card"
       aria-label={mission.title}
     >
-      <CardBody mission={mission} now={now} />
+      <CardBody mission={mission} />
 
 
       {/* Stamps */}

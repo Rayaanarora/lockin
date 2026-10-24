@@ -210,7 +210,7 @@ async function getActiveMissions(req, res) {
   const numericUserId = req.userId;
   try {
     // 1. Fetch missions accepted by this user (exclude solo to prevent duplicates)
-    const accepted = await prisma.participation.findMany({
+    const acceptedQuery = prisma.participation.findMany({
       where: {
         userId: numericUserId,
         mission: {
@@ -244,7 +244,7 @@ async function getActiveMissions(req, res) {
     });
 
     // 2. Fetch participations on missions hosted/created by this user (including solo)
-    const hosted = await prisma.participation.findMany({
+    const hostedQuery = prisma.participation.findMany({
       where: {
         mission: {
           createdBy: numericUserId
@@ -284,7 +284,7 @@ async function getActiveMissions(req, res) {
     });
 
     // 3. Fetch all group missions created by this user to catch those with 0 active/pending participations
-    const createdMissions = await prisma.mission.findMany({
+    const createdQuery = prisma.mission.findMany({
       where: {
         createdBy: numericUserId,
         missionType: "group"
@@ -309,6 +309,9 @@ async function getActiveMissions(req, res) {
         }
       }
     });
+
+    // The three lookups are independent: run them together, not one after another.
+    const [accepted, hosted, createdMissions] = await Promise.all([acceptedQuery, hostedQuery, createdQuery]);
 
     const buildAttendees = (m) => {
       if (!m) return [];

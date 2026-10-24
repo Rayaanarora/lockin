@@ -19,6 +19,52 @@ const supabase =
 export const DEMO_LOGIN_ENABLED = process.env.ENABLE_DEMO_LOGIN === "true" && process.env.NODE_ENV !== "production";
 const DEMO_USER_ID = Number(process.env.DEMO_USER_ID || 101);
 
+/*
+ * Token verification cache. Every API call used to ask Supabase Auth who the
+ * token belongs to; a page opens several calls at once, so the same token was
+ * verified over the network again and again. A verified token is remembered
+ * for a short time (never past its own expiry) on this server instance.
+ */
+type VerifiedUser = { id: string; email?: string; email_confirmed_at?: string | null };
+const TOKEN_TTL_MS = 60_000;
+const TOKEN_CACHE_MAX = 1000;
+const tokenCache = new Map<string, { user: VerifiedUser; until: number }>();
+
+function tokenExpiryMs(token: string): number {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+    return typeof payload.exp === "number" ? payload.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Drop a token from the cache (on logout). */
+export function forgetToken(authHeader: string | undefined) {
+  if (authHeader?.startsWith("Bearer ")) tokenCache.delete(authHeader.slice(7).trim());
+}
+
+async function verifyToken(token: string): Promise<VerifiedUser | null> {
+  const now = Date.now();
+  const hit = tokenCache.get(token);
+  if (hit && hit.until > now) return hit.user;
+  if (hit) tokenCache.delete(token);
+
+  const { data, error } = await supabase!.auth.getUser(token);
+  const user = data?.user;
+  if (error || !user) return null;
+
+  const until = Math.min(now + TOKEN_TTL_MS, tokenExpiryMs(token) || now);
+  if (until > now) {
+    if (tokenCache.size >= TOKEN_CACHE_MAX) {
+      const oldest = tokenCache.keys().next().value;
+      if (oldest !== undefined) tokenCache.delete(oldest);
+    }
+    tokenCache.set(token, { user: { id: user.id, email: user.email, email_confirmed_at: user.email_confirmed_at }, until });
+  }
+  return user;
+}
+
 export interface AuthedUser {
   /** Supabase auth user id (uuid), or "demo". */
   authId: string;
@@ -72,9 +118,8 @@ export async function getAuthUser(
     return null;
   }
 
-  const { data, error } = await supabase.auth.getUser(token);
-  const authUser = data?.user;
-  if (error || !authUser) {
+  const authUser = await verifyToken(token);
+  if (!authUser) {
     res.status(401).json({ error: "Invalid or expired session token." });
     return null;
   }
