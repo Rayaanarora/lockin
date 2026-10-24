@@ -1,59 +1,40 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getAuthUser } from "../../../lib/requireAuth";
-const {
-  generatePeriodRecap,
-  getUserRecaps,
-  getMissionRecap,
-  getPublicShareRecap,
-} = require("../../../backend/src/controllers/recapController");
+import { fail, limitByIp, notFound, requireSelf, segmentsOf, setParams } from "../../../lib/apiRoute";
 
-export const config = { api: { bodyParser: true } };
-
-// Simple in-memory rate limiter for the public share route
-const ipCounts: Record<string, number> = {};
-setInterval(() => { for (const k in ipCounts) delete ipCounts[k]; }, 60_000);
-
-function isRateLimited(req: NextApiRequest): boolean {
-  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || "unknown";
-  ipCounts[ip] = (ipCounts[ip] || 0) + 1;
-  return ipCounts[ip] > 30;
-}
+const { generatePeriodRecap, getUserRecaps, getMissionRecap, getPublicShareRecap } = require("../../../backend/src/controllers/recapController");
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { path } = req.query;
-  const segments = Array.isArray(path) ? path : [path || ""];
+  const seg = segmentsOf(req);
 
   try {
-    // GET /api/recaps/share/:shareId — public (no auth), rate-limited
-    if (req.method === "GET" && segments[0] === "share" && segments[1]) {
-      if (isRateLimited(req)) return res.status(429).json({ error: "Too many requests." });
-      req.params = { shareId: segments[1] } as any;
+    // Public share page: no auth, rate limited, public recaps only (controller checks isPublic).
+    if (req.method === "GET" && seg[0] === "share" && seg[1]) {
+      if (!limitByIp(req, res, "recap-share", 30, 60e3)) return;
+      if (!/^[0-9a-f-]{36}$/i.test(seg[1])) return notFound(res);
+      setParams(req, { shareId: seg[1] });
       return await getPublicShareRecap(req, res);
     }
 
-    // All remaining recap routes require auth
     const user = await getAuthUser(req, res);
     if (!user) return;
-    (req as any).user = user;
 
-    // POST /api/recaps/generate
-    if (req.method === "POST" && segments[0] === "generate") {
-      return await generatePeriodRecap(req, res);
-    }
-    // GET /api/recaps/user/:userId
-    if (req.method === "GET" && segments[0] === "user" && segments[1]) {
-      req.params = { userId: segments[1] } as any;
+    if (req.method === "POST" && seg[0] === "generate") return await generatePeriodRecap(req, res);
+
+    if (req.method === "GET" && seg[0] === "user" && seg[1]) {
+      if (!requireSelf(res, seg[1], user.userId)) return;
+      setParams(req, { userId: seg[1] });
       return await getUserRecaps(req, res);
     }
-    // GET /api/recaps/mission/:missionId/user/:userId
-    if (req.method === "GET" && segments[0] === "mission" && segments[1] && segments[2] === "user" && segments[3]) {
-      req.params = { missionId: segments[1], userId: segments[3] } as any;
+
+    if (req.method === "GET" && seg[0] === "mission" && seg[1] && seg[2] === "user" && seg[3]) {
+      if (!requireSelf(res, seg[3], user.userId)) return;
+      setParams(req, { missionId: seg[1], userId: seg[3] });
       return await getMissionRecap(req, res);
     }
 
-    return res.status(404).json({ error: "Not found" });
-  } catch (err: any) {
-    console.error("[/api/recaps]", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
+    return notFound(res);
+  } catch (err) {
+    fail(res, err, "/api/recaps");
   }
 }

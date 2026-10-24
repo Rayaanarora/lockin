@@ -1,265 +1,317 @@
-@import url('https://cdn.jsdelivr.net/gh/Cinnab0nBak3ry/AppleFontsCSS@master/Apple-fonts.css');
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────
+   LOCKIN brand system (final): Void · Signal · Crimson · Surface.
+   RGB channels so Tailwind can apply /opacity (see tailwind.config.js).
+   Naming note: the token `--ink` is the brand's "Signal" off-white; the
+   token `--signal` is the brand's Crimson accent (kept for class-name history).
+   Contrast on Void: ink 17.9:1 · ink-2 7.4:1 · ink-3 5.1:1 (4.5:1 on Overlay) · crimson-text 4.7:1.
+   Brand Crimson itself is 2.9:1, so it is used for strokes/fills, never small text.
+   ───────────────────────────────────────────────────────────── */
 :root {
-  --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: dark;
+
+  --bg: 5 5 5;            /* Void    #050505 */
+  --surface: 12 12 12;    /* Surface #0C0C0C */
+  --raised: 17 17 17;
+  --overlay: 24 24 24;
+  --line: 32 32 32;       /* hairline borders */
+
+  --ink: 244 242 238;     /* Signal  #F4F2EE */
+  --ink-2: 160 158 154;
+  --ink-3: 130 128 125;
+
+  --signal: 177 18 38;    /* Crimson #B11226: lines, fills, strokes, the red O */
+  --crimson-text: 233 42 66; /* same hue lifted to 4.5:1 for small text only */
+  --cherry: 120 12 26;
+  --maroon: 60 6 13;
+  --gold: 244 242 238;    /* retired: Grit renders in Signal */
+  --success: 120 176 120;
+  --warn: 214 150 80;
+
+  /* shadcn primitives mapped onto the same palette */
   --background: 0 0% 0%;
-  --foreground: 0 0% 100%;
+  --foreground: 40 18% 95%;
   --card: 0 0% 4%;
-  --card-foreground: 0 0% 100%;
-  --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 64%;
-  --primary: 348 95% 45%;
+  --card-foreground: 30 14% 95%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 30 14% 95%;
+  --primary: 352 82% 38%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 12%;
-  --secondary-foreground: 0 0% 100%;
-  --destructive: 348 95% 45%;
+  --secondary: 0 0% 8%;
+  --secondary-foreground: 30 14% 95%;
+  --muted: 0 0% 8%;
+  --muted-foreground: 30 3% 53%;
+  --accent: 0 0% 11%;
+  --accent-foreground: 30 14% 95%;
+  --destructive: 352 82% 38%;
   --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 14%;
-  --input: 0 0% 8%;
-  --ring: 348 95% 45%;
-  --radius: 0.75rem;
-}
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 40 18% 95%;
+  --radius: 2px;
 
-* {
-  box-sizing: border-box;
-  border-color: hsl(var(--border));
-}
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
-html,
-body {
-  min-height: 100%;
-  background:
-    radial-gradient(ellipse 80% 50% at 10% 5%, rgba(210, 4, 45, 0.15), transparent),
-    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(210, 4, 45, 0.10), transparent),
-    linear-gradient(160deg, #09090b 0%, #000000 100%);
-  color: hsl(var(--foreground));
-}
-
-body {
-  margin: 0;
-  overflow-x: hidden;
-  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-button, input, textarea, select {
-  font: inherit;
-}
-
-/* Fine grid — subtle, not distracting */
-.grid-noise {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(210, 4, 45, .015) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,.6) 0%, transparent 70%);
-}
-
-/* Glass card */
-.glass {
-  background: linear-gradient(135deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.005) 100%),
-    hsl(var(--card) / 0.92);
-  border: 1px solid rgba(255, 255, 255, .08);
-  box-shadow: 0 32px 90px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.03);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
-
-/* Improved glass for cards */
-.glass-card {
-  background: linear-gradient(135deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.005) 100%),
-    rgba(9, 9, 11, 0.7);
-  border: 1px solid rgba(255, 255, 255, .08);
-  box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-.text-balance { text-wrap: balance; }
-
-.safe-bottom {
-  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
-}
-
-/* Race stripe — top accent bar */
-.race-stripe {
-  background: linear-gradient(90deg,
-    transparent 0px,
-    #D2042D 12px,
-    #D2042D 48px,
-    transparent 48px,
-    transparent 56px,
-    rgba(255,255,255,.8) 56px,
-    rgba(255,255,255,.8) 88px,
-    transparent 88px,
-    transparent 96px,
-    #800000 96px,
-    #800000 128px,
-    transparent 128px,
-    transparent 136px,
-    rgba(255,255,255,.3) 136px,
-    rgba(255,255,255,.3) 160px,
-    transparent 160px
-  );
-}
-
-/* ── Nav pill glow on active ── */
-.nav-active-glow {
-  box-shadow: 0 0 16px rgba(210,4,45,.35);
-}
-
-/* ── Input focus ring ── */
-input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: none;
-  border-color: rgba(210, 4, 45, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(210, 4, 45, 0.08);
+  --font-sans: var(--font-grotesk), "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-grotesk), "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer base {
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+  * {
+    @apply border-line;
+    box-sizing: border-box;
   }
-   :root {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 348 95% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 64%;
-    --accent: 348 95% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 348 95% 45%;
-    --border: 0 0% 14%;
-    --input: 0 0% 8%;
-    --ring: 348 95% 45%;
-    --chart-1: 0 0% 0%;
-    --chart-2: 0 0% 100%;
-    --chart-3: 348 95% 45%;
-    --chart-4: 0 0% 12%;
-    --chart-5: 0 0% 10%;
-    --radius: 0.75rem;
-    --sidebar: 0 0% 4%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 348 95% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 348 95% 45%;
+
+  html {
+    @apply font-sans;
+    background: rgb(var(--bg));
+    -webkit-text-size-adjust: 100%;
   }
-  .dark {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 348 95% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 64%;
-    --accent: 348 95% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 348 95% 45%;
-    --border: 0 0% 14%;
-    --input: 0 0% 8%;
-    --ring: 348 95% 45%;
-    --sidebar: 0 0% 4%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 348 95% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 348 95% 45%;
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    overflow-x: hidden;
+    background: rgb(var(--bg));
+    color: rgb(var(--ink));
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
   }
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
-  html { @apply font-sans; }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button,
+  [role="button"],
+  a {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  /* One focus treatment everywhere; keyboard only. */
+  :focus-visible {
+    outline: 1px solid rgb(var(--ink));
+    outline-offset: 3px;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: rgb(var(--ink) / 0.6) !important;
+    box-shadow: none;
+  }
+
+  input,
+  textarea {
+    caret-color: rgb(var(--signal));
+  }
+
+  ::selection {
+    background: rgb(var(--signal) / 0.55);
+    color: rgb(var(--ink));
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* Display: Space Grotesk light. Large, quiet, tight. */
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+  }
+
+  .t-display.truncate,
+  .t-display[class*="line-clamp"] {
+    line-height: 1.12;
+    padding-top: 0.02em;
+  }
+
+  /* Tracked label: the brand's uppercase, widely spaced meta voice. */
+  .t-label {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 14px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgb(var(--ink-3));
+  }
+
+  /* Section label: tracked, crimson ("COLOR SYSTEM", "MISSION CARD"). */
+  .t-section {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgb(var(--crimson-text));
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .surface {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: 2px;
+  }
+
+  /* Brand buttons: 1px outline, uppercase, wide tracking. */
+  .btn-primary,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border-radius: 2px;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+  }
+  .btn-primary {
+    border: 1px solid rgb(var(--ink));
+    color: rgb(var(--ink));
+    background: transparent;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: rgb(var(--ink));
+    color: rgb(var(--bg));
+  }
+  .btn-ghost {
+    border: 1px solid rgb(var(--line));
+    color: rgb(var(--ink-3));
+    background: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: rgb(var(--ink-3));
+    color: rgb(var(--ink));
+  }
+  .btn-primary:disabled,
+  .btn-ghost:disabled {
+    border-color: rgb(var(--line));
+    color: rgb(var(--ink-3) / 0.6);
+  }
+
+  /* Flat chrome bar (nav, sheets). No blur halos. */
+  .glass {
+    background: rgb(var(--bg) / 0.94);
+    border-top: 1px solid rgb(var(--line));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-card {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+  }
+
+  /* Thin crimson line: the brand's progress / emphasis stroke. */
+  .race-stripe {
+    background: rgb(var(--signal));
+  }
+
+  /* Void stays void: only a whisper of light at the top edge. */
+  .grid-noise {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.025) 0%, transparent 18%);
+  }
+
+  .mission-card-inner {
+    background: none;
+  }
+
+  .swipe-hint {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgb(var(--ink-3));
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .cat-pill {
+    white-space: nowrap;
+    transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out),
+      border-color 150ms var(--ease-out), transform 100ms var(--ease-out);
+  }
+  .cat-pill:active {
+    transform: scale(0.97);
+  }
+
+  .aura-glow {
+    box-shadow: none;
+  }
+
+  .shimmer-hover {
+    position: relative;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .perspective-distant { perspective: 1000px; }
+  .transform-3d { transform-style: preserve-3d; }
 }
 
 /* ── Scrollbars ── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }
-* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.12) transparent; }
+::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.08); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.2); }
+* { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.1) transparent; }
 
-.scrollbar-none::-webkit-scrollbar { display: none; }
-.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* ── Button base tweaks ── */
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; }
-
-/* ── Card shimmer on hover ── */
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-.shimmer-hover:hover::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.04) 50%, transparent 60%);
-  background-size: 200% auto;
-  animation: shimmer 1.2s ease;
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-/* ── Aura badge pulse ── */
-@keyframes aura-pulse {
-  0%, 100% { box-shadow: 0 0 12px rgba(210,4,45,.2); }
-  50% { box-shadow: 0 0 24px rgba(210,4,45,.45); }
-}
-.aura-glow { animation: aura-pulse 2.5s ease-in-out infinite; }
-
-/* ── Mission card inner gradient ── */
-.mission-card-inner {
-  background: radial-gradient(ellipse at 15% 15%, rgba(210,4,45,.15) 0%, transparent 50%),
-              radial-gradient(ellipse at 85% 85%, rgba(255,255,255,.03) 0%, transparent 50%);
-}
-
-/* ── Swipe hint text ── */
-.swipe-hint {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,.22);
-  user-select: none;
-  pointer-events: none;
-}
-
-/* ── Category pills ── */
-.cat-pill {
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-.cat-pill:active { transform: scale(.95); }
-
-/* ── CometCard 3D tilt utilities ── */
-.perspective-distant {
-  perspective: 1000px;
-}
-.transform-3d {
-  transform-style: preserve-3d;
+/* ── Reduced motion ──
+   Framer Motion (MotionConfig reducedMotion="user") already drops transform
+   animation and keeps opacity. Here: stop decorative CSS loops and turn
+   sheet/dialog slides into fades so open/close still reads as a state change. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-ping,
+  .animate-pulse { animation: none !important; }
+  [data-slot="dialog-content"] {
+    transition-property: opacity !important;
+    transform: none !important;
+  }
+  [data-slot="dialog-content"][data-starting-style],
+  [data-slot="dialog-content"][data-ending-style] { opacity: 0; }
 }

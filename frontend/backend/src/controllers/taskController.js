@@ -1,190 +1,100 @@
 const prisma = require("../config/db");
-const { isDbUnavailable } = require("../utils/dbFallback");
+const { toId, cleanText } = require("../utils/security");
+
+// Who may see / change a mission's checklist: its host and its approved
+// participants. Everyone else gets 404 so mission ids can't be probed.
+const READ_STATUSES = ["Accepted", "Executing", "Completed", "Missed"];
+const WRITE_STATUSES = ["Accepted", "Executing"];
+
+async function missionAccess(missionId, userId) {
+  const mission = await prisma.mission.findUnique({ where: { id: missionId }, select: { createdBy: true } });
+  if (!mission) return { read: false, write: false };
+  if (mission.createdBy === userId) return { read: true, write: true };
+  const p = await prisma.participation.findUnique({
+    where: { unique_user_mission: { userId, missionId } },
+    select: { status: true }
+  });
+  if (!p) return { read: false, write: false };
+  return { read: READ_STATUSES.includes(p.status), write: WRITE_STATUSES.includes(p.status) };
+}
+
+const notFound = (res) => res.status(404).json({ error: "Mission not found." });
 
 // GET /api/tasks/mission/:missionId
 async function getTasksForMission(req, res) {
-  const missionId = Number(req.params.missionId);
-  if (isNaN(missionId)) {
-    return res.status(400).json({ error: "Invalid missionId." });
-  }
+  const missionId = toId(req.params.missionId);
+  if (!missionId) return res.status(400).json({ error: "Invalid mission." });
+  if (!(await missionAccess(missionId, req.userId)).read) return notFound(res);
 
-  try {
-    const tasks = await prisma.task.findMany({
-      where: { missionId },
-      orderBy: { position: "asc" }
-    });
-    res.json(tasks);
-  } catch (error) {
-    if (isDbUnavailable(error)) {
-      console.warn("Database offline. Returning empty array for tasks.");
-      res.json([]);
-      return;
-    }
-    console.error("Error fetching tasks for mission", error);
-    res.status(500).json({ error: "Failed to load tasks." });
-  }
+  const tasks = await prisma.task.findMany({ where: { missionId }, orderBy: { position: "asc" } });
+  res.json(tasks);
 }
 
 // POST /api/tasks
 async function createTask(req, res) {
-  const { title, missionId, position } = req.body;
-  if (!title || !missionId) {
-    return res.status(400).json({ error: "title and missionId are required." });
-  }
+  const missionId = toId(req.body && req.body.missionId);
+  const title = cleanText(req.body && req.body.title, 200);
+  if (!missionId || !title) return res.status(400).json({ error: "A task title is required." });
+  if (!(await missionAccess(missionId, req.userId)).write) return notFound(res);
 
-  const numericMissionId = Number(missionId);
-  const numericPosition = position !== undefined ? Number(position) : 0;
+  const count = await prisma.task.count({ where: { missionId } });
+  if (count >= 30) return res.status(400).json({ error: "A mission can have up to 30 tasks." });
 
-  try {
-    const task = await prisma.task.create({
-      data: {
-        title,
-        missionId: numericMissionId,
-        position: numericPosition
-      }
-    });
-    res.status(201).json(task);
-  } catch (error) {
-    if (isDbUnavailable(error)) {
-      console.warn("Database offline. Returning mock created task.");
-      res.status(201).json({
-        id: Math.floor(Math.random() * 1000) + 1000,
-        title,
-        completed: false,
-        position: numericPosition,
-        missionId: numericMissionId,
-        completedAt: null,
-        createdAt: new Date().toISOString()
-      });
-      return;
-    }
-    console.error("Error creating task", error);
-    res.status(500).json({ error: "Failed to create task." });
-  }
+  const position = Number.isInteger(Number(req.body.position)) ? Math.max(0, Number(req.body.position)) : count;
+  const task = await prisma.task.create({ data: { title, missionId, position } });
+  res.status(201).json(task);
 }
 
 // POST /api/tasks/batch
 async function createBatchTasks(req, res) {
-  const { tasks, missionId } = req.body;
-  if (!Array.isArray(tasks) || !missionId) {
-    return res.status(400).json({ error: "tasks array and missionId are required." });
+  const missionId = toId(req.body && req.body.missionId);
+  const input = Array.isArray(req.body && req.body.tasks) ? req.body.tasks : null;
+  if (!missionId || !input) return res.status(400).json({ error: "tasks and missionId are required." });
+  if (!(await missionAccess(missionId, req.userId)).write) return notFound(res);
+
+  const existing = await prisma.task.count({ where: { missionId } });
+  const data = input
+    .map((t, idx) => ({ title: cleanText(t && t.title, 200), position: existing + idx, missionId }))
+    .filter((t) => t.title)
+    .slice(0, Math.max(0, 30 - existing));
+
+  if (data.length) await prisma.task.createMany({ data });
+  const tasks = await prisma.task.findMany({ where: { missionId }, orderBy: { position: "asc" } });
+  res.status(201).json(tasks);
+}
+
+async function loadTaskForWrite(req, res) {
+  const id = toId(req.params.id);
+  if (!id) {
+    res.status(400).json({ error: "Invalid task." });
+    return null;
   }
-
-  const numericMissionId = Number(missionId);
-
-  try {
-    // Create multiple tasks
-    const taskData = tasks.map((t, idx) => ({
-      title: t.title,
-      position: t.position !== undefined ? Number(t.position) : idx,
-      missionId: numericMissionId
-    }));
-
-    // prisma.task.createMany is supported in PostgreSQL
-    await prisma.task.createMany({
-      data: taskData
-    });
-
-    const createdTasks = await prisma.task.findMany({
-      where: { missionId: numericMissionId },
-      orderBy: { position: "asc" }
-    });
-
-    res.status(201).json(createdTasks);
-  } catch (error) {
-    if (isDbUnavailable(error)) {
-      console.warn("Database offline. Returning mock batch tasks.");
-      const mockTasks = tasks.map((t, idx) => ({
-        id: Math.floor(Math.random() * 1000) + 1000 + idx,
-        title: t.title,
-        completed: false,
-        position: t.position !== undefined ? Number(t.position) : idx,
-        missionId: numericMissionId,
-        completedAt: null,
-        createdAt: new Date().toISOString()
-      }));
-      res.status(201).json(mockTasks);
-      return;
-    }
-    console.error("Error batch creating tasks", error);
-    res.status(500).json({ error: "Failed to create tasks." });
+  const task = await prisma.task.findUnique({ where: { id } });
+  if (!task || !(await missionAccess(task.missionId, req.userId)).write) {
+    res.status(404).json({ error: "Task not found." });
+    return null;
   }
+  return task;
 }
 
 // PUT /api/tasks/:id/toggle
 async function toggleTask(req, res) {
-  const id = Number(req.params.id);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: "Invalid task ID." });
-  }
-
-  try {
-    const currentTask = await prisma.task.findUnique({
-      where: { id }
-    });
-
-    if (!currentTask) {
-      return res.status(404).json({ error: "Task not found." });
-    }
-
-    const nextCompleted = !currentTask.completed;
-    const completedAt = nextCompleted ? new Date() : null;
-
-    const updatedTask = await prisma.task.update({
-      where: { id },
-      data: {
-        completed: nextCompleted,
-        completedAt
-      }
-    });
-
-    res.json(updatedTask);
-  } catch (error) {
-    if (isDbUnavailable(error)) {
-      console.warn("Database offline. Returning mock toggled task.");
-      res.json({
-        id,
-        title: "Mock Task",
-        completed: true,
-        position: 0,
-        missionId: 1,
-        completedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
-      });
-      return;
-    }
-    console.error("Error toggling task", error);
-    res.status(500).json({ error: "Failed to toggle task." });
-  }
+  const task = await loadTaskForWrite(req, res);
+  if (!task) return;
+  const completed = !task.completed;
+  const updated = await prisma.task.update({
+    where: { id: task.id },
+    data: { completed, completedAt: completed ? new Date() : null }
+  });
+  res.json(updated);
 }
 
 // DELETE /api/tasks/:id
 async function deleteTask(req, res) {
-  const id = Number(req.params.id);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: "Invalid task ID." });
-  }
-
-  try {
-    await prisma.task.delete({
-      where: { id }
-    });
-    res.json({ message: "Task deleted successfully." });
-  } catch (error) {
-    if (isDbUnavailable(error)) {
-      console.warn("Database offline. Simulating successful task delete.");
-      res.json({ message: "Task deleted successfully." });
-      return;
-    }
-    console.error("Error deleting task", error);
-    res.status(500).json({ error: "Failed to delete task." });
-  }
+  const task = await loadTaskForWrite(req, res);
+  if (!task) return;
+  await prisma.task.delete({ where: { id: task.id } });
+  res.json({ message: "Task deleted." });
 }
 
-module.exports = {
-  getTasksForMission,
-  createTask,
-  createBatchTasks,
-  toggleTask,
-  deleteTask
-};
+module.exports = { getTasksForMission, createTask, createBatchTasks, toggleTask, deleteTask };

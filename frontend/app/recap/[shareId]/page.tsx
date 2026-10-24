@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Clock, CheckCircle, Trophy, Sparkles, Flame, Users, ExternalLink, Download } from "lucide-react";
-import Shell from "../../../components/Shell";
-import Header from "../../../components/Header";
+import { Trophy, ArrowRight } from "lucide-react";
+import { LockinLogo, LockinMark } from "../../../components/ui/LockinLogo";
+import { CountUp } from "../../../components/ui/motion";
 import LoadingScreen from "../../../components/LoadingScreen";
 
 const API =
@@ -54,215 +54,146 @@ export default function PublicShareRecap() {
 
   if (error || !recap) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-black text-white px-4 text-center">
-        <Trophy className="h-10 w-10 text-zinc-700 mb-3" />
-        <h2 className="text-lg font-black uppercase tracking-wider text-white">Coordinates Lost</h2>
-        <p className="mt-1.5 text-xs text-zinc-500 max-w-[280px] leading-relaxed">
-          {error || "The recap card you are looking for does not exist or has expired."}
-        </p>
+      <div className="relative flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-5 text-center">
+        <div className="grid-noise pointer-events-none fixed inset-0" />
+        <LockinMark size={72} color="rgb(var(--ink-3))" />
+        <h1 className="t-display relative mt-6 text-large-title text-ink">Card not found</h1>
+        <p className="relative mt-2 max-w-[300px] text-subhead leading-relaxed text-ink-2">{error || "This recap doesn't exist or was removed."}</p>
         <button
+          type="button"
           onClick={() => router.push("/")}
-          className="mt-6 flex h-10 items-center justify-center px-6 rounded-xl border border-white/10 bg-white/5 text-xs font-black uppercase tracking-wider text-white hover:bg-white/10 transition"
+          className="relative mt-8 flex h-12 items-center rounded-xl border border-line bg-surface px-6 text-subhead font-semibold text-ink transition-colors hover:bg-raised"
         >
-          Go to Lockin Dashboard
+          Open LOCKIN
         </button>
       </div>
     );
   }
 
-  // Formatting hours and minutes
   const hours = Math.floor(recap.sessionDuration / 60);
   const mins = recap.sessionDuration % 60;
-  const timeDisplay = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-
-  // Theme Configs
-  const themeMap: { [key: string]: { border: string; glow: string; text: string; bg: string } } = {
-    session: {
-      border: "border-cherryRed/30",
-      glow: "from-cherryRed/15 via-luxuryMaroon/5 to-transparent",
-      text: "text-cherryRed",
-      bg: "bg-luxuryMaroon/10"
-    },
-    weekly: {
-      border: "border-luxuryGold/30",
-      glow: "from-luxuryGold/15 via-luxuryMaroon/5 to-transparent",
-      text: "text-luxuryGold",
-      bg: "bg-luxuryMaroon/10"
-    },
-    monthly: {
-      border: "border-luxuryMaroon/40",
-      glow: "from-luxuryMaroon/15 via-luxuryMaroon/5 to-transparent",
-      text: "text-luxuryMaroon",
-      bg: "bg-luxuryMaroon/20"
-    },
-    yearly: {
-      border: "border-white/20",
-      glow: "from-white/10 via-zinc-800/5 to-transparent",
-      text: "text-white",
-      bg: "bg-white/5"
-    },
-    team: {
-      border: "border-cherryRed/35",
-      glow: "from-cherryRed/20 via-luxuryMaroon/5 to-transparent",
-      text: "text-cherryRed",
-      bg: "bg-luxuryMaroon/15"
-    }
-  };
-
-  const activeTheme = themeMap[recap.recapType] || themeMap.session;
+  const isSession = recap.recapType === "session";
+  const accent = recap.recapType === "weekly" || recap.recapType === "monthly" ? "gold" : "signal";
   const isCollaborative = recap.participantCount && recap.participantCount > 1;
 
+  const stats = isSession
+    ? [
+        { label: "Tasks", value: recap.tasksCompleted },
+        { label: "Streak", value: `${recap.streak}d` },
+        recap.missionRank ? { label: isCollaborative ? "Rank in crew" : "Rank", value: `#${recap.missionRank}` } : null,
+        recap.categorySnapshot ? { label: "Category", value: recap.categorySnapshot } : null
+      ]
+    : [
+        { label: "Tasks", value: recap.tasksCompleted },
+        { label: "Streak", value: `${recap.streak}d` },
+        { label: "Sessions", value: recap.metadata?.missionsCompleted ?? 0 },
+        recap.categorySnapshot ? { label: "Top category", value: recap.categorySnapshot } : null
+      ];
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden selection:bg-luxuryGold selection:text-black">
-      
-      {/* Background radial overlays */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-luxuryGold/10 to-transparent blur-[120px]" />
-      </div>
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-bg px-5 py-10 text-ink">
+      <div className="grid-noise pointer-events-none fixed inset-0" />
+      <motion.div className="race-stripe pointer-events-none fixed inset-x-0 top-0 h-[2px]" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 1 }} />
 
-      <div className="relative z-10 max-w-md w-full flex flex-col items-center space-y-6">
-        
-        {/* Public Header */}
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="LOCKIN" className="h-6 w-6 object-contain" />
-          <span className="font-display text-sm font-black uppercase tracking-widest text-white">LOCKIN</span>
-        </div>
+      <div className="relative z-10 flex w-full max-w-sm flex-col items-center">
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          <LockinLogo size="sm" />
+        </motion.div>
 
-        {/* Public Card Box */}
-        <div
-          className={`relative overflow-hidden rounded-[2.5rem] border ${activeTheme.border} bg-zinc-950/80 w-full aspect-[9/16] flex flex-col justify-between p-8 shadow-2xl backdrop-blur-xl`}
+        <motion.article
+          initial={{ y: 60, rotateX: 24, opacity: 0, scale: 0.92 }}
+          animate={{ y: 0, rotateX: 0, opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 150, damping: 20, delay: 0.15 }}
+          style={{ transformPerspective: 1200 }}
+          className={`relative mt-8 flex aspect-[9/16] w-full flex-col justify-between overflow-hidden rounded-sm border bg-surface p-7 shadow-lift ${accent === "gold" ? "border-gold/40" : "border-signal/70"}`}
         >
-          {/* Drifting Spotlight Ambient Glow */}
-          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            <div className={`absolute -top-1/4 -left-1/4 w-full h-full rounded-full bg-gradient-to-br ${activeTheme.glow} blur-[80px]`} />
+          <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.07]">
+            <LockinMark size={260} color="rgb(var(--ink))" showTriangle={false} />
           </div>
 
-          {/* Top Info */}
-          <div className="relative z-10 flex items-start justify-between w-full">
-            <div>
-              <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Focused Agent</span>
-              <span className="text-[11px] font-black text-white uppercase block mt-0.5">{recap.creator?.name}</span>
-              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 block truncate max-w-[150px]">
-                {recap.creator?.department}
-              </span>
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-callout font-semibold text-ink">{recap.creator?.name}</p>
+              <p className="truncate text-footnote text-ink-3">{recap.creator?.department}</p>
             </div>
-            <div className="flex flex-col items-end">
-              <span className={`rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-white/5 ${activeTheme.text}`}>
-                {recap.recapType === "session" ? "SESSION CARD" : `${recap.recapType} wrapped`}
-              </span>
-              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
-                {new Date(recap.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-            </div>
-          </div>
-
-          {/* Hero metrics */}
-          <div className="relative z-10 flex flex-col justify-center my-auto py-6">
-            <h1 className="font-display text-4xl md:text-5xl font-black tracking-tight text-white leading-none">
-              {timeDisplay}
-            </h1>
-            <p className="font-display text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">
-              LOCKED IN
-            </p>
-            {recap.missionTitle && (
-              <p className="text-xs font-semibold text-zinc-500 mt-2.5 border-l border-white/10 pl-3 italic line-clamp-2">
-                {recap.missionTitle}
+            <div className="shrink-0 text-right">
+              <p className={`text-caption font-semibold ${accent === "gold" ? "text-gold" : "text-crimson"}`}>
+                {isSession ? "Session" : `${recap.recapType} wrapped`}
               </p>
-            )}
+              <p className="text-caption text-ink-3">{new Date(recap.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+            </div>
           </div>
 
-          {/* Metrics List */}
-          <div className="relative z-10 grid grid-cols-2 gap-4 w-full">
-            {recap.recapType === "session" ? (
-              <>
-                <div className="border-t border-white/5 pt-2 text-left">
-                  <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Tasks Completed</span>
-                  <span className="text-xs font-black text-white">{recap.tasksCompleted} Tasks</span>
-                </div>
-                <div className="border-t border-white/5 pt-2 text-left">
-                  <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Streak</span>
-                  <span className="text-xs font-black text-white">{recap.streak} Days</span>
-                </div>
-                {recap.missionRank && (
-                  <div className="border-t border-white/5 pt-2 text-left">
-                    <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Rank in Run</span>
-                    <span className="text-xs font-black text-white">
-                      #{recap.missionRank} {isCollaborative ? "MVP" : "Contributor"}
-                    </span>
-                  </div>
-                )}
-                {recap.categorySnapshot && (
-                  <div className="border-t border-white/5 pt-2 text-left">
-                    <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Category</span>
-                    <span className="text-xs font-black text-white truncate max-w-[130px] block">{recap.categorySnapshot}</span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="border-t border-white/5 pt-2 text-left">
-                  <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Tasks Completed</span>
-                  <span className="text-xs font-black text-white">{recap.tasksCompleted} Tasks</span>
-                </div>
-                <div className="border-t border-white/5 pt-2 text-left">
-                  <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Current Streak</span>
-                  <span className="text-xs font-black text-white">{recap.streak} Days</span>
-                </div>
-                <div className="border-t border-white/5 pt-2 text-left">
-                  <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Total Runs</span>
-                  <span className="text-xs font-black text-white">
-                    {recap.metadata?.missionsCompleted ?? 0} Sessions
-                  </span>
-                </div>
-                {recap.categorySnapshot && (
-                  <div className="border-t border-white/5 pt-2 text-left">
-                    <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500">Top Category</span>
-                    <span className="text-xs font-black text-white truncate max-w-[130px] block">{recap.categorySnapshot}</span>
-                  </div>
-                )}
-              </>
-            )}
+          <div className="relative">
+            <div className="t-display flex items-baseline leading-none">
+              {hours > 0 && (
+                <>
+                  <CountUp value={hours} className="text-[96px]" />
+                  <span className="mr-3 text-[36px]">h</span>
+                </>
+              )}
+              {(mins > 0 || hours === 0) && (
+                <>
+                  <CountUp value={mins} className="text-[96px]" />
+                  <span className="text-[36px]">m</span>
+                </>
+              )}
+            </div>
+            <p className="t-label mt-2">Locked in</p>
+            {recap.missionTitle && <p className="t-display mt-2 line-clamp-2 text-title-2 text-ink-2">{recap.missionTitle}</p>}
           </div>
 
-          {/* Unlocked Badges */}
-          {recap.achievements && recap.achievements.length > 0 && (
-            <div className="relative z-10 border-t border-white/5 pt-3 w-full mt-2">
-              <span className="block text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Achievements Unlocked</span>
-              <div className="flex flex-wrap gap-1.5">
-                {recap.achievements.map((ach: any) => (
-                  <div
+          <div className="relative">
+            <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
+              {stats.filter(Boolean).map((s: any, i: number, arr: any[]) => (
+                <div key={s.label} className={`py-3.5 ${i < arr.length - 2 ? "border-b border-white/10" : ""}`}>
+                  <p className="text-[11px] font-semibold text-ink-3">{s.label}</p>
+                  <p className="t-display mt-1 truncate text-title-3 text-ink">{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {recap.achievements && recap.achievements.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-white/10 pt-3">
+                {recap.achievements.map((ach: any, i: number) => (
+                  <motion.span
                     key={ach.id}
-                    className="flex items-center gap-1 rounded-lg border border-white/5 bg-white/4 px-2 py-1 shadow-sm"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 16, delay: 0.9 + i * 0.07 }}
+                    className="flex items-center gap-1.5 rounded-sm border border-gold/30 bg-gold/10 px-2.5 py-1 text-caption font-medium text-gold"
                   >
-                    <Trophy className={`h-2.5 w-2.5 ${activeTheme.text}`} />
-                    <span className="text-[9px] font-black text-white uppercase tracking-wider">{ach.title}</span>
-                  </div>
+                    <Trophy className="h-3.5 w-3.5" />
+                    {ach.title}
+                  </motion.span>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Footer branding */}
-          <div className="relative z-10 border-t border-white/5 pt-3 w-full mt-4 flex justify-between items-center text-[7px] font-black uppercase tracking-widest text-zinc-600">
-            <span>LOCKIN.GG PRODUCTIVITY</span>
-            <span>PUBLIC SHARE LINK</span>
+            )}
           </div>
-        </div>
 
-        {/* CTA Join LOCKIN */}
-        <div className="w-full space-y-3">
-          <button
-            onClick={() => router.push("/")}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-luxuryGold text-xs font-black uppercase tracking-widest text-black shadow-lg shadow-[0_0_20px_rgba(197,168,128,0.25)] hover:bg-luxuryGold/95 transition active:scale-[0.98]"
-          >
-            Join LOCKIN Platform
-            <ExternalLink className="h-4 w-4" />
-          </button>
-          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider text-center">
-            Sign up to lock in with peer groups and sync your aura.
+          <motion.div
+            className="pointer-events-none absolute inset-y-0 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+            initial={{ x: "-120%" }}
+            animate={{ x: "320%" }}
+            transition={{ delay: 0.8, duration: 1.2, ease: "easeInOut" }}
+          />
+        </motion.article>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="mt-8 w-full text-center">
+          <p className="t-display text-title-1 text-ink">
+            Stop chatting. <span className="text-crimson">Start showing up.</span>
           </p>
-        </div>
-
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.97 }}
+            onClick={() => router.push("/")}
+            className="mt-5 flex h-14 w-full items-center justify-center gap-2 btn-primary"
+          >
+            Lock in with {recap.creator?.name?.split(" ")[0] || "them"}
+            <ArrowRight className="h-5 w-5" />
+          </motion.button>
+          <p className="mt-3 text-footnote text-ink-3">Free for students. College email required.</p>
+        </motion.div>
       </div>
     </div>
   );

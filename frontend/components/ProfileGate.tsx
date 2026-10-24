@@ -3,13 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Lock,
-  Flame,
   ChevronRight,
   ChevronLeft,
-  Zap,
   Users,
-  Timer,
   Star,
   Trophy,
   Search,
@@ -18,25 +14,25 @@ import {
   Instagram,
   Github,
   MapPin,
-  BookOpen,
-  Code,
-  Dumbbell,
-  Gamepad2,
-  Palette,
-  PenLine,
-  Heart,
   Mail,
   KeyRound,
   X,
   Sparkles,
-  Lightbulb,
-  Target
+  Compass,
+  Timer,
+  Eye,
+  EyeOff,
+  Loader2
 } from "lucide-react";
 import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 import { User, InterestCategory } from "../app/types";
-import { StagEmblem, LockinLogo } from "./ui/LockinLogo";
+import { LockinLogo, LockinMark } from "./ui/LockinLogo";
+import { spring, stagger, rise } from "../lib/motion";
 
 import { supabase } from "../lib/supabase";
+import { DEMO_LOGIN_ENABLED, clearDemoSession, isDemoSession } from "../lib/api";
+import { POINTS_NAME } from "../lib/brand";
 
 interface ProfileGateProps {
   onReady: (user: User) => void;
@@ -49,49 +45,33 @@ interface Campus {
   location?: string;
 }
 
-
-
-
-
 const TUTORIAL_STEPS = [
   {
-    icon: Sparkles,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10 border-amber-500/30",
-    glow: "shadow-[0_0_30px_rgba(245,158,11,0.15)]",
-    title: "Discover & Drop Missions",
-    body: "Browse raw missions & project quests posted by builders on your campus. Join an existing sprint or launch your own mission for others to join.",
+    icon: Compass,
+    title: "Pick a mission",
+    body: "Swipe through what people on your campus are doing right now. Lock in to one, or launch your own and let others join you."
   },
   {
     icon: Users,
-    color: "text-cherryRed",
-    bg: "bg-cherryRed/10 border-cherryRed/30",
-    glow: "shadow-[0_0_30px_rgba(129,1,0,0.2)]",
-    title: "Find Your Co-Builder",
-    body: "Team up with fellow builders who match your energy. Host generates a 4-digit OTP to lock in for a 15–90 min deep focus sprint.",
+    title: "Show up in person",
+    body: "Group missions have a place and a time. When you arrive, the host gives you a 4-digit code to check in."
   },
   {
-    icon: Star,
-    color: "text-white",
-    bg: "bg-white/8 border-white/20",
-    glow: "shadow-[0_0_30px_rgba(255,255,255,0.08)]",
-    title: "Vibe Check & Chemistry",
-    body: "Sprint finished? Rate the session vibe. Great collaboration earns +2 Aura points to boost both your campus reputations.",
+    icon: Timer,
+    title: "Do the work",
+    body: "The timer runs, you clear your checklist. Bail early with nothing done and it shows on your record."
   },
   {
     icon: Trophy,
-    color: "text-cherryRed",
-    bg: "bg-cherryRed/10 border-cherryRed/30",
-    glow: "shadow-[0_0_30px_rgba(129,1,0,0.2)]",
-    title: "Campus Reputation & Aura",
-    body: "Stack Aura with every completed mission. Climb your college leaderboard and stand out as a top builder in your domain.",
-  },
+    title: `Build your ${POINTS_NAME}`,
+    body: `Every finished mission adds to your ${POINTS_NAME} and your streak. It's a record of showing up, not of talking about it.`
+  }
 ];
 
 const SLIDE_VARIANTS = {
-  enter: (dir: number) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
+  enter: (dir: number) => ({ x: dir > 0 ? 56 : -56, opacity: 0, filter: "blur(4px)" }),
+  center: { x: 0, opacity: 1, filter: "blur(0px)" },
+  exit: (dir: number) => ({ x: dir > 0 ? -56 : 56, opacity: 0, filter: "blur(4px)", transition: { duration: 0.18 } })
 };
 
 export default function ProfileGate({ onReady, api }: ProfileGateProps) {
@@ -128,7 +108,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      if (localStorage.getItem("lockin_demo_active") === "true") {
+      if (isDemoSession()) {
         const demoUserStr = localStorage.getItem("lockin_demo_user");
         if (demoUserStr) {
           try {
@@ -477,480 +457,275 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     setBusy(true);
     setError("");
     try {
-      let demoUser: User | null = null;
-      try {
-        demoUser = await api("/auth/demo");
-      } catch (err) {
-        console.warn("API /auth/demo fetch fallback:", err);
-      }
-
-      if (!demoUser || !demoUser.id) {
-        demoUser = {
-          id: 101,
-          name: "Faheem",
-          email: "faheem@srmist.edu.in",
-          email_verified: true,
-          college: "SRM KTR",
-          college_id: "faheem@srmist.edu.in",
-          department: "Networking and Communications",
-          reputation_score: 180,
-          location: "SRM KTR Library",
-          bio: "Building LOCKIN app. Let's meet up and execute.",
-          instagram: "@faheem_comm",
-          github: "faheem-git",
-          interests: "Coding, Design, Other",
-          campus_id: 1634,
-          campus_name: "SRM KTR",
-          verified_at: new Date().toISOString()
-        };
-      }
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("lockin_demo_active", "true");
-        localStorage.setItem("lockin_demo_user", JSON.stringify(demoUser));
-        localStorage.setItem("lockin_user_id", String(demoUser.id));
-      }
-
+      // The server only answers when demo login is enabled for local development.
+      localStorage.setItem("lockin_demo_active", "true");
+      const demoUser = await api("/auth/demo");
+      localStorage.setItem("lockin_demo_user", JSON.stringify(demoUser));
       onReady(demoUser);
     } catch (err: any) {
-      setError(err?.message || "Failed to enter demo mode");
+      clearDemoSession();
+      setError(err?.message || "Demo login is not available.");
     } finally {
       setBusy(false);
     }
   }
 
-  const totalSteps = 7; // 0-6
+
+  const STEP_KEYS = ["splash", "email", "otp", "campus", "profile", "socials", "tutorial"];
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-y-auto flex flex-col items-center justify-start md:justify-center py-6 px-4 pb-24 md:pb-12"
-      style={{ background: "linear-gradient(160deg, #141110 0%, #0D0A09 100%)" }}
-    >
-      {/* Race stripe top */}
-      <div className="race-stripe pointer-events-none absolute left-0 right-0 top-0 h-[2px] opacity-80 z-50" />
-      {/* Background glow blobs */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full bg-cherryRed/[0.09] blur-[140px]" />
-        <div className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-luxuryMaroon/[0.09] blur-[140px]" />
-        <div className="grid-noise absolute inset-0 opacity-80" />
-      </div>
+    <div className="relative flex min-h-[100dvh] w-full flex-col items-center overflow-y-auto bg-bg px-5 py-8 md:justify-center">
+      <div className="grid-noise pointer-events-none fixed inset-0" />
+      <motion.div
+        className="race-stripe pointer-events-none fixed inset-x-0 top-0 z-50 h-[2px]"
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+      />
 
-      <div className="relative z-10 w-full max-w-sm mx-auto my-auto">
-        {/* Progress indicator for profile onboarding steps 3-5 */}
+      <div className="relative z-10 mx-auto my-auto w-full max-w-sm">
+        {/* Onboarding progress (steps 3-5) */}
         {step >= 3 && step <= 5 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 mb-6"
-          >
-            <button
-              onClick={goBack}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-400 transition hover:text-white"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="flex-1 flex gap-1.5">
+          <div className="mb-8 flex items-center gap-3">
+            <BackButton onClick={goBack} />
+            <div className="flex flex-1 gap-1.5" aria-label={`Step ${step - 2} of 3`}>
               {[3, 4, 5].map((s) => (
-                <div
-                  key={s}
-                  className={`h-1 flex-1 rounded-full transition-all duration-500 ${
-                    step >= s ? "bg-cherryRed" : "bg-white/10"
-                  }`}
-                />
+                <div key={s} className="h-1 flex-1 overflow-hidden rounded-full bg-line">
+                  <motion.div
+                    className="h-full rounded-full bg-signal"
+                    initial={false}
+                    animate={{ width: step >= s ? "100%" : "0%" }}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
               ))}
             </div>
-            <span className="text-[10px] font-black tracking-widest text-zinc-600 uppercase">
-              {step - 2}/3
-            </span>
-          </motion.div>
+            <span className="t-label tabular">{step - 2}/3</span>
+          </div>
         )}
 
-        {/* Back button for email/otp steps (steps 1 & 2) */}
         {(step === 1 || step === 2) && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 mb-6"
-          >
-            <button
-              onClick={goBack}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-400 transition hover:text-white"
+          <div className="mb-8 flex items-center gap-3">
+            <BackButton onClick={goBack} />
+            <LockinLogo size="sm" />
+          </div>
+        )}
+
+        <AnimatePresence>
+          {error && step !== 6 && (
+            <motion.div
+              role="alert"
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
             >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">
-              {step === 1 ? "Email Verification" : "OTP Code"}
-            </span>
-          </motion.div>
-        )}
+              <motion.div
+                animate={{ x: [0, -6, 6, -4, 4, 0] }}
+                transition={{ duration: 0.4 }}
+                className="mb-5 flex items-start gap-2.5 rounded-xl border border-signal/70 bg-surface p-3.5 text-subhead text-ink"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-crimson" />
+                <span>{error}</span>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Global Error Banner */}
-        {error && (
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 rounded-xl border border-cherryRed/35 bg-cherryRed/10 p-3 text-xs font-semibold text-[#ffa3a3] flex items-center gap-2"
+            key={STEP_KEYS[step]}
+            custom={direction}
+            variants={SLIDE_VARIANTS}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
           >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-cherryRed animate-bounce" />
-            <span>{error}</span>
-          </motion.div>
-        )}
-
-        {/* Step content */}
-        <div className="relative overflow-hidden">
-          <AnimatePresence mode="wait" custom={direction}>
             {step === 0 && (
-              <motion.div
-                key="splash"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <SplashStep onNext={goNext} onDemoLogin={handleDemoLogin} busy={busy} />
-              </motion.div>
+              <SplashStep
+                onLogin={() => { setMode("login"); goNext(); }}
+                onSignup={() => { setMode("signup"); goNext(); }}
+                onDemoLogin={DEMO_LOGIN_ENABLED ? handleDemoLogin : undefined}
+                busy={busy}
+              />
             )}
-
             {step === 1 && (
-              <motion.div
-                key="email"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <EmailStep
-                  form={form}
-                  setForm={setForm}
-                  validation={validation}
-                  onNext={goNext}
-                  busy={busy}
-                  mode={mode}
-                  setMode={setMode}
-                  onDemoLogin={handleDemoLogin}
-                />
-              </motion.div>
+              <EmailStep form={form} setForm={setForm} validation={validation} onNext={goNext} busy={busy} mode={mode} setMode={setMode} onDemoLogin={DEMO_LOGIN_ENABLED ? handleDemoLogin : undefined} />
             )}
-
-            {step === 2 && (
-              <motion.div
-                key="otp"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <OtpStep
-                  form={form}
-                  setForm={setForm}
-                  validation={validation}
-                  onNext={goNext}
-                  busy={busy}
-                  mode={mode}
-                  setMode={setMode}
-                />
-              </motion.div>
-            )}
-
+            {step === 2 && <OtpStep form={form} onNext={goNext} busy={busy} mode={mode} setMode={setMode} />}
             {step === 3 && (
-              <motion.div
-                key="campus"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <CampusStep
-                  form={form}
-                  setForm={setForm}
-                  validation={validation}
-                  campuses={filteredCampuses}
-                  campusSearch={campusSearch}
-                  setCampusSearch={setCampusSearch}
-                  showCampusList={showCampusList}
-                  setShowCampusList={setShowCampusList}
-                  onNext={goNext}
-                />
-              </motion.div>
+              <CampusStep
+                form={form}
+                setForm={setForm}
+                validation={validation}
+                campuses={filteredCampuses}
+                campusSearch={campusSearch}
+                setCampusSearch={setCampusSearch}
+                showCampusList={showCampusList}
+                setShowCampusList={setShowCampusList}
+                onNext={goNext}
+              />
             )}
-
-            {step === 4 && (
-              <motion.div
-                key="profile"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <ProfileStep
-                  form={form}
-                  setForm={setForm}
-                  validation={validation}
-                  onNext={goNext}
-                />
-              </motion.div>
-            )}
-
+            {step === 4 && <ProfileStep form={form} setForm={setForm} validation={validation} onNext={goNext} />}
             {step === 5 && (
-              <motion.div
-                key="socials"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <SocialsStep
-                  form={form}
-                  setForm={setForm}
-                  toggleInterest={toggleInterest}
-                  onNext={goNext}
-                  onBack={goBack}
-                  interestCategories={interestCategories}
-                />
-              </motion.div>
+              <SocialsStep form={form} setForm={setForm} toggleInterest={toggleInterest} onNext={goNext} interestCategories={interestCategories} />
             )}
-
             {step === 6 && (
-              <motion.div
-                key="tutorial"
-                custom={direction}
-                variants={SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <TutorialStep
-                  tutorialSlide={tutorialSlide}
-                  setTutorialSlide={setTutorialSlide}
-                  onBack={goBack}
-                  onSubmit={submit}
-                  busy={busy}
-                  error={error}
-                />
-              </motion.div>
+              <TutorialStep tutorialSlide={tutorialSlide} setTutorialSlide={setTutorialSlide} onBack={goBack} onSubmit={submit} busy={busy} error={error} />
             )}
-          </AnimatePresence>
-        </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
 }
 
-/* ─── STEP 0: SPLASH ──────────────────────────────────────────────── */
-function SplashStep({ onNext, onDemoLogin, busy }: { onNext: () => void; onDemoLogin?: () => void; busy?: boolean }) {
-  const features = [
-    {
-      icon: Sparkles,
-      iconColor: "text-amber-400",
-      badgeBg: "bg-amber-400/10 border-amber-400/20",
-      title: "FIND YOUR PEOPLE",
-      desc: "Connect with people who share your drive and build on your wavelength.",
-    },
-    {
-      icon: Users,
-      iconColor: "text-cherryRed",
-      badgeBg: "bg-cherryRed/10 border-cherryRed/30",
-      title: "FOCUS, CREATE, IMPROVE",
-      desc: "OTP verification & timed sprints — no distractions, pure proof of work.",
-    },
-    {
-      icon: Lock,
-      iconColor: "text-white",
-      badgeBg: "bg-white/10 border-white/20",
-      title: "RATE EXPLORE, GAIN AURA POINTS",
-      desc: "Rate session vibes, earn Aura points & build your campus reputation.",
-    },
-    {
-      icon: Trophy,
-      iconColor: "text-amber-400",
-      badgeBg: "bg-amber-400/10 border-amber-400/20",
-      title: "ACHIEVE AND REACH ECHELONS OF LEADERBOARDS",
-      desc: "Stack Aura with every completed mission. Stand out as a top builder.",
-    },
+/* ─── SPLASH ─────────────────────────────────────────────────────── */
+function SplashStep({
+  onLogin,
+  onSignup,
+  onDemoLogin,
+  busy
+}: {
+  onLogin: () => void;
+  onSignup: () => void;
+  onDemoLogin?: () => void;
+  busy?: boolean;
+}) {
+  const loop = [
+    { n: "01", title: "Discover", desc: "See what people on your campus are about to do." },
+    { n: "02", title: "Lock in", desc: "Commit to a mission, solo or with others." },
+    { n: "03", title: "Show up", desc: `Check in, do the work, build your ${POINTS_NAME}.` }
   ];
 
   return (
-    <div className="flex flex-col items-center text-center space-y-6 pt-4">
-      <motion.div
-        initial={{ scale: 0.7, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.08, type: "spring", stiffness: 220, damping: 20 }}
-        className="flex h-[88px] w-[88px] items-center justify-center rounded-[24px] border border-white/[0.1] bg-black/80 p-3 shadow-[0_0_60px_rgba(210,4,45,0.25),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-md"
-      >
-        <StagEmblem size={52} className="text-white" />
-      </motion.div>
+    <div className="flex flex-col items-center pt-6 text-center">
+      <LockinLogo layout="stacked" size="lg" animate />
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
+      <motion.h1
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18 }}
-        className="space-y-2 flex flex-col items-center"
+        transition={{ delay: 1.6, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="t-display mt-10 text-large-title text-ink"
       >
-        <LockinLogo size="xl" />
-        <p className="text-[13px] font-medium text-zinc-300 leading-relaxed max-w-[280px] mx-auto">
-          Where campus ideas turn into proof of work.
-        </p>
-      </motion.div>
+        Stop chatting.
+        <br />
+        <span className="text-crimson">Start showing up.</span>
+      </motion.h1>
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="grid grid-cols-1 gap-2.5 w-full text-left"
+      <motion.ol
+        variants={stagger(0.09, 1.85)}
+        initial="hidden"
+        animate="show"
+        className="mt-10 w-full space-y-px overflow-hidden rounded-2xl border border-line text-left"
       >
-        {features.map(({ icon: Icon, iconColor, badgeBg, title, desc }, i) => (
-          <motion.div
-            key={title}
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.34 + i * 0.07 }}
-            className="group flex items-center gap-3.5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-3 transition-all duration-200 hover:border-white/15 hover:bg-white/[0.05]"
-          >
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${badgeBg}`}>
-              <Icon className={`h-4 w-4 ${iconColor}`} />
+        {loop.map((item) => (
+          <motion.li key={item.n} variants={rise} className="flex items-center gap-4 bg-surface px-4 py-4">
+            <span className="t-display tabular text-title-2 text-crimson">{item.n}</span>
+            <div className="min-w-0">
+              <p className="text-headline text-ink">{item.title}</p>
+              <p className="text-subhead leading-snug text-ink-2">{item.desc}</p>
             </div>
-            <div className="space-y-0.5 min-w-0 flex-1">
-              <h3 className="text-[12px] font-bold tracking-wide text-white">
-                {title}
-              </h3>
-              <p className="text-[11px] font-normal leading-snug text-zinc-400">
-                {desc}
-              </p>
-            </div>
-          </motion.div>
+          </motion.li>
         ))}
-      </motion.div>
+      </motion.ol>
 
-      <div className="w-full space-y-2.5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2.25, ...spring.glide }}
+        className="mt-8 w-full space-y-3"
+      >
+        <PrimaryButton onClick={onSignup}>
+          Get started <ChevronRight className="h-5 w-5" />
+        </PrimaryButton>
+        <button
+          type="button"
+          onClick={onLogin}
+          className="flex h-14 w-full items-center justify-center btn-ghost"
+        >
+          I have an account
+        </button>
         {onDemoLogin && (
-          <motion.button
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.58 }}
+          <button
             type="button"
             disabled={busy}
             onClick={onDemoLogin}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/25 via-yellow-500/15 to-amber-500/25 py-3.5 text-xs font-black uppercase tracking-widest text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.22)] transition-all hover:bg-amber-500/35 hover:border-amber-400 active:scale-[0.97]"
+            className="h-11 w-full text-subhead text-ink-3 underline-offset-4 transition-colors hover:text-ink-2 hover:underline disabled:opacity-50"
           >
-            <Zap className="h-4 w-4 fill-amber-400 text-amber-400 animate-pulse" />
-            <span>⚡ Instant Demo Login (SRM KTR)</span>
-          </motion.button>
+            Try the demo account
+          </button>
         )}
+      </motion.div>
 
-        <motion.button
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65 }}
-          onClick={onNext}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/40 bg-cherryRed py-3.5 text-[13px] font-bold uppercase tracking-widest text-white shadow-[0_0_32px_rgba(210,4,45,.4)] transition-all hover:bg-cherryRed/90 active:scale-[0.97]"
-        >
-          <Flame className="h-4 w-4 fill-current text-white animate-pulse" />
-          <span>Let's Lock In</span>
-          <ChevronRight className="h-4 w-4 text-white/70" />
-        </motion.button>
-      </div>
-
-      <p className="text-[10px] font-mono text-zinc-600 pb-1">
-        Verified college emails only • Built for campus builders
-      </p>
+      <p className="mt-4 text-footnote text-ink-3">College email required.</p>
     </div>
   );
 }
 
-/* ─── STEP 1: CAMPUS & ACADEMICS ─────────────────────────────────── */
-function CampusStep({
-  form,
-  setForm,
-  validation,
-  campuses,
-  campusSearch,
-  setCampusSearch,
-  showCampusList,
-  setShowCampusList,
-  onNext,
-}: any) {
+/* ─── CAMPUS ─────────────────────────────────────────────────────── */
+function CampusStep({ form, setForm, validation, campuses, campusSearch, setCampusSearch, showCampusList, setShowCampusList, onNext }: any) {
   return (
-    <div className="space-y-6">
-      <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
-          Step 1 of 3
-        </span>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
-          Your Campus
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">Where are you building from?</p>
-      </div>
+    <div className="space-y-7">
+      <StepHeading eyebrow="Your campus" title="Where do you show up?" sub="Your feed only shows missions from your college." />
 
-      <div className="space-y-4">
-        {/* Campus selector */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-            College / University
-          </label>
+      <div className="space-y-5">
+        <FormField label="College" error={validation.campusId}>
           <div className="relative">
-            <div
-              className={`flex h-11 w-full cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition ${
-                form.campusId
-                  ? "border-cotton/40 bg-cotton/5 text-white"
-                  : "border-white/10 bg-black/40 text-zinc-500"
-              } ${validation.campusId ? "border-cherryRed/50" : ""}`}
+            <button
+              type="button"
               onClick={() => setShowCampusList(!showCampusList)}
+              aria-expanded={showCampusList}
+              className={`flex h-12 w-full items-center gap-3 rounded-xl border bg-raised px-3.5 text-left transition-colors ${
+                validation.campusId ? "border-signal" : form.campusId ? "border-ink-3/60" : "border-line hover:border-ink-3/40"
+              }`}
             >
-              <Search className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-              <span className="flex-1 truncate text-xs">
-                {form.campusName || "Search your college..."}
+              <Search className="h-4 w-4 shrink-0 text-ink-3" />
+              <span className={`flex-1 truncate text-callout ${form.campusName ? "text-ink" : "text-ink-3"}`}>
+                {form.campusName || "Search your college"}
               </span>
               {form.campusName && (
-                <button
-                  type="button"
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Clear college"
                   onClick={(e) => {
                     e.stopPropagation();
                     setForm((f: any) => ({ ...f, campusId: "", campusName: "" }));
                   }}
-                  className="p-1 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white transition"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-3 hover:bg-overlay hover:text-ink"
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                  <X className="h-4 w-4" />
+                </span>
               )}
-              <ChevronRight
-                className={`h-3.5 w-3.5 text-zinc-600 transition-transform ${showCampusList ? "rotate-90" : ""}`}
-              />
-            </div>
+              <motion.span animate={{ rotate: showCampusList ? 90 : 0 }} transition={spring.snap}>
+                <ChevronRight className="h-4 w-4 text-ink-3" />
+              </motion.span>
+            </button>
 
             <AnimatePresence>
               {showCampusList && (
                 <motion.div
-                  initial={{ opacity: 0, y: -6, scaleY: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                  exit={{ opacity: 0, y: -6, scaleY: 0.95 }}
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98, transition: { duration: 0.12 } }}
+                  transition={spring.glide}
                   style={{ transformOrigin: "top" }}
-                  className="absolute left-0 right-0 top-12 z-50 rounded-xl border border-white/10 bg-zinc-950 shadow-2xl overflow-hidden"
+                  className="absolute left-0 right-0 top-[56px] z-50 overflow-hidden rounded-xl border border-line bg-surface shadow-lift"
                 >
-                  <div className="border-b border-white/5 p-2">
+                  <div className="border-b border-line p-2">
                     <input
                       autoFocus
                       value={campusSearch}
                       onChange={(e) => setCampusSearch(e.target.value)}
-                      placeholder="Type to filter..."
-                      className="w-full bg-transparent px-2 py-1.5 text-xs text-white placeholder-zinc-600 outline-none"
+                      placeholder="Type to filter"
+                      aria-label="Filter colleges"
+                      className="h-11 w-full rounded-lg bg-raised px-3 text-callout text-ink outline-none placeholder:text-ink-3"
                     />
                   </div>
-                  <div className="max-h-52 overflow-y-auto">
-                    {campuses.length === 0 && (
-                      <p className="p-3 text-center text-[10px] text-zinc-600">No campuses found</p>
-                    )}
+                  <div className="max-h-60 overflow-y-auto py-1">
+                    {campuses.length === 0 && <p className="p-4 text-center text-subhead text-ink-3">No colleges match that.</p>}
                     {campuses.map((c: Campus) => (
                       <button
                         key={c.id}
@@ -960,15 +735,13 @@ function CampusStep({
                           setShowCampusList(false);
                           setCampusSearch("");
                         }}
-                        className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-white/5"
+                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-raised"
                       >
-                        <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-luxuryGold/60" />
-                        <div>
-                          <p className="text-xs font-semibold text-white">{c.name}</p>
-                          {c.location && (
-                            <p className="text-[10px] text-zinc-600">{c.location}</p>
-                          )}
-                        </div>
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-signal" />
+                        <span>
+                          <span className="block text-subhead font-medium text-ink">{c.name}</span>
+                          {c.location && <span className="block text-footnote text-ink-3">{c.location}</span>}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -976,515 +749,390 @@ function CampusStep({
               )}
             </AnimatePresence>
           </div>
-          {validation.campusId && (
-            <FieldError msg={validation.campusId} />
-          )}
-        </div>
+        </FormField>
 
-        {/* Custom college fallback — shown only when nothing selected from list */}
         {!form.campusId && (
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
-              Not listed? Type your college name
-            </label>
+          <FormField label="Not listed? Type it" hint="Spell it exactly. This is how people from your college find you." htmlFor="g-college">
             <Input
+              id="g-college"
               value={form.campusName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setForm((f: any) => ({ ...f, campusName: e.target.value }))
-              }
-              placeholder="e.g. VIT Bhopal, Lovely Professional University..."
-              className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, campusName: e.target.value }))}
+              placeholder="VIT Bhopal"
             />
-            <p className="text-[9px] text-zinc-600 leading-tight">
-              Make sure spelling is exact. This is how your campus community will find you.
-            </p>
-          </div>
+          </FormField>
         )}
 
-        {/* Registration Number */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-            Registration / Roll Number
-          </label>
+        <FormField label="Registration number" error={validation.college_id} htmlFor="g-reg">
           <Input
+            id="g-reg"
             value={form.college_id}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm((f: any) => ({ ...f, college_id: e.target.value }))
-            }
-            placeholder="e.g. RA2211003010123"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 uppercase focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
-              validation.college_id ? "border-cherryRed/50" : ""
-            }`}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, college_id: e.target.value }))}
+            placeholder="RA2211003010123"
+            aria-invalid={!!validation.college_id}
+            className="uppercase"
           />
-          {validation.college_id && <FieldError msg={validation.college_id} />}
-        </div>
+        </FormField>
 
-        {/* Department & Year */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-            Department & Year
-          </label>
+        <FormField label="Department and year" error={validation.department} htmlFor="g-dept">
           <Input
+            id="g-dept"
             value={form.department}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm((f: any) => ({ ...f, department: e.target.value }))
-            }
-            placeholder="e.g. CSE, 3rd Year"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
-              validation.department ? "border-cherryRed/50" : ""
-            }`}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, department: e.target.value }))}
+            placeholder="CSE, 3rd year"
+            aria-invalid={!!validation.department}
           />
-          {validation.department && <FieldError msg={validation.department} />}
-        </div>
+        </FormField>
       </div>
 
-      <NextButton onClick={onNext} />
+      <PrimaryButton onClick={onNext}>
+        Continue <ChevronRight className="h-5 w-5" />
+      </PrimaryButton>
     </div>
   );
 }
 
-/* ─── STEP 2: PILOT PROFILE ──────────────────────────────────────── */
+/* ─── PROFILE ────────────────────────────────────────────────────── */
 function ProfileStep({ form, setForm, validation, onNext }: any) {
+  const over = form.bio.length > 140;
   return (
-    <div className="space-y-6">
-      <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
-          Step 2 of 3
-        </span>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
-          Pilot Profile
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">Who are you? Make it count.</p>
-      </div>
+    <div className="space-y-7">
+      <StepHeading eyebrow="About you" title="Who's showing up?" sub="This is what people see before they lock in with you." />
 
-      <div className="space-y-4">
-        {/* Full Name */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-            Full Name
-          </label>
+      <div className="space-y-5">
+        <FormField label="Name" error={validation.name} htmlFor="g-name">
           <Input
+            id="g-name"
+            autoComplete="name"
             value={form.name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm((f: any) => ({ ...f, name: e.target.value }))
-            }
-            placeholder="e.g. Faheem"
-            className={`h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
-              validation.name ? "border-cherryRed/50" : ""
-            }`}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, name: e.target.value }))}
+            placeholder="Your name"
+            aria-invalid={!!validation.name}
           />
-          {validation.name && <FieldError msg={validation.name} />}
-        </div>
+        </FormField>
 
-        {/* Bio */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-              Short Bio
-            </label>
-            <span
-              className={`text-[9px] font-bold ${
-                form.bio.length > 140 ? "text-cherryRed" : "text-zinc-600"
-              }`}
-            >
-              {form.bio.length}/150
-            </span>
-          </div>
-          <textarea
+        <FormField
+          label="Short bio"
+          htmlFor="g-bio"
+          trailing={<span className={`tabular text-footnote ${over ? "text-crimson" : "text-ink-3"}`}>{form.bio.length}/150</span>}
+        >
+          <Textarea
+            id="g-bio"
             value={form.bio}
-            onChange={(e) =>
-              setForm((f: any) => ({ ...f, bio: e.target.value.slice(0, 150) }))
-            }
-            placeholder="What are you building? What do you vibe with?"
+            onChange={(e) => setForm((f: any) => ({ ...f, bio: e.target.value.slice(0, 150) }))}
+            placeholder="What are you working on?"
             rows={3}
-            className="w-full resize-none rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-zinc-700 outline-none transition focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
           />
-        </div>
+        </FormField>
 
-        {/* Meet Spot */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-            <MapPin className="h-3 w-3" />
-            Preferred Meet Spot on Campus
-          </label>
+        <FormField label="Usual spot on campus" htmlFor="g-spot" icon={<MapPin className="h-3.5 w-3.5" />}>
           <Input
+            id="g-spot"
             value={form.location}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm((f: any) => ({ ...f, location: e.target.value }))
-            }
-            placeholder="e.g. Main Library, Block B Canteen, IT Lab"
-            className="h-11 border-white/10 bg-black/40 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, location: e.target.value }))}
+            placeholder="Main library"
           />
-        </div>
-
+        </FormField>
       </div>
 
-      <NextButton onClick={onNext} />
+      <PrimaryButton onClick={onNext}>
+        Continue <ChevronRight className="h-5 w-5" />
+      </PrimaryButton>
     </div>
   );
 }
 
-/* ─── STEP 3: SOCIALS & INTERESTS ────────────────────────────────── */
-function SocialsStep({ form, setForm, toggleInterest, onNext, onBack, interestCategories }: any) {
+/* ─── SOCIALS & INTERESTS ────────────────────────────────────────── */
+function SocialsStep({ form, setForm, toggleInterest, onNext, interestCategories }: any) {
   return (
-    <div className="space-y-6">
-      <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed">
-          Step 3 of 3
-        </span>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase">
-          Signal & Interests
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">Let people find you after the vibe check.</p>
-      </div>
+    <div className="space-y-7">
+      <StepHeading eyebrow="Interests" title="What do you lock in on?" sub="Optional, but it helps the right missions find you." />
 
-      <div className="space-y-4">
-        {/* Instagram */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-            <Instagram className="h-3 w-3" />
-            Instagram <span className="text-zinc-600 normal-case font-medium">(optional)</span>
-          </label>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-bold">@</span>
-            <Input
-              value={form.instagram}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setForm((f: any) => ({ ...f, instagram: e.target.value.replace("@", "") }))
-              }
-              placeholder="username"
-              className="h-11 border-white/10 bg-black/40 pl-7 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
-            />
-          </div>
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Instagram" htmlFor="g-ig" icon={<Instagram className="h-3.5 w-3.5" />}>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-callout text-ink-3">@</span>
+              <Input id="g-ig" value={form.instagram} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, instagram: e.target.value.replace("@", "") }))} placeholder="handle" className="pl-8" />
+            </div>
+          </FormField>
+          <FormField label="GitHub" htmlFor="g-gh" icon={<Github className="h-3.5 w-3.5" />}>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-callout text-ink-3">@</span>
+              <Input id="g-gh" value={form.github} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, github: e.target.value.replace("@", "") }))} placeholder="handle" className="pl-8" />
+            </div>
+          </FormField>
         </div>
 
-        {/* GitHub */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-            <Github className="h-3 w-3" />
-            GitHub <span className="text-zinc-600 normal-case font-medium">(optional)</span>
-          </label>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-bold">@</span>
-            <Input
-              value={form.github}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setForm((f: any) => ({ ...f, github: e.target.value.replace("@", "") }))
-              }
-              placeholder="username"
-              className="h-11 border-white/10 bg-black/40 pl-7 text-sm text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10"
-            />
-          </div>
-        </div>
-
-        {/* Focus Interests */}
-        <div className="space-y-2">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
-            Focus Interests <span className="text-zinc-600 normal-case font-medium">(pick any)</span>
-          </label>
-          <div className="flex flex-wrap gap-2">
+        <div className="space-y-3">
+          <p className="t-label">Pick any</p>
+          <motion.div variants={stagger(0.03)} initial="hidden" animate="show" className="flex flex-wrap gap-2">
             {interestCategories.map((cat: any) => {
               const selected = form.interests.includes(String(cat.id));
               return (
-                <button
+                <motion.button
                   key={cat.id}
+                  variants={rise}
                   type="button"
+                  whileTap={{ scale: 0.92 }}
                   onClick={() => toggleInterest(String(cat.id))}
-                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95 ${
-                    selected
-                      ? "border-cherryRed bg-cherryRed/10 text-white"
-                      : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+                  aria-pressed={selected}
+                  className={`flex h-10 items-center gap-1.5 rounded-sm border px-4 text-subhead font-medium transition-colors ${
+                    selected ? "border-signal bg-surface text-ink" : "border-line bg-surface text-ink-2 hover:border-ink-3/40 hover:text-ink"
                   }`}
-                  style={{
-                    borderColor: selected ? cat.color : undefined,
-                    backgroundColor: selected ? `${cat.color}1c` : undefined,
-                    color: selected ? cat.color : undefined
-                  }}
                 >
+                  <AnimatePresence initial={false}>
+                    {selected && (
+                      <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex overflow-hidden">
+                        <Check className="h-4 w-4 text-crimson" strokeWidth={3} />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                   {cat.name}
-                  {selected && <Check className="h-3 w-3" />}
-                </button>
+                </motion.button>
               );
             })}
-          </div>
+          </motion.div>
         </div>
       </div>
 
-      <NextButton onClick={onNext} label="See How It Works →" />
+      <PrimaryButton onClick={onNext}>
+        How it works <ChevronRight className="h-5 w-5" />
+      </PrimaryButton>
     </div>
   );
 }
 
-/* ─── STEP 4: TUTORIAL TOUR ──────────────────────────────────────── */
-function TutorialStep({
-  tutorialSlide,
-  setTutorialSlide,
-  onBack,
-  onSubmit,
-  busy,
-  error,
-}: any) {
+/* ─── TUTORIAL ───────────────────────────────────────────────────── */
+function TutorialStep({ tutorialSlide, setTutorialSlide, onBack, onSubmit, busy, error }: any) {
   const slide = TUTORIAL_STEPS[tutorialSlide];
   const Icon = slide.icon;
   const isLast = tutorialSlide === TUTORIAL_STEPS.length - 1;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-400 transition hover:text-white"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
+        <BackButton onClick={onBack} />
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-boxRed">
-            How it works
-          </span>
-          <h2 className="text-xl font-black tracking-tight text-white uppercase">
-            The Runway Loop
-          </h2>
+          <h2 className="t-display text-title-1 text-ink">The loop</h2>
         </div>
       </div>
 
-      {/* Slide area */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/60">
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.25}
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -50 && !isLast) setTutorialSlide((s: number) => s + 1);
+          if (info.offset.x > 50 && tutorialSlide > 0) setTutorialSlide((s: number) => s - 1);
+        }}
+        className="relative cursor-grab touch-pan-y overflow-hidden rounded-2xl border border-line bg-surface active:cursor-grabbing"
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={tutorialSlide}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.25 }}
-            className="p-6 space-y-4"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="relative min-h-[240px] space-y-5 p-6"
           >
-            <div
-              className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${slide.bg} ${slide.glow}`}
+            <motion.div
+              initial={{ scale: 0.6, rotate: -12 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={spring.pop}
+              className="flex h-14 w-14 items-center justify-center rounded-2xl border border-signal/70 bg-surface"
             >
-              <Icon className={`h-7 w-7 ${slide.color}`} />
-            </div>
+              <Icon className="h-7 w-7 text-crimson" />
+            </motion.div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                {tutorialSlide + 1} / {TUTORIAL_STEPS.length}
+              <p className="t-label tabular">
+                {String(tutorialSlide + 1).padStart(2, "0")} / {String(TUTORIAL_STEPS.length).padStart(2, "0")}
               </p>
-              <h3 className="mt-1 text-lg font-black text-white">{slide.title}</h3>
-              <p className="mt-2 text-sm text-zinc-400 leading-relaxed">{slide.body}</p>
+              <h3 className="t-display mt-2 text-title-1 text-ink">{slide.title}</h3>
+              <p className="mt-3 text-subhead leading-relaxed text-ink-2">{slide.body}</p>
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Dot indicators */}
-        <div className="flex justify-center gap-1.5 pb-4">
-          {TUTORIAL_STEPS.map((_, i) => {
-            const colors = ["bg-cherryRed", "bg-white", "bg-cherryRed", "bg-cherryRed"];
-            const activeColor = colors[i];
-            const inactiveColor = i === 1 ? "bg-white/20" : "bg-cherryRed/20";
-            return (
-              <button
-                key={i}
-                onClick={() => setTutorialSlide(i)}
-                className={`h-1.5 w-6 rounded-full transition-all duration-300 ${
-                  i === tutorialSlide ? activeColor : inactiveColor
-                }`}
+        <div className="relative flex justify-center gap-2 pb-5">
+          {TUTORIAL_STEPS.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setTutorialSlide(i)}
+              aria-label={`Slide ${i + 1}`}
+              aria-current={i === tutorialSlide}
+              className="flex h-11 w-8 items-center justify-center"
+            >
+              <motion.span
+                className={`block h-1.5 rounded-full transition-colors duration-200 ${i === tutorialSlide ? "bg-signal" : "bg-line"}`}
+                animate={{ width: i === tutorialSlide ? 28 : 8 }}
+                transition={spring.glide}
               />
-            );
-          })}
+            </button>
+          ))}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Navigation */}
-      {!isLast ? (
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            role="alert"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="flex items-start gap-2.5 rounded-xl border border-signal/70 bg-surface p-3.5 text-subhead text-ink"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-crimson" />
+            <span>{error}</span>
+          </motion.p>
+        )}
+      </AnimatePresence>
+
+      {isLast ? (
+        <PrimaryButton onClick={onSubmit} disabled={busy}>
+          {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <LockinMark size={22} color="currentColor" showTriangle={false} />}
+          {busy ? "Setting you up" : "Lock in"}
+        </PrimaryButton>
+      ) : (
         <button
+          type="button"
           onClick={() => setTutorialSlide((s: number) => s + 1)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-white/10 active:scale-[0.97]"
+          className="flex h-14 w-full items-center justify-center gap-2 btn-ghost"
         >
-          Next
-          <ChevronRight className="h-4 w-4" />
+          Next <ChevronRight className="h-5 w-5" />
         </button>
-      ) : null}
-
-      {error && (
-        <p className="text-xs font-bold text-cherryRed bg-cherryRed/5 border border-cherryRed/20 rounded-xl p-3 flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </p>
-      )}
-
-      {isLast && (
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={onSubmit}
-          disabled={busy}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/35 bg-cherryRed py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
-        >
-          <Flame className="h-4 w-4 fill-current" />
-          {busy ? "Activating Pilot..." : "Initialize Lock-In"}
-        </motion.button>
       )}
     </div>
   );
 }
 
-/* ─── STEP 1: EMAIL VERIFICATION ──────────────────────────────────── */
+/* ─── EMAIL ──────────────────────────────────────────────────────── */
 function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode, onDemoLogin }: any) {
+  const [showPw, setShowPw] = useState(false);
+  const copy = {
+    login: { eyebrow: "Log in", title: "Welcome back", sub: "Use the email and password you signed up with.", cta: "Log in" },
+    signup: { eyebrow: "Create account", title: "Join your campus", sub: "Use your college email so we can put you in the right feed.", cta: "Create account" },
+    forgot: { eyebrow: "Reset password", title: "Forgot it?", sub: "We'll email you a link to set a new one.", cta: "Send reset link" }
+  }[mode as "login" | "signup" | "forgot"];
+
   return (
-    <div className="space-y-6">
-      <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed font-mono">
-          {mode === "login" ? "Student Login" : mode === "signup" ? "Student Signup" : "Password Recovery"}
-        </span>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-white uppercase font-display">
-          {mode === "login" ? "Welcome Back" : mode === "signup" ? "Create Account" : "Reset Password"}
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500 font-sans">
-          {mode === "login" 
-            ? "Log in with your college credentials." 
-            : mode === "signup" 
-              ? "Use your college email domain to unlock your campus feed." 
-              : "Enter your email to receive a password reset link."}
-        </p>
-      </div>
+    <form
+      className="space-y-7"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onNext();
+      }}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={mode} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8, transition: { duration: 0.12 } }}>
+          <StepHeading eyebrow={copy.eyebrow} title={copy.title} sub={copy.sub} />
+        </motion.div>
+      </AnimatePresence>
 
-      <div className="space-y-4">
-        {/* Email input */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 font-mono">
-            <Mail className="h-3.5 w-3.5" />
-            College Email Address
-          </label>
+      <div className="space-y-5">
+        <FormField label="College email" error={validation.email} htmlFor="g-email" icon={<Mail className="h-3.5 w-3.5" />}>
           <Input
+            id="g-email"
             type="email"
+            autoComplete="email"
+            inputMode="email"
             value={form.email}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setForm((f: any) => ({ ...f, email: e.target.value }))
-            }
-            placeholder="e.g. name@srmist.edu.in"
-            className={`h-11 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
-              validation.email ? "border-cherryRed/50" : ""
-            }`}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, email: e.target.value }))}
+            placeholder="name@srmist.edu.in"
+            aria-invalid={!!validation.email}
           />
-          {validation.email && <FieldError msg={validation.email} />}
-        </div>
+        </FormField>
 
-        {/* Password input (only shown for login and signup modes) */}
-        {mode !== "forgot" && (
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 font-mono">
-              <KeyRound className="h-3.5 w-3.5" />
-              Password
-            </label>
-            <Input
-              type="password"
-              value={form.password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setForm((f: any) => ({ ...f, password: e.target.value }))
-              }
-              placeholder="Min. 6 characters"
-              className={`h-11 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-2 focus:ring-cherryRed/10 ${
-                validation.password ? "border-cherryRed/50" : ""
-              }`}
-            />
-            {validation.password && <FieldError msg={validation.password} />}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {mode !== "forgot" && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <FormField label="Password" error={validation.password} htmlFor="g-pw" icon={<KeyRound className="h-3.5 w-3.5" />}>
+                <div className="relative">
+                  <Input
+                    id="g-pw"
+                    type={showPw ? "text" : "password"}
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    value={form.password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, password: e.target.value }))}
+                    placeholder="At least 6 characters"
+                    aria-invalid={!!validation.password}
+                    className="pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-ink-3 hover:text-ink"
+                  >
+                    {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                  </button>
+                </div>
+              </FormField>
+              {mode === "login" && (
+                <button type="button" onClick={() => setMode("forgot")} className="mt-2 h-10 text-subhead text-ink-3 transition-colors hover:text-ink">
+                  Forgot password?
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Button */}
-      <button
-        type="button"
-        disabled={busy || !form.email || (mode !== "forgot" && !form.password)}
-        onClick={onNext}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/20 bg-cherryRed py-4 text-sm font-sans font-medium text-white shadow-[0_0_30px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97] disabled:opacity-50"
-      >
-        {busy 
-          ? "Processing..." 
-          : mode === "login" 
-            ? "Log In →" 
-            : mode === "signup" 
-              ? "Sign Up →" 
-              : "Send Reset Link →"}
-      </button>
+      <PrimaryButton type="submit" disabled={busy || !form.email || (mode !== "forgot" && !form.password)}>
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+        {busy ? "One sec" : copy.cta}
+      </PrimaryButton>
 
-      {/* Instant Demo Login option */}
-      {onDemoLogin && (
-        <div className="pt-1">
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-white/10"></div>
-            <span className="flex-shrink mx-3 text-[9px] uppercase font-mono tracking-widest text-zinc-500">Or Instant Testing</span>
-            <div className="flex-grow border-t border-white/10"></div>
-          </div>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onDemoLogin}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 py-3.5 text-xs font-black uppercase tracking-widest text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.2)] transition-all hover:bg-amber-500/30 hover:border-amber-400 active:scale-[0.97]"
-          >
-            <Zap className="h-4 w-4 fill-amber-400 text-amber-400 animate-pulse" />
-            <span>⚡ Instant Demo Login (SRM KTR Builder)</span>
-          </button>
-        </div>
-      )}
-
-      {/* Mode selectors */}
-      <div className="flex flex-col gap-2.5 items-center pt-2">
+      <div className="space-y-1 text-center">
         {mode === "login" ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setMode("signup")}
-              className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white transition font-mono"
-            >
-              Don't have an account? Sign Up
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("forgot")}
-              className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition font-mono"
-            >
-              Forgot Password?
-            </button>
-          </>
-        ) : mode === "signup" ? (
-          <button
-            type="button"
-            onClick={() => setMode("login")}
-            className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white transition font-mono"
-          >
-            Already have an account? Log In
+          <button type="button" onClick={() => setMode("signup")} className="h-11 text-subhead text-ink-2 transition-colors hover:text-ink">
+            New here? <span className="font-semibold text-ink underline decoration-signal decoration-2 underline-offset-4">Create an account</span>
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={() => setMode("login")}
-            className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white transition font-mono"
-          >
-            Back to Log In
+          <button type="button" onClick={() => setMode("login")} className="h-11 text-subhead text-ink-2 transition-colors hover:text-ink">
+            {mode === "signup" ? "Already have an account? " : ""}
+            <span className="font-semibold text-ink underline decoration-signal decoration-2 underline-offset-4">Log in</span>
+          </button>
+        )}
+        {onDemoLogin && (
+          <button type="button" disabled={busy} onClick={onDemoLogin} className="block h-10 w-full text-subhead text-ink-3 transition-colors hover:text-ink-2 disabled:opacity-50">
+            Try the demo account
           </button>
         )}
       </div>
-    </div>
+    </form>
   );
 }
 
-/* ─── STEP 2: EMAIL VERIFICATION CHECK INBOX ──────────────────────── */
-function OtpStep({ form, onNext, busy, mode, setMode }: any) {
+/* ─── CHECK INBOX ────────────────────────────────────────────────── */
+function OtpStep({ form, onNext, mode, setMode }: any) {
   return (
-    <div className="space-y-6 text-center">
+    <div className="space-y-8 text-center">
       <div className="flex flex-col items-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cherryRed/30 bg-cherryRed/10 shadow-[0_0_30px_rgba(129,1,0,0.2)] mb-4">
-          <Mail className="h-7 w-7 text-cherryRed animate-pulse" />
+        <div className="relative mb-6 flex h-20 w-20 items-center justify-center">
+          {[0, 1].map((i) => (
+            <motion.span
+              key={i}
+              className="absolute inset-0 rounded-full border border-signal/70"
+              animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
+              transition={{ duration: 2, delay: i, repeat: Infinity, ease: "easeOut" }}
+            />
+          ))}
+          <motion.div
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={spring.pop}
+            className="relative flex h-20 w-20 items-center justify-center rounded-full border border-signal/70 bg-surface"
+          >
+            <Mail className="h-8 w-8 text-crimson" />
+          </motion.div>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-cherryRed font-mono">
-          {mode === "forgot" ? "Check Email" : "Verification Required"}
-        </span>
-        <h2 className="mt-1 text-xl font-black tracking-tight text-white uppercase font-display">
-          {mode === "forgot" ? "Reset Link Sent" : "Verify Student Email"}
-        </h2>
-        <p className="mt-2 text-xs text-zinc-400 leading-relaxed max-w-[280px] mx-auto font-sans">
-          {mode === "forgot"
-            ? `We have sent a secure password reset link to ${form.email}. Please follow the link in your inbox to reset your password.`
-            : `We have sent a verification confirmation link to ${form.email}. Please click the link to verify your email and unlock your campus feed.`}
+        <h2 className="t-display text-large-title text-ink">{mode === "forgot" ? "Link sent" : "Verify your email"}</h2>
+        <p className="mx-auto mt-3 max-w-[300px] text-subhead leading-relaxed text-ink-2">
+          {mode === "forgot" ? "We sent a reset link to " : "We sent a confirmation link to "}
+          <span className="font-semibold text-ink">{form.email}</span>.{" "}
+          {mode === "forgot" ? "Open it to set a new password." : "Open it, then come back and log in."}
         </p>
       </div>
 
@@ -1492,41 +1140,109 @@ function OtpStep({ form, onNext, busy, mode, setMode }: any) {
         type="button"
         onClick={() => {
           setMode("login");
-          onNext(); // Will trigger goNext, going back to Login
+          onNext();
         }}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-4 text-xs font-display font-black uppercase tracking-widest text-white transition-all hover:bg-white/10 active:scale-[0.97]"
+        className="flex h-14 w-full items-center justify-center btn-ghost"
       >
-        Back to Log In
+        Back to log in
       </button>
     </div>
   );
 }
 
-/* ─── SHARED HELPERS ─────────────────────────────────────────────── */
-function NextButton({
-  onClick,
-  label = "Continue",
-}: {
-  onClick: () => void;
-  label?: string;
-}) {
+/* ─── SHARED ─────────────────────────────────────────────────────── */
+function StepHeading({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cherryRed/35 bg-cherryRed py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(210,4,45,0.25)] transition-all hover:bg-cherryRed/95 active:scale-[0.97]"
-    >
-      {label}
-      <ChevronRight className="h-4 w-4" />
-    </button>
+    <div>
+      <p className="t-section">{eyebrow}</p>
+      <h2 className="t-display mt-3 text-large-title text-ink">{title}</h2>
+      {sub && <p className="mt-2 text-subhead leading-relaxed text-ink-2">{sub}</p>}
+    </div>
   );
 }
 
-function FieldError({ msg }: { msg: string }) {
+function FormField({
+  label,
+  hint,
+  error,
+  htmlFor,
+  icon,
+  trailing,
+  children
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  htmlFor?: string;
+  icon?: React.ReactNode;
+  trailing?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <span className="flex items-center gap-1 text-[10px] font-bold text-boxRed">
-      <AlertTriangle className="h-3 w-3" />
-      {msg}
-    </span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label htmlFor={htmlFor} className="t-label flex items-center gap-1.5">
+          {icon}
+          {label}
+        </label>
+        {trailing}
+      </div>
+      {children}
+      <AnimatePresence initial={false}>
+        {error ? (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center gap-1.5 text-footnote font-medium text-crimson"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {error}
+          </motion.p>
+        ) : hint ? (
+          <p className="text-footnote leading-snug text-ink-3">{hint}</p>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function PrimaryButton({
+  children,
+  onClick,
+  disabled,
+  type = "button"
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: "button" | "submit";
+}) {
+  return (
+    <motion.button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      whileTap={{ scale: 0.97 }}
+      whileHover={{ y: -1 }}
+      transition={spring.snap}
+      className="relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden btn-primary"
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ scale: 0.9 }}
+      aria-label="Back"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-ink-2 transition-colors hover:text-ink"
+    >
+      <ChevronLeft className="h-5 w-5" />
+    </motion.button>
   );
 }

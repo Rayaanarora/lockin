@@ -1,169 +1,107 @@
 const prisma = require("../config/db");
-const memoryStore = require("../data/memoryStore");
+const { toId, cleanText, safeImageRef } = require("../utils/security");
 const { isDbUnavailable } = require("../utils/dbFallback");
 
 function required(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+// Profiles are created by POST /api/auth/profile from the verified session
+// (email and auth id come from Supabase, not from the request). This legacy
+// endpoint is disabled so nobody can mint a profile for an arbitrary email.
 async function createUser(req, res) {
-  const { name, college, college_id, department, bio, instagram, github, interests, campusId, collegeId } = req.body;
-
-  if (![name, college, college_id, department].every(required)) {
-    return res.status(400).json({ error: "Name, college, college_id, and department are required." });
-  }
-
-  const payload = {
-    name: name.trim(),
-    college: college.trim(),
-    college_id: college_id.trim(),
-    department: department.trim(),
-    bio: bio ? bio.trim() : "",
-    instagram: instagram ? instagram.trim() : "",
-    github: github ? github.trim() : "",
-    interests: interests ? interests.trim() : "",
-    campusId: campusId ? Number(campusId) : null,
-    collegeId: collegeId ? Number(collegeId) : (campusId ? Number(campusId) : null)
-  };
-
-  let email = payload.college_id;
-  if (!email.includes("@")) {
-    email = `${email.toLowerCase().replace(/[^a-z0-9]/g, "")}@srmist.edu.in`;
-  }
-
-  try {
-    const user = await prisma.user.create({
-      data: {
-        name: payload.name,
-        email: email,
-        department: payload.department,
-        college: payload.college,
-        reputationScore: 100, // Seed initial Aura to 100
-        bio: payload.bio,
-        instagram: payload.instagram,
-        github: payload.github,
-        interests: payload.interests,
-        collegeId: payload.collegeId
-      }
-    });
-
-    res.status(201).json({
-      id: user.id,
-      name: user.name,
-      college: user.college,
-      college_id: user.email,
-      department: user.department,
-      reputation_score: user.reputationScore,
-      bio: user.bio,
-      instagram: user.instagram,
-      github: user.github,
-      interests: user.interests,
-      campus_id: user.collegeId,
-      verified_at: user.verifiedAt
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.status(201).json(memoryStore.createUser(payload));
-  }
+  return res.status(410).json({ error: "Use /api/auth/profile to create your profile." });
 }
 
+// GET /api/users/:id: the full private profile, for its owner only (the route
+// enforces :id === session user). Other people use /api/users/:id/public.
 async function getUser(req, res) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: Number(req.params.id) },
-      include: { collegeRef: true }
-    });
-    if (!user) {
-      return res.status(404).json({ error: "User not found." });
-    }
-    res.json({
-      id: user.id,
-      name: user.name,
-      college: user.college || 'SRM Institute of Science and Technology KTR',
-      college_id: user.email,
-      department: user.department,
-      reputation_score: user.reputationScore,
-      bio: user.bio || "",
-      instagram: user.instagram || "",
-      github: user.github || "",
-      interests: user.interests || "",
-      campus_id: user.collegeId,
-      campus_name: user.collegeRef?.shortName || "",
-      verified_at: user.verifiedAt,
-      avatar_url: user.avatarUrl || null
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    const user = memoryStore.getUser(req.params.id);
-    if (!user) return res.status(404).json({ error: "User not found." });
-    res.json(user);
-  }
+  const user = await prisma.user.findUnique({ where: { id: req.userId }, include: { collegeRef: true } });
+  if (!user) return res.status(404).json({ error: "User not found." });
+  res.json(privateView(user));
 }
 
 async function getLockStatus(req, res) {
-  try {
-    const activeCount = await prisma.participation.count({
-      where: {
-        userId: Number(req.params.id),
-        status: "Accepted",
-        showedUp: null
-      }
-    });
-
-    res.json({
-      locked: activeCount >= 3,
-      active_count: activeCount,
-      max_active_missions: 3
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.json(memoryStore.getLockStatus(req.params.id));
-  }
+  // Same rule acceptMission enforces: at most 3 open missions at a time.
+  const activeCount = await prisma.participation.count({
+    where: { userId: req.userId, status: { in: ["Requested", "Accepted", "Executing"] } }
+  });
+  res.json({ locked: activeCount >= 3, active_count: activeCount, max_active_missions: 3 });
 }
 
+// PUT /api/users/:id (owner only; the route enforces :id === session user).
 async function updateUser(req, res) {
-  const { id } = req.params;
-  const { name, department, bio, instagram, github, interests, location, college, collegeId, campusId, avatarUrl } = req.body;
+  const userId = req.userId;
+  const b = req.body || {};
+  const data = {};
 
-  const effectiveCollegeId = collegeId || campusId;
-
-  try {
-    const user = await prisma.user.update({
-      where: { id: Number(id) },
-      data: {
-        name: name ? name.trim() : undefined,
-        department: department ? department.trim() : undefined,
-        bio: bio !== undefined ? bio.trim() : undefined,
-        instagram: instagram !== undefined ? instagram.trim() : undefined,
-        github: github !== undefined ? github.trim() : undefined,
-        interests: interests !== undefined ? interests.trim() : undefined,
-        location: location !== undefined ? location.trim() : undefined,
-        college: college !== undefined ? college.trim() : undefined,
-        avatarUrl: avatarUrl !== undefined ? avatarUrl : undefined,
-        collegeId: effectiveCollegeId !== undefined ? (effectiveCollegeId ? Number(effectiveCollegeId) : null) : undefined
-      }
-    });
-
-    res.json({
-      id: user.id,
-      name: user.name,
-      college: user.college,
-      college_id: user.email,
-      department: user.department,
-      reputation_score: user.reputationScore,
-      bio: user.bio,
-      instagram: user.instagram,
-      github: user.github,
-      interests: user.interests,
-      location: user.location,
-      campus_id: user.collegeId,
-      verified_at: user.verifiedAt,
-      avatar_url: user.avatarUrl || null
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.json({ error: "Database unavailable." });
+  const text = { name: 50, department: 50, bio: 150, location: 100 };
+  for (const [key, max] of Object.entries(text)) {
+    if (b[key] !== undefined) data[key] = cleanText(b[key], max);
   }
+  if (data.name === null || (data.name !== undefined && data.name.length < 2)) {
+    return res.status(400).json({ error: "Name must be at least 2 characters." });
+  }
+  for (const key of ["instagram", "github"]) {
+    if (b[key] !== undefined) {
+      const handle = cleanText(String(b[key]).replace(/^@/, ""), 50);
+      if (handle && !/^[A-Za-z0-9._-]+$/.test(handle)) return res.status(400).json({ error: `That ${key} handle isn't valid.` });
+      data[key] = handle;
+    }
+  }
+  if (b.interests !== undefined) data.interests = cleanText(b.interests, 500);
+  if (b.avatarUrl !== undefined) {
+    const avatar = safeImageRef(b.avatarUrl);
+    if (avatar === undefined) return res.status(400).json({ error: "Upload your photo first." });
+    data.avatarUrl = avatar;
+  }
+
+  // Campus decides which feed you see, so it can't be switched freely:
+  // set once during onboarding, or later only to a campus on your email domain.
+  const requestedCollege = b.collegeId !== undefined ? b.collegeId : b.campusId;
+  if (requestedCollege !== undefined && requestedCollege !== null && requestedCollege !== "") {
+    const collegeId = toId(requestedCollege);
+    const current = await prisma.user.findUnique({ where: { id: userId }, select: { collegeId: true, email: true } });
+    if (collegeId && current && collegeId !== current.collegeId) {
+      const college = await prisma.college.findUnique({ where: { id: collegeId } });
+      if (!college) return res.status(400).json({ error: "Unknown college." });
+      const domain = (current.email || "").split("@")[1] || "";
+      const onDomain = !!college.emailDomain && (domain === college.emailDomain || domain.endsWith(`.${college.emailDomain}`));
+      if (current.collegeId && !onDomain) {
+        return res.status(403).json({ error: "You can only switch to a campus that matches your college email." });
+      }
+      data.collegeId = collegeId;
+      data.college = college.shortName;
+    }
+  } else if (b.college !== undefined) {
+    // Free-text college name ("not listed") is display-only.
+    data.college = cleanText(b.college, 100);
+  }
+
+  const user = await prisma.user.update({ where: { id: userId }, data, include: { collegeRef: true } });
+  res.json(privateView(user));
+}
+
+/** What the owner sees about themselves. Still no auth ids. */
+function privateView(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    college: user.college,
+    college_id: user.email, // legacy field name the UI expects
+    department: user.department,
+    reputation_score: user.reputationScore,
+    location: user.location,
+    bio: user.bio,
+    instagram: user.instagram,
+    github: user.github,
+    interests: user.interests,
+    campus_id: user.collegeId,
+    campus_name: user.collegeRef ? user.collegeRef.shortName : user.college || "",
+    verified_at: user.verifiedAt,
+    avatar_url: user.avatarUrl || null
+  };
 }
 
 async function getLeaderboard(req, res) {
@@ -326,7 +264,6 @@ async function getPublicProfile(req, res) {
         id: user.id,
         name: user.name,
         college: user.college,
-        college_id: user.email,
         department: user.department,
         reputation_score: user.reputationScore,
         bio: user.bio,

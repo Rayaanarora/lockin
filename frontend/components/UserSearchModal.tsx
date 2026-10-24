@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { Search, X, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Search, Loader2, ChevronRight } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { fieldClass } from "./ui/input";
+import { POINTS_NAME } from "../lib/brand";
 
 interface UserSearchModalProps {
   isOpen: boolean;
@@ -59,115 +62,79 @@ export default function UserSearchModal({
     return () => clearTimeout(delayDebounce);
   }, [query, currentUserId, api]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col justify-start">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:top-[12vh] sm:translate-y-0 sm:data-[starting-style]:translate-y-[-12px] sm:data-[ending-style]:translate-y-0">
+        <DialogHeader>
+          <DialogTitle>Find people</DialogTitle>
+        </DialogHeader>
 
-      {/* Modal Container */}
-      <motion.div
-        initial={{ y: "-100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "-100%" }}
-        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-        className="relative w-full max-w-md mx-auto bg-zinc-950 border-b border-white/[0.08] rounded-b-3xl px-4 pt-5 pb-6 z-[1001] shadow-2xl"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-            Peers Search
-          </span>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-white transition"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Input area */}
-        <div className="relative flex items-center">
-          <Search
-            size={15}
-            className="absolute left-4 text-zinc-500 pointer-events-none"
-          />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-3" />
           <input
             ref={inputRef}
-            type="text"
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name or department..."
-            className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-zinc-600 focus:ring-1 focus:ring-[#8B0000]/50 focus:border-[#8B0000]/50 focus:outline-none transition"
+            placeholder="Name or department"
+            aria-label="Search people"
+            className={`${fieldClass} h-12 pl-11 pr-11`}
           />
+          {loading && <Loader2 className="absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 animate-spin text-ink-3" />}
         </div>
 
-        {/* Results section */}
-        <div className="mt-4 space-y-2 max-h-[60vh] overflow-y-auto scrollbar-none">
-          {loading && (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-6 w-6 text-[#8B0000] animate-spin" />
-            </div>
+        <div className="max-h-[56vh] min-h-[160px] overflow-y-auto">
+          {query.trim().length < 2 ? (
+            <p className="py-10 text-center text-subhead text-ink-3">Type at least two letters.</p>
+          ) : !loading && results.length === 0 ? (
+            <p className="py-10 text-center text-subhead text-ink-3">Nobody matches &ldquo;{query.trim()}&rdquo;.</p>
+          ) : (
+            <ul className="space-y-1">
+              <AnimatePresence initial={false}>
+                {results.map((r, i) => {
+                  const initials = r.name ? r.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+                  return (
+                    <motion.li
+                      key={r.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0, transition: { delay: i * 0.03 } }}
+                      exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onViewProfile(r.id);
+                          onClose();
+                        }}
+                        className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:border-line hover:bg-raised"
+                      >
+                        {r.avatar_url ? (
+                          <img src={r.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full border border-line object-cover" />
+                        ) : (
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-raised font-display text-title-3 font-bold text-ink">{initials}</span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-subhead font-medium text-ink">{r.name}</span>
+                          <span className="block truncate text-footnote text-ink-3">
+                            {r.department}
+                            {r.college ? ` · ${r.college}` : ""}
+                          </span>
+                        </span>
+                        <span className="tabular shrink-0 text-subhead font-semibold text-ink">
+                          {r.reputationScore ?? 0}
+                          <span className="ml-1 text-caption font-normal text-gold">{POINTS_NAME}</span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    </motion.li>
+                  );
+                })}
+              </AnimatePresence>
+            </ul>
           )}
-
-          {!loading && query.trim().length >= 2 && results.length === 0 && (
-            <div className="text-xs text-zinc-600 font-bold uppercase tracking-widest text-center py-6">
-              No users found.
-            </div>
-          )}
-
-          {!loading && query.trim().length < 2 && (
-            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-600 text-center py-6">
-              SEARCH BY NAME OR DEPARTMENT
-            </div>
-          )}
-
-          {!loading && results.map((result) => {
-            const initials = result.name
-              ? result.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
-              : "??";
-
-            return (
-              <div
-                key={result.id}
-                onClick={() => {
-                  onViewProfile(result.id);
-                  onClose();
-                }}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-zinc-900 border border-white/[0.06] hover:border-white/[0.12] cursor-pointer transition"
-              >
-                {result.avatar_url ? (
-                  <img
-                    src={result.avatar_url}
-                    alt={result.name}
-                    className="w-9 h-9 rounded-full object-cover border border-[#8B0000]/40 shrink-0"
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-zinc-900 border border-[#8B0000]/40 text-[11px] font-black text-[#8B0000] flex items-center justify-center shrink-0">
-                    {initials}
-                  </div>
-                )}
-                
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-black text-white uppercase tracking-wide truncate">
-                    {result.name}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 font-bold truncate">
-                    {result.department} · {result.college}
-                  </p>
-                </div>
-
-                <div className="text-[10px] font-black text-[#8B0000] uppercase tracking-wider shrink-0">
-                  {result.reputationScore} AURA
-                </div>
-              </div>
-            );
-          })}
         </div>
-      </motion.div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

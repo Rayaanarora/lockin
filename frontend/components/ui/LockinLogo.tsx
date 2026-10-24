@@ -1,92 +1,165 @@
 "use client";
 
 import React from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
-interface StagEmblemProps {
+/*
+ * LOCKIN mark: antler "Y" with red apex. Paths are traced from
+ * /new logo.jpeg (1080×1067 source), cropped to viewBox 230 260 620 520.
+ */
+const STEM = "M540 515 L540 768";
+const BRANCHES = [
+  "M540 515 C532 450 470 375 247 315", // left arm
+  "M540 515 C548 450 610 375 833 315", // right arm
+  "M470 386 Q440 332 400 295", // left inner tine
+  "M610 386 Q640 332 680 295", // right inner tine
+  "M362 352 Q338 312 312 273", // left outer tine
+  "M718 352 Q742 312 768 273" // right outer tine
+];
+const APEX = "540,286 530,322 550,322";
+
+interface MarkProps {
   size?: number;
   className?: string;
   color?: string;
+  /** Draw the strokes on when mounted. */
+  animate?: boolean;
+  /** Seconds before the draw-on starts. */
+  delay?: number;
   showTriangle?: boolean;
 }
 
-export const StagEmblem: React.FC<StagEmblemProps> = ({
+export function LockinMark({
   size = 28,
   className = "",
   color = "currentColor",
-  showTriangle = true,
-}) => {
+  animate = false,
+  delay = 0,
+  showTriangle = true
+}: MarkProps) {
+  const reduce = useReducedMotion();
+  const draw = animate && !reduce;
+  // Hairline in the source; thicken at small sizes so it never drops below ~1.4px.
+  const stroke = Math.max(4, (620 / size) * 1.4);
+
+  const pathProps = (i: number) =>
+    draw
+      ? {
+          initial: { pathLength: 0, opacity: 0 },
+          animate: { pathLength: 1, opacity: 1 },
+          transition: {
+            pathLength: { delay: delay + 0.35 + i * 0.08, duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+            opacity: { delay: delay + 0.35 + i * 0.08, duration: 0.01 }
+          }
+        }
+      : {};
+
   return (
     <svg
-      viewBox="0 0 200 200"
+      viewBox="230 260 620 520"
       width={size}
-      height={size}
+      height={(size * 520) / 620}
       className={`shrink-0 overflow-visible ${className}`}
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
     >
-      {/* Central Spire */}
-      <line x1="100" y1="185" x2="100" y2="88" stroke={color} strokeWidth="4" strokeLinecap="round" />
-      {/* Antler branch pairs */}
-      <path d="M100,88 Q68,68 40,56" stroke={color} strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M78,77 Q55,52 20,55" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      <path d="M58,64 Q42,38 8,36" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      <path d="M44,57 Q28,30 14,20" stroke={color} strokeWidth="3" strokeLinecap="round" />
-
-      <path d="M100,88 Q132,68 160,56" stroke={color} strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M122,77 Q145,52 180,55" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      <path d="M142,64 Q158,38 192,36" stroke={color} strokeWidth="3" strokeLinecap="round" />
-      <path d="M156,57 Q172,30 186,20" stroke={color} strokeWidth="3" strokeLinecap="round" />
-
-      {/* Crimson Apex Crown Triangle */}
+      <motion.path
+        d={STEM}
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        {...(draw
+          ? {
+              initial: { pathLength: 0, opacity: 0 },
+              animate: { pathLength: 1, opacity: 1 },
+              transition: { pathLength: { delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }, opacity: { delay, duration: 0.01 } }
+            }
+          : {})}
+      />
+      {BRANCHES.map((d, i) => (
+        <motion.path key={d} d={d} stroke={color} strokeWidth={stroke} strokeLinecap="round" {...pathProps(Math.floor(i / 2))} />
+      ))}
       {showTriangle && (
-        <polygon points="100,40 92,54 108,54" fill="#D2042D" />
+        <motion.polygon
+          points={APEX}
+          fill="rgb(var(--signal))"
+          {...(draw
+            ? {
+                initial: { opacity: 0, y: -40 },
+                animate: { opacity: 1, y: 0 },
+                transition: { delay: delay + 1.05, type: "spring", stiffness: 520, damping: 18 }
+              }
+            : {})}
+        />
       )}
     </svg>
   );
+}
+
+/** Back-compat name used across the app. */
+export const StagEmblem = LockinMark;
+
+interface WordmarkProps {
+  className?: string;
+  size?: "sm" | "md" | "lg" | "xl";
+  glow?: boolean;
+}
+
+const WORD_SIZE = {
+  sm: "text-subhead tracking-[0.24em]",
+  md: "text-title-3 tracking-[0.26em]",
+  lg: "text-[26px] tracking-[0.28em]",
+  xl: "text-[40px] tracking-[0.3em]"
 };
+
+export function LockinWordmark({ className = "", size = "md", glow = false }: WordmarkProps) {
+  return (
+    <span
+      className={`select-none font-sans font-medium leading-none text-ink ${WORD_SIZE[size]} ${className}`}
+      aria-label="LOCKIN"
+    >
+      L<span className="text-signal">O</span>CKIN
+    </span>
+  );
+}
 
 interface LockinLogoProps {
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  /** Horizontal = mark beside wordmark (chrome). Stacked = mark over wordmark (hero). */
+  layout?: "horizontal" | "stacked";
+  animate?: boolean;
   showSubtitle?: boolean;
 }
 
-export const LockinLogo: React.FC<LockinLogoProps> = ({
-  size = "md",
-  className = "",
-  showSubtitle = false,
-}) => {
-  const iconSize = {
-    sm: 18,
-    md: 24,
-    lg: 32,
-    xl: 44,
-  }[size];
+const MARK_SIZE = { sm: 26, md: 32, lg: 72, xl: 132 };
 
-  const textSize = {
-    sm: "text-[14px] tracking-[0.14em]",
-    md: "text-[18px] tracking-[0.16em]",
-    lg: "text-[24px] tracking-[0.18em]",
-    xl: "text-[32px] tracking-[0.2em]",
-  }[size];
+export function LockinLogo({ size = "md", className = "", layout = "horizontal", animate = false, showSubtitle = false }: LockinLogoProps) {
+  const reduce = useReducedMotion();
+  const animateWord = animate && !reduce;
+
+  if (layout === "stacked") {
+    return (
+      <div className={`flex flex-col items-center gap-6 ${className}`}>
+        <LockinMark size={MARK_SIZE[size]} color="rgb(var(--ink))" animate={animate} />
+        <motion.div
+          initial={animateWord ? { opacity: 0, letterSpacing: "0.6em", filter: "blur(6px)" } : false}
+          animate={{ opacity: 1, letterSpacing: "0.3em", filter: "blur(0px)" }}
+          transition={{ delay: 1.1, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <LockinWordmark size={size} glow />
+        </motion.div>
+        {showSubtitle && <span className="t-label">Stop chatting. Start showing up.</span>}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <div className="flex items-center justify-center rounded-xl bg-white/[0.04] p-1.5 border border-white/[0.08] shadow-[0_0_16px_rgba(210,4,45,0.18)]">
-        <StagEmblem size={iconSize} color="#EDEBDE" showTriangle={true} />
-      </div>
-      <div className="flex flex-col">
-        <span className={`font-black font-mono text-white ${textSize} leading-none`}>
-          L<span className="text-[#D2042D]">O</span>CKIN
-        </span>
-        {showSubtitle && (
-          <span className="text-[8px] font-bold tracking-[0.25em] text-zinc-500 uppercase mt-0.5">
-            Campus Network
-          </span>
-        )}
-      </div>
+      <LockinMark size={MARK_SIZE[size]} color="rgb(var(--ink))" animate={animate} />
+      <LockinWordmark size={size} />
     </div>
   );
-};
+}
 
 export default LockinLogo;

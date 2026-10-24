@@ -2,10 +2,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { ChevronLeft, Send, ShieldAlert } from "lucide-react";
+import { ChevronLeft, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "./ui/input";
-import { ScrollArea } from "./ui/scroll-area";
+import { Skeleton } from "./ui/motion";
+import { spring } from "../lib/motion";
 import { User, Mission, Message } from "../app/types";
 
 interface ChatProps {
@@ -42,7 +43,8 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
   useEffect(() => {
     if (!supabase) return;
 
-    const channel = supabase.channel(`mission_chat:${mission.id}`);
+    // Private channel: only the mission's members can receive (supabase/security.sql).
+    const channel = supabase.channel(`mission_chat:${mission.id}`, { config: { private: true } });
 
     channel.on(
       "broadcast",
@@ -66,12 +68,8 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      const scrollContainer = scrollContainerRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
-    }
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
   async function send(event: React.FormEvent) {
@@ -97,97 +95,93 @@ export default function Chat({ mission, user, onClose, api, socketUrl }: ChatPro
 
   return (
     <motion.div
-      className="absolute inset-0 z-50 flex flex-col bg-black/95 p-4 backdrop-blur-xl"
+      className="fixed inset-0 z-[995] flex flex-col bg-bg"
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", stiffness: 260, damping: 28 }}
+      exit={{ y: "100%", transition: { duration: 0.25, ease: [0.65, 0, 0.35, 1] } }}
+      transition={spring.glide}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Chat: ${mission.title}`}
     >
-      <div className="mx-auto flex h-full w-full max-w-2xl flex-col">
-        {/* Header bar */}
-        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-          <button
+      <div className="grid-noise pointer-events-none absolute inset-0 opacity-60" />
+      <div className="relative mx-auto flex h-full w-full max-w-2xl flex-col">
+        <header className="flex items-center gap-3 border-b border-line px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
+          <motion.button
             type="button"
+            whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 transition"
+            aria-label="Back"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-ink-2 transition-colors hover:text-ink"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="flex-1">
-            <h2 className="text-base font-black text-white line-clamp-1">{mission.title}</h2>
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-              Coordination Channel
+          </motion.button>
+          <div className="min-w-0 flex-1">
+            <h2 className="t-display truncate text-title-2 text-ink">{mission.title}</h2>
+            <p className="flex items-center gap-1.5 text-footnote text-ink-3">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+              </span>
+              Live · mission chat
             </p>
           </div>
-        </div>
+        </header>
 
-        {/* Warning banner */}
-        <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-boxRed/20 bg-boxRed/5 p-3 text-zinc-400">
-          <ShieldAlert className="h-4 w-4 text-boxRed shrink-0" />
-          <span className="text-[10px] font-semibold tracking-wide uppercase leading-relaxed text-zinc-500">
-            Text-only protocol. Keep it technical. No media, no spam.
-          </span>
-        </div>
-
-        {/* Messages list */}
-        <div className="mt-4 flex-1 overflow-hidden" ref={scrollContainerRef}>
-          <ScrollArea className="h-full pr-3">
-            {loading ? (
-              <div className="flex h-full items-center justify-center py-20 text-xs font-semibold text-zinc-500">
-                Opening channel...
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center py-20 text-center">
-                <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Channel Empty</p>
-                <p className="mt-1 text-[11px] text-zinc-500">Send a message to coordinate rendezvous.</p>
-              </div>
-            ) : (
-              <div className="space-y-4 py-2">
-                {messages.map((message) => {
-                  const isSelf = message.sender_id === user.id;
-                  return (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex flex-col max-w-[85%] ${isSelf ? "ml-auto items-end" : "mr-auto items-start"}`}
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-2/3" />
+              <Skeleton className="ml-auto h-12 w-1/2" />
+              <Skeleton className="h-12 w-3/5" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <p className="t-display text-title-2 text-ink">Sort out the details</p>
+              <p className="mt-1.5 max-w-[260px] text-subhead text-ink-2">Where exactly, who&apos;s bringing what. Keep it short. Text only.</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {messages.map((m, i) => {
+                const self = m.sender_id === user.id;
+                const prev = messages[i - 1];
+                const grouped = prev && prev.sender_id === m.sender_id;
+                return (
+                  <motion.li
+                    key={m.id}
+                    initial={{ opacity: 0, y: 12, scale: 0.96, x: self ? 12 : -12 }}
+                    animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+                    transition={spring.glide}
+                    style={{ originX: self ? 1 : 0 }}
+                    className={`flex max-w-[82%] flex-col ${self ? "ml-auto items-end" : "mr-auto items-start"} ${grouped ? "-mt-2" : ""}`}
+                  >
+                    {!grouped && !self && <span className="mb-1 px-1 text-caption font-medium text-ink-3">{m.sender_name}</span>}
+                    <div
+                      className={`rounded-2xl px-4 py-2.5 text-subhead leading-relaxed ${
+                        self ? "rounded-br-sm bg-ink text-bg" : "rounded-bl-md border border-line bg-surface text-ink"
+                      }`}
                     >
-                      <span className="mb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
-                        {message.sender_name}
-                      </span>
-                      <div
-                        className={`rounded-2xl border px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                          isSelf
-                            ? "rounded-tr-none border-cherryRed/30 bg-cherryRed/10 text-cotton"
-                            : "rounded-tl-none border-white/5 bg-zinc-950 text-zinc-200"
-                        }`}
-                      >
-                        {message.message}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </ScrollArea>
+                      {m.message}
+                    </div>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
-        {/* Input box */}
-        <form onSubmit={send} className="safe-bottom mt-4 flex gap-2">
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Type coordinates or updates..."
-            className="h-12 border-white/10 bg-black/40 text-sm text-cotton placeholder-zinc-600 transition focus:border-luxuryGold focus:ring-2 focus:ring-luxuryGold/10"
-            required
-            autoComplete="off"
-          />
-          <button
+        <form onSubmit={send} className="safe-bottom flex gap-2 border-t border-line px-4 pt-3">
+          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message" aria-label="Message" required autoComplete="off" />
+          <motion.button
             type="submit"
-            className="flex h-12 w-12 items-center justify-center rounded-xl border border-cherryRed bg-cherryRed text-cotton shadow-[0_0_20px_rgba(129,1,0,0.25)] hover:bg-cherryRed/90 active:scale-[0.96] transition"
+            whileTap={{ scale: 0.88 }}
+            animate={text.trim() ? { scale: 1, opacity: 1 } : { scale: 0.92, opacity: 0.5 }}
+            transition={spring.snap}
+            aria-label="Send"
+            className="flex h-12 w-12 shrink-0 items-center justify-center btn-primary"
           >
-            <Send className="h-4 w-4" />
-          </button>
+            <Send className="h-5 w-5" />
+          </motion.button>
         </form>
       </div>
     </motion.div>

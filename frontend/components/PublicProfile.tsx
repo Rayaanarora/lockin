@@ -5,22 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { User, Mission } from "../app/types";
 import HeatMap from "./HeatMap";
 import FollowListModal from "./FollowListModal";
-import { 
-  Flame, 
-  MapPin, 
-  Instagram, 
-  Github, 
-  Sparkles, 
-  Activity, 
-  Trophy, 
-  UserPlus, 
-  UserMinus, 
-  Zap, 
-  Clock, 
-  CheckCircle2, 
-  Calendar,
-  ListTodo
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Flame, Instagram, Github, UserPlus, UserMinus, Zap, Clock, CheckCircle2, Calendar, ListTodo } from "lucide-react";
+import { AuraAvatar } from "./ui/AuraAvatar";
+import { CountUp, Reveal, Skeleton } from "./ui/motion";
+import { spring } from "../lib/motion";
+import { POINTS_NAME } from "../lib/brand";
 
 interface PublicProfileProps {
   userId: number;
@@ -97,227 +87,167 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
 
   if (!isOpen) return null;
 
+  const u = profileData?.user;
+  const initials = u?.name ? u.name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const score = u?.reputation_score ?? 0;
+  const tierProgress = score < 100 ? score / 100 : score < 250 ? (score - 100) / 150 : score < 500 ? (score - 250) / 250 : 1;
+  const isSelf = u && u.id === viewerId;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md md:max-w-2xl bg-noirBlack border border-cherryRed/20 p-4 md:p-6 overflow-y-auto max-h-[90vh] scrollbar-none text-cotton">
-        <DialogHeader className="border-b border-white/5 pb-3">
-          <DialogTitle className="text-sm font-black uppercase tracking-wider text-cherryRed flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4" /> Profile Details
-          </DialogTitle>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{u?.name || "Profile"}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-3">
-            <Activity className="h-8 w-8 text-cherryRed animate-spin" />
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest animate-pulse">
-              Locking into profile data...
-            </p>
+          <div className="flex flex-col items-center gap-4 py-10">
+            <Skeleton className="h-28 w-28 rounded-full" />
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-32" />
+            <div className="grid w-full grid-cols-3 gap-2 pt-4">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-20" />)}</div>
           </div>
         ) : error || !profileData ? (
-          <div className="py-12 text-center">
-            <p className="text-sm font-bold text-cherryRed uppercase tracking-wider">{error || "User not found."}</p>
+          <div className="py-16 text-center">
+            <p className="t-display text-title-2 text-ink">Couldn&apos;t load this profile</p>
+            <p className="mt-1 text-subhead text-ink-2">{error || "This person may have left."}</p>
           </div>
         ) : (
-          <div className="space-y-6 mt-4">
-            {/* Hero Header */}
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-b border-white/5 pb-4">
-              <div className="flex items-center gap-3.5">
-                {profileData.user.avatar_url ? (
-                  <img
-                    src={profileData.user.avatar_url}
-                    alt={profileData.user.name || "User"}
-                    className="h-14 w-14 shrink-0 rounded-2xl object-cover border border-cherryRed/35 bg-cherryRed/5 shadow-[0_0_24px_rgba(129,1,0,0.15)]"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cherryRed/35 bg-cherryRed/5 text-lg font-black text-cotton shadow-[0_0_24px_rgba(129,1,0,0.15)]">
-                    {profileData.user.name ? profileData.user.name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase() : "??"}
-                  </div>
+          <div className="space-y-6">
+            {/* Hero */}
+            <div className="relative -mx-5 -mt-2 flex flex-col items-center px-5 pb-2 pt-4 text-center sm:-mx-6 sm:px-6">
+              <AuraAvatar src={u.avatar_url} initials={initials} progress={tierProgress} size={104} />
+              <h2 className="t-display relative mt-4 text-title-1 text-ink">{u.name}</h2>
+              <p className="relative mt-1 text-subhead text-ink-3">
+                {u.department}
+                {u.college ? ` · ${u.college}` : ""}
+              </p>
+              {u.bio && <p className="relative mt-3 max-w-sm text-subhead leading-relaxed text-ink-2">{u.bio}</p>}
+
+              <div className="relative mt-4 flex flex-wrap items-center justify-center gap-2">
+                <span className="flex items-center gap-2 rounded-sm border border-gold/30 bg-gold/[0.08] py-1.5 pl-2 pr-3.5">
+                  <CountUp value={score} className="font-display text-title-3 font-bold text-ink" />
+                  <span className="text-micro font-semibold uppercase text-gold">{POINTS_NAME}</span>
+                </span>
+                {u.instagram && (
+                  <a href={`https://instagram.com/${u.instagram}`} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink-2 transition-colors hover:text-ink">
+                    <Instagram className="h-4 w-4" />
+                  </a>
                 )}
-                <div className="text-left">
-                  <h2 className="text-base md:text-xl font-black text-cotton leading-tight">
-                    {profileData.user.name}
-                  </h2>
-                  <p className="text-[11px] md:text-xs text-zinc-500 font-semibold mt-0.5">
-                    {profileData.user.department}
-                  </p>
-                  {profileData.user.bio && (
-                    <p className="text-[11px] md:text-xs text-cotton/80 mt-1.5 max-w-sm leading-relaxed">
-                      {profileData.user.bio}
-                    </p>
-                  )}
-                </div>
+                {u.github && (
+                  <a href={`https://github.com/${u.github}`} target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink-2 transition-colors hover:text-ink">
+                    <Github className="h-4 w-4" />
+                  </a>
+                )}
               </div>
 
-              {/* Follow count & action */}
-              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                <div className="flex gap-2.5 text-[10px] font-bold text-zinc-500 bg-noirBlack/40 px-3 py-1.5 rounded-lg border border-white/5">
-                  <div
-                    onClick={() => {
-                      setFollowListInitialTab("followers");
-                      setIsFollowListOpen(true);
-                    }}
-                    className="cursor-pointer hover:text-white transition-colors"
-                  >
-                    <span className="text-cotton font-black mr-0.5">{profileData.followersCount}</span> Followers
-                  </div>
-                  <div className="w-px bg-white/10" />
-                  <div
-                    onClick={() => {
-                      setFollowListInitialTab("following");
-                      setIsFollowListOpen(true);
-                    }}
-                    className="cursor-pointer hover:text-white transition-colors"
-                  >
-                    <span className="text-cotton font-black mr-0.5">{profileData.followingCount}</span> Following
-                  </div>
+              <div className="relative mt-5 flex w-full max-w-sm items-stretch gap-2">
+                <div className="grid flex-1 grid-cols-2 divide-x divide-line rounded-xl border border-line">
+                  {(
+                    [
+                      { tab: "followers", n: profileData.followersCount, label: "Followers" },
+                      { tab: "following", n: profileData.followingCount, label: "Following" }
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.tab}
+                      type="button"
+                      onClick={() => {
+                        setFollowListInitialTab(f.tab);
+                        setIsFollowListOpen(true);
+                      }}
+                      className="flex flex-col items-center py-2.5 transition-colors hover:bg-raised"
+                    >
+                      <motion.span key={f.n} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="t-display text-title-2 text-ink">
+                        {f.n}
+                      </motion.span>
+                      <span className="t-label">{f.label}</span>
+                    </button>
+                  ))}
                 </div>
-
-                {viewerId !== profileData.user.id && (
-                  <button
+                {!isSelf && (
+                  <motion.button
+                    type="button"
                     onClick={handleFollowAction}
                     disabled={actionLoading}
-                    className={`flex h-9 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-black uppercase tracking-wider transition active:scale-[0.98] ${
-                      profileData.isFollowing
-                        ? "border border-cherryRed/35 bg-cherryRed/5 text-cherryRed hover:bg-cherryRed/10"
-                        : "bg-cherryRed text-cotton hover:bg-cherryRed/95 shadow-[0_0_15px_rgba(129,1,0,0.15)]"
+                    whileTap={{ scale: 0.95 }}
+                    transition={spring.snap}
+                    className={`flex w-32 items-center justify-center gap-2 rounded-xl text-subhead font-semibold transition-colors disabled:opacity-60 ${
+                      profileData.isFollowing ? "btn-ghost" : "btn-primary"
                     }`}
                   >
-                    {profileData.isFollowing ? (
-                      <>
-                        <UserMinus className="h-3.5 w-3.5" /> Unfollow
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="h-3.5 w-3.5" /> Follow
-                      </>
-                    )}
-                  </button>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={profileData.isFollowing ? "on" : "off"}
+                        initial={{ y: 10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -10, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex items-center gap-2"
+                      >
+                        {profileData.isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                        {profileData.isFollowing ? "Following" : "Follow"}
+                      </motion.span>
+                    </AnimatePresence>
+                  </motion.button>
                 )}
               </div>
             </div>
 
-            {/* Badges / Links */}
-            <div className="flex flex-wrap gap-2">
-              <span className="flex items-center gap-1.5 rounded-lg border border-cherryRed/25 bg-cherryRed/5 px-2.5 py-1 text-[10px] font-sans font-semibold text-cherryRed uppercase tracking-wider">
-                <img src="/aura-bolt.png" alt="Aura" className="h-3.5 w-3.5 object-contain shrink-0" />
-                {profileData.user.reputation_score ?? 0} Aura
-              </span>
-              {profileData.user.college && (
-                <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-semibold text-zinc-500">
-                  <MapPin className="h-3 w-3" />
-                  {profileData.user.college}
-                </span>
-              )}
-              {profileData.user.interests && (
-                <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-semibold text-zinc-500">
-                  {profileData.user.interests}
-                </span>
-              )}
-              {(profileData.user.instagram || profileData.user.github) && (
-                <div className="flex gap-2.5 ml-auto">
-                  {profileData.user.instagram && (
-                    <a
-                      href={`https://instagram.com/${profileData.user.instagram}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/5 bg-noirBlack/40 text-zinc-500 hover:text-white transition"
-                    >
-                      <Instagram className="h-3.5 w-3.5" />
-                    </a>
-                  )}
-                  {profileData.user.github && (
-                    <a
-                      href={`https://github.com/${profileData.user.github}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center h-7 w-7 rounded-lg border border-white/5 bg-noirBlack/40 text-zinc-500 hover:text-white transition"
-                    >
-                      <Github className="h-3.5 w-3.5" />
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Grid Layout for Stats & Heatmap */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Stats column */}
-              <div className="md:col-span-1 space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 text-left">
-                  Execution Metrics
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-1 gap-2.5">
-                  {[
-                    { label: "Missions Completed", value: profileData.stats.totalMissions, icon: Flame, color: "text-cherryRed" },
-                    { label: "Focus Hours", value: `${profileData.stats.focusHours}h`, icon: Clock, color: "text-cotton" },
-                    { label: "Completion Rate", value: `${profileData.stats.completionRate}%`, icon: CheckCircle2, color: "text-cotton" },
-                    { label: "Current Streak", value: `${profileData.stats.currentStreak}d`, icon: Zap, color: "text-cherryRed" },
-                    { label: "Tasks Finished", value: profileData.stats.tasksCompleted, icon: ListTodo, color: "text-cotton" },
-                    { label: "Active Days", value: profileData.stats.activeDays, icon: Calendar, color: "text-cotton" },
-                  ].map((stat) => {
-                    const Icon = stat.icon;
-                    return (
-                      <div key={stat.label} className="rounded-xl border border-cherryRed/10 bg-noirBlack/40 p-3 flex flex-col justify-between space-y-1.5 text-left">
-                        <div className="flex justify-between items-start">
-                          <span className="text-[8px] font-black uppercase tracking-wider text-zinc-600 leading-none">{stat.label}</span>
-                          <Icon className={`h-3 w-3 ${stat.color} shrink-0`} />
-                        </div>
-                        <span className="text-sm font-black text-cotton leading-none">{stat.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Heatmap column */}
-              <div className="md:col-span-2 space-y-4">
-                <HeatMap userId={userId} userJoinedAt={profileData?.user?.verified_at} api={api} />
-
-                {/* Recent Activities */}
-                <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 text-left">
-                    Recent Runway Runways
-                  </h3>
-                  {profileData.feedItems && profileData.feedItems.length > 0 ? (
-                    <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-cherryRed/20 text-left">
-                      {profileData.feedItems.map((item: any) => (
-                        <div
-                          key={item.id}
-                          className="rounded-xl border border-cherryRed/10 bg-noirBlack/20 p-3 space-y-1.5"
-                        >
-                          <div className="flex justify-between items-start">
-                            <span className="text-xs font-black text-cotton">{item.title}</span>
-                            <span className="text-[8px] font-semibold text-zinc-600">
-                              {new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                            </span>
-                          </div>
-                          {item.description && (
-                            <p className="text-[10px] text-cotton/80 italic leading-relaxed">
-                              "{item.description}"
-                            </p>
-                          )}
-                          {item.metadata && (
-                            <div className="flex gap-2 text-[8px] font-bold uppercase tracking-wider text-zinc-500">
-                              <span>{item.metadata.sessionDuration}m</span>
-                              <span>•</span>
-                              <span>{item.metadata.tasksCompleted || 0} Tasks</span>
-                              <span>•</span>
-                              <span className="text-cherryRed">{item.metadata.category}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[10px] font-semibold text-zinc-600 text-center py-4">
-                      No recent runway sessions found.
+            {/* Stats */}
+            <Reveal className="grid grid-cols-3 gap-2" each={0.04}>
+              {[
+                { label: "Missions", v: profileData.stats?.totalMissions ?? 0, s: "", icon: Flame },
+                { label: "Hours", v: profileData.stats?.focusHours ?? 0, s: "h", icon: Clock },
+                { label: "Completion", v: profileData.stats?.completionRate ?? 0, s: "%", icon: CheckCircle2 },
+                { label: "Streak", v: profileData.stats?.currentStreak ?? 0, s: "d", icon: Zap },
+                { label: "Tasks", v: profileData.stats?.tasksCompleted ?? 0, s: "", icon: ListTodo },
+                { label: "Active days", v: profileData.stats?.activeDays ?? 0, s: "", icon: Calendar }
+              ].map((st) => (
+                <Reveal.Item key={st.label}>
+                  <div className="rounded-xl border border-line bg-raised p-3.5">
+                    <st.icon className="h-4 w-4 text-ink-3" />
+                    <p className="t-display mt-3 text-title-1 leading-none text-ink">
+                      <CountUp value={Number(st.v)} />
+                      {st.s}
                     </p>
-                  )}
-                </div>
-              </div>
+                    <p className="t-label mt-1.5">{st.label}</p>
+                  </div>
+                </Reveal.Item>
+              ))}
+            </Reveal>
+
+            <HeatMap userId={userId} userJoinedAt={profileData?.user?.verified_at} api={api} />
+
+            {/* Recent */}
+            <div className="space-y-3">
+              <p className="t-label">Recent sessions</p>
+              {profileData.feedItems && profileData.feedItems.length > 0 ? (
+                <Reveal className="space-y-2" each={0.04}>
+                  {profileData.feedItems.map((item: any) => (
+                    <Reveal.Item key={item.id}>
+                      <div className="rounded-xl border border-line bg-raised p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-subhead font-medium text-ink">{item.title}</span>
+                          <span className="shrink-0 text-footnote text-ink-3">{new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                        </div>
+                        {item.description && <p className="mt-1.5 text-subhead leading-relaxed text-ink-2">{item.description}</p>}
+                        {item.metadata && (
+                          <p className="mt-2 flex flex-wrap gap-x-3 text-footnote text-ink-3">
+                            <span>{item.metadata.sessionDuration} min</span>
+                            <span>{item.metadata.tasksCompleted || 0} tasks</span>
+                            {item.metadata.category && <span className="text-crimson">{item.metadata.category}</span>}
+                          </p>
+                        )}
+                      </div>
+                    </Reveal.Item>
+                  ))}
+                </Reveal>
+              ) : (
+                <p className="rounded-xl border border-dashed border-line py-8 text-center text-subhead text-ink-3">No public sessions yet.</p>
+              )}
             </div>
 
-            {/* Followers & Following listing modal */}
             <FollowListModal
               isOpen={isFollowListOpen}
               onClose={() => setIsFollowListOpen(false)}
@@ -330,7 +260,6 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
               api={api}
             />
 
-            {/* Nested Public Profile overlay */}
             {selectedProfileUserId && (
               <PublicProfile
                 userId={selectedProfileUserId}

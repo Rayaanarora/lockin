@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "components/ui/LockinLogo.tsx"
+        ],
+        "createdAt": "2026-10-24T14:12:22.984Z",
+        "reason": "WCAG 1.4.3 logotype exemption: the red O of the LOCKIN wordmark is brand Crimson #B11226 per the client's final brand sheet; small crimson UI text uses the 4.5:1 crimson-text token"
+      }
+    ]
+  }
+}

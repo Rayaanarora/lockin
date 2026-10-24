@@ -2,14 +2,19 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, CheckSquare, Square, FileText, Flame, Play, Pause, Users, Calendar, Download } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Download } from "lucide-react";
 import { User, Mission } from "../app/types";
+import { uploadImage } from "../lib/supabase";
 import Chat from "./Chat";
 import RecapCard from "./RecapCard";
 import PublicProfile from "./PublicProfile";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Input, fieldClass } from "./ui/input";
+import { CountUp, Portal, Reveal, Skeleton } from "./ui/motion";
+import { LockinMark } from "./ui/LockinLogo";
+import { spring } from "../lib/motion";
 import { Textarea } from "./ui/textarea";
+import { POINTS_NAME } from "../lib/brand";
 
 interface ActiveMissionsProps {
   user: User;
@@ -268,7 +273,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       const confirmEnd = window.confirm(
         "Are you sure you want to end before the target time?\n\n" +
         `You have only focused for ${actualMins} minute(s).\n` +
-        (failed ? "WARNING: This will count as a RUNWAY CRASH (5 Aura penalty)." : "")
+        (failed ? `WARNING: This will count as a RUNWAY CRASH (-5 ${POINTS_NAME}).` : "")
       );
       if (!confirmEnd) return;
     }
@@ -296,10 +301,11 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       const result = await api(`/missions/${missionId}/finish`, {
         method: "POST",
         body: JSON.stringify({
-          userId: user.id,
           tasksCompleted,
-          sessionDuration: reflectionDuration,
-          isFailed: isFailedRun,
+          // The server measures the session and decides crash vs. complete;
+          // this only tells it which timer you picked (0 = open-ended).
+          targetMinutes: activeFocusMission && activeFocusMission.id === missionId ? Math.round(activeTimerDuration / 60) : 0,
+
           reflection: {
             reflectionText: reflectionText.trim() || null,
             lessonsLearned: lessonsLearned.trim() || null,
@@ -337,7 +343,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     try {
       await api(`/missions/${missionId}/vibe-check`, {
         method: "POST",
-        body: JSON.stringify({ raterId: user.id, rating })
+        body: JSON.stringify({ rating })
       });
       await Promise.all([load(), refreshUser()]);
       alert("Vibe check submitted successfully!");
@@ -366,7 +372,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     try {
       await api(`/missions/${missionId}/approve-participant`, {
         method: "POST",
-        body: JSON.stringify({ creatorId: user.id, participantId })
+        body: JSON.stringify({ participantId })
       });
       await load();
     } catch (err: any) {
@@ -376,7 +382,6 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
   async function handleAttendance(missionId: number, showedUp: boolean, targetParticipantId?: number) {
     const code = inputCodes[missionId] || "";
-    const pId = targetParticipantId || user.id; // if creator calls, it passes the participant's ID
 
     setErrors((prev) => ({ ...prev, [missionId]: "" }));
     setSubmitting((prev) => ({ ...prev, [missionId]: true }));
@@ -384,7 +389,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     try {
       await api(`/missions/${missionId}/attendance`, {
         method: "POST",
-        body: JSON.stringify({ userId: pId, showedUp, code })
+        body: JSON.stringify({ showedUp, code, ...(targetParticipantId ? { participantId: targetParticipantId } : {}) })
       });
       const updatedList = await api(`/missions/active/${user.id}`);
       setMissions(updatedList);
@@ -516,423 +521,334 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     (mission) => mission.showed_up === null && isDue(mission.datetime) && mission.status === "Accepted"
   ).length;
 
+  const pendingRequests = missions.filter((m) => m.role === "creator" && m.status === "Requested").length;
+  const completedCount = missions.filter((m) => m.status === "Completed").length;
+
   return (
-    <section className="mx-auto w-full max-w-md md:max-w-5xl flex-1 px-4 py-4 pb-24 md:pb-6 space-y-6">
-      {/* Title block */}
-      <div className="flex items-end justify-between border-b border-white/5 pb-4">
-        <div>
-          <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-cherryRed">
-            Execution Queue
-          </span>
-          <h2 className="text-xl md:text-3xl font-bold text-cotton tracking-tight mt-1">Active Runs</h2>
-        </div>
-        <div className="rounded-xl md:rounded-2xl border border-white/5 bg-zinc-950/45 px-3 md:px-5 py-1.5 md:py-2.5 text-right">
-          <span className="block text-[8px] md:text-[10px] font-black uppercase tracking-wider text-zinc-500">
-            Completed
-          </span>
-          <span className="text-sm md:text-lg font-black text-cherryRed">
-            {missions.filter((m) => m.status === "Completed").length}
-          </span>
-        </div>
+    <section className="mx-auto w-full max-w-md flex-1 space-y-6 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-14 md:space-y-10">
+      {/* Title */}
+      <div>
+        <p className="t-section">Queue</p>
+        <h1 className="t-display mt-3 text-large-title text-ink md:mt-6 md:text-[88px] md:leading-[0.92] md:tracking-[-0.045em]">Your missions</h1>
+        <p className="mt-1 text-subhead text-ink-3 md:mt-5 md:text-body">
+          {missions.length - completedCount} open · <CountUp value={completedCount} className="text-ink-2" /> completed
+        </p>
       </div>
 
-      {/* Pending join requests banner for creators */}
-      {(() => {
-        const pendingRequests = missions.filter(
-          (m) => m.role === "creator" && m.status === "Requested"
-        ).length;
-        return pendingRequests > 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-start gap-3 rounded-xl border border-cherryRed/35 bg-cherryRed/5 p-3.5 md:p-4.5"
-          >
-            <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-cherryRed shrink-0 mt-0.5 animate-pulse" />
-            <div>
-              <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-wider leading-none">
-                {pendingRequests} Join Request{pendingRequests > 1 ? "s" : ""} Waiting
-              </h4>
-              <p className="mt-1 text-[11px] md:text-xs font-medium leading-normal text-zinc-400">
-                Review and approve who locks in with you. Scroll down to see them.
-              </p>
-            </div>
-          </motion.div>
-        ) : null;
-      })()}
+      {/* Alerts */}
+      <AnimatePresence>
+        {pendingRequests > 0 && (
+          <Alert key="req" icon={AlertCircle} title={`${pendingRequests} join request${pendingRequests > 1 ? "s" : ""} waiting`} body="Approve who locks in with you. They're below." />
+        )}
+        {pendingReviews > 0 && (
+          <Alert
+            key="att"
+            icon={ShieldAlert}
+            title="Check-in needed"
+            body={`${pendingReviews} mission${pendingReviews > 1 ? "s are" : " is"} due. Confirm who showed up.`}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Attendance check alert */}
-      {pendingReviews > 0 && (
+      {/* Queue */}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-64 rounded-card" />
+          ))}
+        </div>
+      ) : missions.length === 0 ? (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 rounded-xl border border-cherryRed/35 bg-cherryRed/5 p-3.5 md:p-4.5"
+          className="flex flex-col items-center rounded-card border border-dashed border-line bg-surface/50 px-8 py-16 text-center"
         >
-          <ShieldAlert className="h-4 w-4 md:h-5 md:w-5 text-cherryRed shrink-0 mt-0.5 animate-pulse" />
-          <div>
-            <h4 className="text-xs md:text-sm font-black text-white uppercase tracking-wider leading-none">
-              Attendance check required
-            </h4>
-            <p className="mt-1 text-[11px] md:text-xs font-medium leading-normal text-zinc-400">
-              Confirm who showed up on {pendingReviews} due runway{pendingReviews > 1 ? "s" : ""} to sync Aura.
-            </p>
-          </div>
+          <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+            <LockinMark size={56} color="rgb(var(--ink-3))" />
+          </motion.div>
+          <h2 className="t-display mt-6 text-title-1 text-ink">Nothing queued</h2>
+          <p className="mt-2 max-w-[260px] text-subhead leading-relaxed text-ink-2">
+            Lock in to a mission from the deck, or launch your own. It'll show up here.
+          </p>
         </motion.div>
-      )}
+      ) : (
+        <Reveal className="grid grid-cols-1 gap-4 md:grid-cols-2" each={0.06}>
+          {missions.map((mission) => {
+            const isSolo = mission.mission_type === "solo";
+            const due = isDue(mission.datetime) || isSolo;
+            const isCreator = mission.role === "creator" || isSolo;
+            const isRequest = mission.status === "Requested";
+            const active = mission.status === "Accepted";
+            const executing = mission.status === "Executing";
+            const needsReview = mission.showed_up === null && due && active && !isSolo;
+            const tasks = missionTasks[mission.id] || [];
+            const doneTasks = tasks.filter((t) => t.completed).length;
 
-      {/* Queue items */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="text-center py-20 text-xs md:text-sm font-bold text-zinc-600 uppercase tracking-widest">
-            Syncing queue...
-          </div>
-        ) : missions.length === 0 ? (
-          <div className="text-center py-16 rounded-2xl border border-white/5 bg-zinc-950/10 p-8">
-            <p className="text-xs md:text-sm font-bold text-zinc-600 uppercase tracking-widest">Queue Empty</p>
-            <p className="mt-2 text-xs md:text-sm text-zinc-500 leading-relaxed max-w-[240px] mx-auto">
-              Accept targets from the discovery board or launch a new runway.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 space-y-0">
-            {missions.map((mission, idx) => {
-              const isSolo = mission.mission_type === "solo";
-              const due = isDue(mission.datetime) || isSolo;
-              const isCreator = mission.role === "creator" || isSolo;
-              const isRequest = mission.status === "Requested";
-              const active = mission.status === "Accepted";
-              const needsReview = mission.showed_up === null && due && active && !isSolo;
-              
-              let statusLabel = mission.status || "Pending";
-              let statusColor = "border-zinc-800 bg-noirBlack/40 text-cotton/60";
+            const status = isRequest
+              ? { label: "Requested", cls: "border-line bg-raised text-ink-2" }
+              : active
+                ? { label: isSolo ? "Ready" : due ? "Due now" : "Upcoming", cls: due ? "border-signal/70 bg-surface text-crimson" : "border-line bg-raised text-ink" }
+                : executing
+                  ? { label: "Locked in", cls: "border-signal text-ink", live: true }
+                  : mission.status === "Completed"
+                    ? { label: "Completed", cls: "border-success/40 bg-success/10 text-success" }
+                    : mission.status === "Missed"
+                      ? { label: "Missed", cls: "border-line bg-raised text-ink-3 line-through" }
+                      : { label: mission.status || "Pending", cls: "border-line bg-raised text-ink-2" };
 
-              if (isRequest) {
-                statusLabel = "Request";
-                statusColor = "border-zinc-800 bg-zinc-900/50 text-zinc-400";
-              } else if (active) {
-                statusLabel = isSolo ? "Solo Active" : "Active";
-                statusColor = "border-cherryRed/45 bg-cherryRed/5 text-cherryRed";
-              } else if (mission.status === "Executing") {
-                statusLabel = "LOCKED IN";
-                statusColor = "border-cherryRed/50 bg-[#D2042D] text-cotton shadow-[0_0_15px_rgba(210,4,45,0.15)]";
-              } else if (mission.status === "Completed") {
-                statusLabel = "Completed";
-                statusColor = "border-zinc-800 bg-zinc-900/50 text-cotton shadow-[0_0_15px_rgba(255,255,255,0.05)]";
-              } else if (mission.status === "Missed") {
-                statusLabel = "Missed";
-                statusColor = "border-cherryRed/25 bg-cherryRed/10 text-cherryRed";
-              }
+            const roleLabel = isSolo ? "Solo" : isCreator ? `Hosting · with ${mission.participant_name}` : `With ${mission.creator_name}`;
 
-              let roleLabel = "";
-              if (isSolo) {
-                roleLabel = "Solo Focus";
-              } else if (isCreator) {
-                roleLabel = `Host (Participant: ${mission.participant_name})`;
-              } else {
-                roleLabel = `Partner: ${mission.creator_name}`;
-              }
-
-              return (
+            return (
+              <Reveal.Item key={`${mission.id}-${mission.role}`}>
                 <motion.article
-                  key={`${mission.id}-${mission.role}`}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className={`relative overflow-hidden rounded-2xl border bg-noirBlack/45 p-4 md:p-6 shadow-sm backdrop-blur-md transition hover:scale-[1.01] hover:border-white/10 ${
-                    needsReview ? "border-cherryRed/40 ring-1 ring-cherryRed/10" : "border-zinc-900"
+                  layout
+                  className={`relative overflow-hidden rounded-card border bg-surface ${
+                    executing ? "border-signal/70" : needsReview ? "border-signal/70" : "border-line"
                   }`}
-                  style={{
-                    borderColor: mission.cover_color ? `${mission.cover_color}55` : undefined,
-                    boxShadow: mission.cover_color ? `0 4px 20px rgba(0,0,0,0.4), 0 0 15px ${mission.cover_color}12` : undefined
-                  }}
                 >
-                  {/* Optional Mission Cover Background */}
-                  {mission.cover_image && (
-                    <div 
-                      className="absolute inset-0 z-0 opacity-[0.12] pointer-events-none"
-                      style={{ 
-                        background: mission.cover_image.includes("gradient") 
-                          ? mission.cover_image 
-                          : `url(${mission.cover_image}) center/cover no-repeat`
-                      }}
-                    />
-                  )}
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between gap-3 mb-3.5 text-left">
-                      <div>
-                        <h3 className="text-sm md:text-base lg:text-lg font-black text-white leading-tight">
-                          {mission.title}
-                        </h3>
-                        <p className="mt-1 text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                          {roleLabel}
-                        </p>
-                        {/* RSVP Count */}
-                        {mission.locked_in_count !== undefined && mission.locked_in_count > 2 && (
-                          <div className="flex items-center gap-1.5 mt-1 text-[10px] md:text-xs font-bold text-zinc-400">
-                            <Users className="h-3.5 w-3.5 text-luxuryGold shrink-0" />
-                            <span>{mission.locked_in_count} people locked in</span>
-                          </div>
-                        )}
+                  {/* Cover strip */}
+                  <div
+                    className="h-px w-full"
+                    style={{
+                      background: mission.cover_color
+                        ? mission.cover_color
+                        : mission.cover_image?.includes("gradient")
+                          ? mission.cover_image
+                          : "linear-gradient(90deg, rgb(var(--cherry)), rgb(var(--signal)))"
+                    }}
+                  />
+
+                  <div className="space-y-5 p-5">
+                    {/* Head */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="t-display text-title-2 text-ink">{mission.title}</h3>
+                        <p className="mt-1.5 truncate text-subhead text-ink-3">{roleLabel}</p>
                       </div>
-                      <span className={`rounded-md border px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-black uppercase tracking-wider shrink-0 h-fit ${statusColor}`}>
-                        {statusLabel}
+                      <span className={`flex h-7 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-[10px] font-medium uppercase tracking-[0.2em] ${status.cls}`}>
+                        {status.live && (
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
+                          </span>
+                        )}
+                        {status.label}
                       </span>
                     </div>
 
-                    {/* Timing & Location */}
-                    <div className="grid grid-cols-2 gap-3.5 text-xs md:text-sm font-bold text-cotton/80 mb-4.5 text-left">
-                      <div className="flex items-center gap-2.5 rounded-xl border border-luxuryMaroon/15 bg-[#1B1716]/40 p-2.5 md:p-3.5">
-                        <CalendarClock className="h-3.5 w-3.5 md:h-4.5 md:w-4.5 text-luxuryGold shrink-0" />
-                        <span className="text-cotton/90">
-                          {isSolo ? "Start Anytime" : (due ? "Ready" : timeLeft(mission.datetime))}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2.5 rounded-xl border border-luxuryMaroon/15 bg-[#1B1716]/40 p-2.5 md:p-3.5">
-                        <MapPin className="h-3.5 w-3.5 md:h-4.5 md:w-4.5 text-cherryRed shrink-0" />
-                        <span className="truncate text-cotton/90">
-                          {isSolo ? "Solo Runway" : mission.location}
-                        </span>
-                      </div>
+                    {/* Meta */}
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-subhead text-ink">
+                      <span className="flex items-center gap-2">
+                        <CalendarClock className="h-4 w-4 text-ink-3" />
+                        {isSolo ? "Start anytime" : due ? "Now" : `In ${timeLeft(mission.datetime)}`}
+                      </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0 text-crimson" />
+                        <span className="truncate">{isSolo ? "Wherever you are" : mission.location}</span>
+                      </span>
                     </div>
 
-                    {/* Attendee Profiles */}
+                    {/* Crew */}
                     {mission.attendees && mission.attendees.length > 0 && (
-                      <div className="mb-4.5 space-y-2 text-left">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
-                          Locked In Crew
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {mission.attendees.slice(0, 3).map((attendee) => (
-                            <button
-                              key={attendee.id}
+                      <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                          {mission.attendees.slice(0, 4).map((a, i) => (
+                            <motion.button
+                              key={a.id}
                               type="button"
-                              onClick={() => setSelectedUserId(attendee.id)}
-                              className="flex items-center gap-1.5 rounded-full border border-white/5 bg-black/30 pl-1 pr-2.5 py-1 text-[10px] font-semibold text-cotton/90 hover:border-luxuryGold/40 hover:bg-black/50 transition cursor-pointer"
+                              onClick={() => setSelectedUserId(a.id)}
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ ...spring.pop, delay: 0.1 + i * 0.05 }}
+                              whileHover={{ y: -3, zIndex: 10 }}
+                              aria-label={`View ${a.name}`}
+                              className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-surface bg-raised font-display text-title-3 font-bold text-ink"
                             >
-                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-cherryRed/10 border border-cherryRed/20 text-[8px] font-black text-cherryRed shrink-0">
-                                {getInitials(attendee.name)}
-                              </div>
-                              <span className="truncate max-w-[80px]">{attendee.name}</span>
-                            </button>
+                              {getInitials(a.name)}
+                            </motion.button>
                           ))}
-                          {mission.attendees.length > 3 && (
-                            <div className="flex h-7 items-center justify-center rounded-full border border-white/5 bg-black/30 px-2.5 text-[9px] font-bold text-zinc-500">
-                              +{mission.attendees.length - 3} more
-                            </div>
-                          )}
                         </div>
+                        <span className="text-subhead text-ink-2">
+                          {mission.attendees.length} locked in
+                        </span>
                       </div>
                     )}
 
-                    {/* Calendar Integration */}
-                    {!isSolo && mission.status !== "Completed" && mission.status !== "Missed" && (
-                      <div className="mb-4.5 flex flex-wrap gap-2 text-left">
+                    {/* Calendar */}
+                    {!isSolo && mission.status !== "Completed" && mission.status !== "Missed" && !executing && (
+                      <div className="flex gap-2">
                         <a
                           href={getGoogleCalendarUrl(mission)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 flex h-8 items-center justify-center gap-1.5 rounded-lg border border-luxuryGold/20 bg-luxuryGold/5 px-2.5 text-[10px] font-bold text-luxuryGold hover:bg-luxuryGold/10 transition"
+                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead text-ink-2 transition-colors hover:border-ink-3/50 hover:text-ink"
                         >
-                          <Calendar className="h-3 w-3 shrink-0" />
-                          <span>Google Calendar</span>
+                          <Calendar className="h-4 w-4" /> Google
                         </a>
                         <button
+                          type="button"
                           onClick={() => downloadICS(mission)}
-                          className="flex-1 flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-bold text-cotton/80 hover:bg-white/10 transition"
+                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead text-ink-2 transition-colors hover:border-ink-3/50 hover:text-ink"
                         >
-                          <Download className="h-3 w-3 shrink-0" />
-                          <span>Export .ics</span>
+                          <Download className="h-4 w-4" /> Apple / Outlook
                         </button>
                       </div>
                     )}
 
-                  {/* 1. Request Review Box (Creator Only) */}
-                  {isCreator && isRequest && !isSolo && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="mb-3.5 rounded-xl border border-cherryRed/20 bg-cherryRed/5 p-3 md:p-4.5 text-left space-y-2.5"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton">
-                            Join Request Received
-                          </p>
-                          <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-0.5">
-                            Dept: {mission.participant_department}
-                          </p>
+                    {/* Host: approve request */}
+                    {isCreator && isRequest && !isSolo && (
+                      <Panel>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-headline text-ink">Wants to join</p>
+                            <p className="mt-0.5 text-subhead text-ink-3">{mission.participant_department}</p>
+                          </div>
+                          <span className="flex items-center gap-1.5 rounded-sm border border-gold/30 bg-gold/10 px-3 py-1 text-footnote font-semibold text-gold">
+                            <Sparkles className="h-3.5 w-3.5" /> {mission.participant_reputation} {POINTS_NAME}
+                          </span>
                         </div>
-                        <div className="rounded-lg border border-cherryRed/20 bg-cherryRed/5 px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-black text-cherryRed flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> {mission.participant_reputation} Aura
+                        <ActionButton onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}>
+                          <Check className="h-5 w-5" strokeWidth={2.75} /> Approve
+                        </ActionButton>
+                      </Panel>
+                    )}
+
+                    {/* Participant: waiting */}
+                    {!isCreator && isRequest && (
+                      <Panel tone="muted">
+                        <div className="flex items-center gap-3">
+                          <motion.span
+                            className="h-2 w-2 shrink-0 rounded-full bg-ink-3"
+                            animate={{ opacity: [1, 0.3, 1] }}
+                            transition={{ duration: 1.6, repeat: Infinity }}
+                          />
+                          <p className="text-subhead text-ink-2">Waiting for {mission.creator_name} to approve you.</p>
                         </div>
-                      </div>
-                      
-                      <button
-                        onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}
-                        className="flex h-9 md:h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton transition hover:bg-cherryRed/95"
-                      >
-                        <Check className="h-3.5 w-3.5 stroke-[3]" /> Approve Request
-                      </button>
-                    </motion.div>
-                  )}
+                      </Panel>
+                    )}
 
-                  {/* 2. Participant Request Pending state */}
-                  {!isCreator && isRequest && (
-                    <div className="mb-3.5 rounded-xl border border-zinc-800 bg-zinc-900/55 p-3.5 md:p-4.5 text-center">
-                      <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-zinc-400">
-                        Join Requested
-                      </p>
-                      <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-0.5">
-                        Waiting for {mission.creator_name} to approve your lock-in request...
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 3. Confirmed Active Review / OTP Code check */}
-                  {active && (
-                    <div className="space-y-3">
-                      {isSolo ? (
-                        <div className="rounded-xl border border-cherryRed/20 bg-cherryRed/5 p-4 text-center">
-                          <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton">
-                            SOLO RUNWAY READY
-                          </p>
-                          {showTimerSelector === mission.id ? (
-                            <div className="mt-3.5 space-y-3 text-left">
-                              <label className="block text-[9px] font-black uppercase tracking-wider text-zinc-500">
-                                Choose Focus Session Duration:
-                              </label>
-                              <div className="grid grid-cols-2 gap-2 text-xs font-black uppercase tracking-wider text-cotton">
-                                {[
-                                  { label: "25 Min", value: 25 },
-                                  { label: "50 Min", value: 50 },
-                                  { label: "90 Min", value: 90 },
-                                  { label: "Stopwatch", value: 0 },
-                                ].map((opt) => (
-                                  <button
-                                    key={opt.label}
-                                    onClick={async () => {
-                                      setActiveTimerDuration(opt.value * 60);
-                                      setTimeLeftSeconds(opt.value * 60);
-                                      setShowTimerSelector(null);
-                                      await handleAttendance(mission.id, true);
-                                    }}
-                                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-900/40 hover:bg-cherryRed/10 hover:border-cherryRed/30 transition text-center"
-                                  >
-                                    {opt.label}
+                    {/* Accepted */}
+                    {active && (
+                      <div className="space-y-3">
+                        {isSolo ? (
+                          <Panel>
+                            <AnimatePresence mode="wait" initial={false}>
+                              {showTimerSelector === mission.id ? (
+                                <motion.div key="pick" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
+                                  <p className="t-label">How long?</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                      { label: "25 min", value: 25 },
+                                      { label: "50 min", value: 50 },
+                                      { label: "90 min", value: 90 },
+                                      { label: "Open", value: 0 }
+                                    ].map((opt, i) => (
+                                      <motion.button
+                                        key={opt.label}
+                                        type="button"
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ ...spring.pop, delay: i * 0.04 }}
+                                        whileTap={{ scale: 0.94 }}
+                                        onClick={async () => {
+                                          setActiveTimerDuration(opt.value * 60);
+                                          setTimeLeftSeconds(opt.value * 60);
+                                          setShowTimerSelector(null);
+                                          await handleAttendance(mission.id, true);
+                                        }}
+                                        className="h-14 rounded-xl border border-line bg-raised text-title-3 font-semibold text-ink transition-colors hover:border-signal hover:bg-surface"
+                                      >
+                                        {opt.label}
+                                      </motion.button>
+                                    ))}
+                                  </div>
+                                  <button type="button" onClick={() => setShowTimerSelector(null)} className="h-10 w-full text-subhead text-ink-3 hover:text-ink">
+                                    Cancel
                                   </button>
-                                ))}
-                              </div>
-                              <button
-                                onClick={() => setShowTimerSelector(null)}
-                                className="w-full h-8 text-[9px] font-black uppercase tracking-wider text-zinc-500 text-center hover:text-cotton transition"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-1">
-                                Ready to lock in? Choose your focus timer and start.
-                              </p>
-                              <button
-                                onClick={() => setShowTimerSelector(mission.id)}
-                                disabled={submitting[mission.id]}
-                                className="mt-3.5 w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-xs font-black uppercase tracking-wider text-cotton shadow-[0_0_15px_rgba(129,1,0,0.15)] hover:bg-[#810100]/95 transition active:scale-[0.98]"
-                              >
-                                <Check className="h-4 w-4 stroke-[3]" /> Start Focus Session
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          {/* Creator Code display */}
-                          {isCreator && due && (
-                            <div className="rounded-xl border border-cherryRed/20 bg-cherryRed/5 p-3.5 md:p-4.5 text-center">
-                              <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton">
-                                Meetup Verification Code
-                              </p>
-                              <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-0.5">
-                                Share this OTP with {mission.participant_name} to check in:
-                              </p>
-                              <div className="mt-2.5 text-2xl md:text-3xl font-black tracking-widest text-cherryRed bg-black/40 rounded-lg py-1 md:py-2.5 max-w-[120px] md:max-w-[150px] mx-auto border border-cherryRed/20 shadow-[0_0_15px_rgba(129,1,0,0.1)]">
-                                {mission.verification_code}
-                              </div>
-                            </div>
-                          )}
+                                </motion.div>
+                              ) : (
+                                <motion.div key="go" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                  <ActionButton onClick={() => setShowTimerSelector(mission.id)} disabled={submitting[mission.id]}>
+                                    <Play className="h-5 w-5 fill-current" /> Start session
+                                  </ActionButton>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </Panel>
+                        ) : (
+                          <>
+                            {isCreator && due && (
+                              <Panel>
+                                <p className="t-label">Check-in code</p>
+                                <p className="mt-1 text-subhead text-ink-2">Give this to {mission.participant_name} when they arrive.</p>
+                                <div className="mt-4 flex justify-center gap-2" aria-label={`Code ${String(mission.verification_code ?? "").split("").join(" ")}`}>
+                                  {String(mission.verification_code ?? "----").split("").map((d, i) => (
+                                    <motion.span
+                                      key={i}
+                                      initial={{ rotateX: -90, opacity: 0 }}
+                                      animate={{ rotateX: 0, opacity: 1 }}
+                                      transition={{ ...spring.pop, delay: i * 0.08 }}
+                                      className="t-display tabular flex h-16 w-14 items-center justify-center rounded-xl border border-signal/70 bg-bg text-large-title text-crimson"
+                                    >
+                                      {d}
+                                    </motion.span>
+                                  ))}
+                                </div>
+                              </Panel>
+                            )}
 
-                          {/* Participant OTP Entry box */}
-                          {!isCreator && due && (
-                            <div className="rounded-xl border border-cherryRed/20 bg-cherryRed/5 p-3.5 md:p-4.5 text-left space-y-2.5">
-                              <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton">
-                                Enter Verification OTP
-                              </p>
-                              <p className="text-[9px] md:text-xs text-zinc-500 font-semibold">
-                                Get the 4-digit code from {mission.creator_name} to complete runway.
-                              </p>
-                              
-                              <div className="flex gap-2.5">
-                                <input
-                                  type="text"
-                                  maxLength={4}
-                                  placeholder="0000"
+                            {!isCreator && due && (
+                              <Panel>
+                                <p className="t-label">Enter check-in code</p>
+                                <p className="mt-1 text-subhead text-ink-2">Get the 4 digits from {mission.creator_name}.</p>
+                                <CodeInput
                                   value={inputCodes[mission.id] || ""}
-                                  onChange={(e) => setInputCodes({ ...inputCodes, [mission.id]: e.target.value.replace(/\D/g, "") })}
-                                  className="h-9 md:h-11 w-24 md:w-32 rounded-lg border border-zinc-800 bg-zinc-900/40 text-center text-sm md:text-base font-black tracking-widest text-cotton outline-none focus:border-cherryRed"
+                                  onChange={(v) => setInputCodes({ ...inputCodes, [mission.id]: v })}
                                 />
-                                <button
+                                <ActionButton
                                   onClick={() => handleAttendance(mission.id, true)}
-                                  disabled={submitting[mission.id]}
-                                  className="flex-1 flex h-9 md:h-11 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton transition hover:bg-cherryRed/95 disabled:opacity-50"
+                                  disabled={submitting[mission.id] || (inputCodes[mission.id] || "").length < 4}
                                 >
-                                  <Check className="h-3.5 w-3.5 stroke-[3]" /> Verify & Check In
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                                  <Check className="h-5 w-5" strokeWidth={2.75} /> Check in
+                                </ActionButton>
+                              </Panel>
+                            )}
 
-                          {errors[mission.id] && (
-                            <p className="text-[10px] md:text-xs font-bold text-cherryRed text-center">
-                              {errors[mission.id]}
-                            </p>
-                          )}
+                            <AnimatePresence>
+                              {errors[mission.id] && (
+                                <motion.p
+                                  role="alert"
+                                  initial={{ opacity: 0, x: -6 }}
+                                  animate={{ opacity: 1, x: [0, -6, 6, 0] }}
+                                  exit={{ opacity: 0 }}
+                                  className="text-center text-subhead font-medium text-crimson"
+                                >
+                                  {errors[mission.id]}
+                                </motion.p>
+                              )}
+                            </AnimatePresence>
 
-                          {/* Creator control: can mark participant as missed */}
-                          {isCreator && due && (
-                            <button
-                              onClick={() => handleAttendance(mission.id, false, mission.participant_id)}
-                              disabled={submitting[mission.id]}
-                              className="flex h-9 md:h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-cherryRed/30 bg-cherryRed/5 text-[10px] md:text-xs font-black uppercase tracking-wider text-cherryRed hover:bg-cherryRed/10 transition disabled:opacity-50"
-                            >
-                              <X className="h-3.5 w-3.5 stroke-[3]" /> Participant No-Show
-                            </button>
-                          )}
+                            {due && (
+                              <button
+                                type="button"
+                                onClick={() => (isCreator ? handleAttendance(mission.id, false, mission.participant_id) : handleAttendance(mission.id, false))}
+                                disabled={submitting[mission.id]}
+                                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-subhead text-ink-3 transition-colors hover:bg-raised hover:text-ink disabled:opacity-50"
+                              >
+                                <X className="h-4 w-4" /> {isCreator ? "They didn't show" : "I couldn't make it"}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
 
-                          {/* Participant self-report missed */}
-                          {!isCreator && due && (
-                            <button
-                              onClick={() => handleAttendance(mission.id, false)}
-                              disabled={submitting[mission.id]}
-                              className="flex h-9 md:h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 text-[10px] md:text-xs font-bold uppercase tracking-wider text-cotton/80 hover:text-cotton hover:bg-zinc-800 transition disabled:opacity-50"
-                            >
-                              <X className="h-3.5 w-3.5 stroke-[2]" /> I missed this meetup
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Executing Status Workspace */}
-                  {mission.status === "Executing" && (
-                    <div className="mt-3.5 space-y-3">
-                      <div className="rounded-xl border border-cherryRed/25 bg-cherryRed/5 p-3 text-center">
-                        <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-cotton">
-                          LOCKED IN & EXECUTING
-                        </p>
-                        <p className="text-[9px] md:text-xs text-zinc-500 font-semibold mt-1">
-                          You are currently focused on this mission. Complete your work below.
-                        </p>
-                        <button
+                    {/* Executing */}
+                    {executing && (
+                      <div className="space-y-4">
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.98 }}
                           onClick={() => {
                             setActiveFocusMission(mission);
                             if (activeFocusMission?.id !== mission.id) {
@@ -941,465 +857,579 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                               setTimerRunning(true);
                             }
                           }}
-                          className="mt-3 w-full flex h-9 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-xs font-black uppercase tracking-wider text-cotton shadow-[0_0_15px_rgba(129,1,0,0.15)] hover:bg-[#810100]/95 transition active:scale-[0.98]"
+                          className="group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-signal/70 bg-surface p-4 text-left"
                         >
-                          <Flame className="h-4 w-4 stroke-[3]" /> Open Fullscreen Focus
-                        </button>
-                      </div>
-
-                      {/* Checklist Tasks */}
-                      <div className="mt-3 space-y-2 text-left bg-black/30 p-3.5 rounded-xl border border-white/5">
-                        <div className="flex justify-between items-center mb-1">
-                          <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
-                            Task Checklist
-                          </h4>
-                          {missionTasks[mission.id] && (
-                            <span className="text-[10px] font-black text-cherryRed">
-                              {missionTasks[mission.id].filter(t => t.completed).length} / {missionTasks[mission.id].length} Done
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* Task input to add a task on the fly */}
-                        <div className="flex gap-2">
-                          <Input
-                            value={newTaskTitles[mission.id] || ""}
-                            onChange={(e) => setNewTaskTitles(prev => ({ ...prev, [mission.id]: e.target.value }))}
-                            placeholder="Add new checklist item..."
-                            className="h-8 border-white/5 bg-black/40 text-[11px] text-white"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddTask(mission.id);
-                              }
-                            }}
+                          <motion.span
+                            aria-hidden="true"
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-signal/15 to-transparent"
+                            animate={{ x: ["-100%", "100%"] }}
+                            transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
                           />
-                          <button
-                            type="button"
-                            onClick={() => handleAddTask(mission.id)}
-                            className="h-8 px-2.5 rounded-lg bg-cherryRed/15 border border-cherryRed/30 text-[10px] text-cotton font-black hover:bg-cherryRed/30 transition shrink-0"
-                          >
-                            Add
-                          </button>
-                        </div>
-
-                        {loadingTasks[mission.id] ? (
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider text-center py-2 animate-pulse">Syncing tasks...</p>
-                        ) : (missionTasks[mission.id] || []).length === 0 ? (
-                          <p className="text-[10px] text-zinc-600 font-semibold text-center py-2">No tasks added to checklist.</p>
-                        ) : (
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto mt-2">
-                            {(missionTasks[mission.id] || []).map((t) => (
-                              <div key={t.id} className="flex justify-between items-center bg-zinc-900/40 p-2 rounded-lg border border-white/5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleTask(mission.id, t.id)}
-                                  className="flex items-center gap-2.5 text-[11px] font-semibold text-cotton/90 text-left truncate flex-1"
-                                >
-                                  {t.completed ? (
-                                    <CheckSquare className="h-4 w-4 text-cherryRed shrink-0" />
-                                  ) : (
-                                    <Square className="h-4 w-4 text-zinc-500 shrink-0" />
-                                  )}
-                                  <span className={t.completed ? "line-through text-zinc-500" : ""}>{t.title}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteTask(mission.id, t.id)}
-                                  className="text-zinc-600 hover:text-cherryRed p-1 transition shrink-0"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Checkout / Finish form */}
-                      <div className="rounded-xl border border-zinc-800 bg-noirBlack/40 p-4 space-y-3 text-left">
-                        {(missionTasks[mission.id] || []).length > 0 ? (
-                          <div className="flex justify-between items-center rounded-lg border border-white/5 bg-black/40 p-3 text-xs">
-                            <span className="font-bold text-zinc-400">Total Completed:</span>
-                            <span className="font-black text-cherryRed text-sm">
-                              {(missionTasks[mission.id] || []).filter(t => t.completed).length} / {(missionTasks[mission.id] || []).length} Tasks
+                          <span className="relative">
+                            <span className="t-label">Focus mode</span>
+                            <span className="t-display tabular mt-1 block text-title-1 text-ink">
+                              {activeFocusMission?.id === mission.id ? formatTime(timeLeftSeconds) : "Enter"}
                             </span>
-                          </div>
-                        ) : (
-                          <div className="space-y-1 text-left">
-                            <label className="block text-[9px] font-black uppercase tracking-wider text-zinc-500">
-                              Tasks Completed
-                            </label>
+                          </span>
+                          <Flame className="relative h-8 w-8 text-crimson transition-transform group-hover:scale-110" />
+                        </motion.button>
+
+                        <TaskList
+                          tasks={tasks}
+                          loading={loadingTasks[mission.id]}
+                          newTitle={newTaskTitles[mission.id] || ""}
+                          setNewTitle={(v) => setNewTaskTitles((prev) => ({ ...prev, [mission.id]: v }))}
+                          onAdd={() => handleAddTask(mission.id)}
+                          onToggle={(id) => handleToggleTask(mission.id, id)}
+                          onDelete={(id) => handleDeleteTask(mission.id, id)}
+                        />
+
+                        {tasks.length === 0 && (
+                          <div className="space-y-2">
+                            <label htmlFor={`tc-${mission.id}`} className="t-label block">Tasks you finished</label>
                             <select
+                              id={`tc-${mission.id}`}
                               value={tasksCompletedInput[mission.id] || "0"}
                               onChange={(e) => setTasksCompletedInput({ ...tasksCompletedInput, [mission.id]: e.target.value })}
-                              className="h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950 text-xs text-cotton outline-none focus:border-cherryRed px-2"
+                              className={`${fieldClass} h-12 appearance-none`}
                             >
-                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                                <option key={n} value={String(n)} className="bg-zinc-950 text-cotton">{n} Tasks Completed</option>
+                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                                <option key={n} value={String(n)} className="bg-surface text-ink">
+                                  {n}
+                                </option>
                               ))}
                             </select>
                           </div>
                         )}
 
-                        <button
-                          onClick={() => initiateFinishSession(mission)}
-                          className="w-full flex h-10 items-center justify-center gap-1.5 rounded-lg bg-cherryRed text-xs font-black uppercase tracking-wider text-white transition hover:bg-cherryRed/95 shadow-[0_0_15px_rgba(210,4,45,0.15)]"
-                        >
-                          Complete Focus Session
-                        </button>
-                      </div>
+                        <ActionButton onClick={() => initiateFinishSession(mission)}>
+                          <Check className="h-5 w-5" strokeWidth={2.75} /> Finish{tasks.length > 0 ? ` · ${doneTasks}/${tasks.length}` : ""}
+                        </ActionButton>
 
-                      {/* Optional vibe check rating if they want extra aura */}
-                      {!isSolo && (!!mission.participant_name || !!mission.creator_name) && (
-                        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5 space-y-2">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-zinc-500 text-left">
-                            Optional: Rate Partner's Vibe
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleVibeCheck(mission.id, "W")}
-                              className="flex-1 flex h-8 items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/5 text-[10px] font-bold text-white hover:bg-white/10 transition"
-                            >
-                              W Vibe (+2 Aura)
-                            </button>
-                            <button
-                              onClick={() => handleVibeCheck(mission.id, "L")}
-                              className="flex-1 flex h-8 items-center justify-center gap-1 rounded-lg border border-cherryRed/20 bg-cherryRed/5 text-[10px] font-bold text-cherryRed hover:bg-cherryRed/10 transition"
-                            >
-                              L Vibe (-1 Aura)
-                            </button>
+                        {!isSolo && (!!mission.participant_name || !!mission.creator_name) && (
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-line p-3">
+                            <span className="pl-1 text-subhead text-ink-2">Rate the session</span>
+                            <div className="flex gap-2">
+                              <VibeButton onClick={() => handleVibeCheck(mission.id, "W")} label="W" sub="+2" good />
+                              <VibeButton onClick={() => handleVibeCheck(mission.id, "L")} label="L" sub="−1" />
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
 
-                  {/* Confirmed / Past Runway Footer: Chat Access */}
-                  {!isRequest && (!isSolo && mission.status !== "Pending" || mission.status === "Completed") && (
-                    <div className="mt-3.5 flex gap-2">
-                      {!isSolo && mission.status !== "Pending" && (
-                        <button
-                          onClick={() => setChatMission(mission)}
-                          className="flex-1 flex h-9 md:h-11 items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900/40 text-xs md:text-sm font-bold text-cherryRed hover:text-cotton hover:bg-zinc-800 transition"
-                        >
-                          <MessageSquare className="h-4 w-4 md:h-4.5 md:w-4.5 text-cherryRed" />
-                          <span>Rendezvous Chat</span>
-                        </button>
-                      )}
-
-                      {mission.status === "Completed" && (
-                        <button
-                          onClick={() => handleViewMissionRecap(mission.id)}
-                          className="flex-1 flex h-9 md:h-11 items-center justify-center gap-2.5 rounded-xl border border-cherryRed/30 bg-cherryRed/5 text-xs md:text-sm font-bold text-cherryRed hover:bg-cherryRed/15 transition"
-                        >
-                          <Trophy className="h-4 w-4 text-cherryRed" />
-                          <span>View Recap</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
+                    {/* Footer */}
+                    {!isRequest && ((!isSolo && mission.status !== "Pending") || mission.status === "Completed") && (
+                      <div className="flex gap-2 border-t border-line pt-4">
+                        {!isSolo && mission.status !== "Pending" && (
+                          <button
+                            type="button"
+                            onClick={() => setChatMission(mission)}
+                            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead font-medium text-ink transition-colors hover:bg-raised"
+                          >
+                            <MessageSquare className="h-4 w-4 text-ink-3" /> Chat
+                          </button>
+                        )}
+                        {mission.status === "Completed" && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewMissionRecap(mission.id)}
+                            className="btn-primary h-11 flex-1"
+                          >
+                            <Trophy className="h-4 w-4" /> Recap
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </motion.article>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </Reveal.Item>
+            );
+          })}
+        </Reveal>
+      )}
 
-      {/* Render Chat Panel when selected */}
+      <Portal>
       <AnimatePresence>
-        {chatMission && (
-          <Chat
-            mission={chatMission}
-            user={user}
-            onClose={() => setChatMission(null)}
-            api={api}
-            socketUrl={socketUrl}
-          />
-        )}
+        {chatMission && <Chat mission={chatMission} user={user} onClose={() => setChatMission(null)} api={api} socketUrl={socketUrl} />}
       </AnimatePresence>
+      </Portal>
 
-      {/* Recap Card Modal */}
-      {recapData && (
-        <RecapCard
-          isOpen={showRecapCard}
-          onClose={() => setShowRecapCard(false)}
-          recapData={recapData}
-        />
-      )}
+      {recapData && <RecapCard isOpen={showRecapCard} onClose={() => setShowRecapCard(false)} recapData={recapData} />}
 
-      {/* Public Profile Modal */}
       {selectedUserId && (
-        <PublicProfile
-          userId={selectedUserId}
-          viewerId={user.id}
-          isOpen={!!selectedUserId}
-          onClose={() => setSelectedUserId(null)}
-          api={api}
-        />
+        <PublicProfile userId={selectedUserId} viewerId={user.id} isOpen={!!selectedUserId} onClose={() => setSelectedUserId(null)} api={api} />
       )}
 
-      {/* Reflection Modal Dialog */}
+      {/* Reflection */}
       <Dialog open={!!activeReflectionMission} onOpenChange={(open) => !open && setActiveReflectionMission(null)}>
-        <DialogContent className="border-white/10 bg-zinc-950/95 text-white max-w-sm rounded-3xl backdrop-blur-xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
-              <FileText className="h-5 w-5 text-cherryRed" />
-              FOCUS REFLECTION
-            </DialogTitle>
+            <DialogTitle>Session done</DialogTitle>
+            <DialogDescription>
+              {activeReflectionMission?.title} ·{" "}
+              {activeReflectionMission
+                ? (missionTasks[activeReflectionMission.id] || []).length > 0
+                  ? (missionTasks[activeReflectionMission.id] || []).filter((t) => t.completed).length
+                  : Number(tasksCompletedInput[activeReflectionMission.id] || 0)
+                : 0}{" "}
+              tasks finished
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-2 text-left">
-            <div>
-              <p className="text-[11px] font-bold text-zinc-400">
-                Runway: {activeReflectionMission?.title}
-              </p>
-              <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">
-                Tasks Completed: {
-                  activeReflectionMission ? (
-                    (missionTasks[activeReflectionMission.id] || []).length > 0 
-                      ? (missionTasks[activeReflectionMission.id] || []).filter(t => t.completed).length 
-                      : Number(tasksCompletedInput[activeReflectionMission.id] || 0)
-                  ) : 0
-                }
-              </p>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="r-how" className="t-label block">How did it go?</label>
+              <Textarea id="r-how" value={reflectionText} onChange={(e) => setReflectionText(e.target.value)} placeholder="What you got done, what got in the way." />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                How did it go? (Reflection)
-              </label>
-              <Textarea
-                value={reflectionText}
-                onChange={(e) => setReflectionText(e.target.value)}
-                placeholder="Briefly reflect on your focus, distractions, and progress..."
-                className="min-h-20 border-white/10 bg-black/40 text-xs text-white resize-none"
-              />
+            <div className="space-y-2">
+              <label htmlFor="r-next" className="t-label block">Next time</label>
+              <Textarea id="r-next" value={lessonsLearned} onChange={(e) => setLessonsLearned(e.target.value)} placeholder="One thing you'd change." />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Lessons Learned / Takeaways
-              </label>
-              <Textarea
-                value={lessonsLearned}
-                onChange={(e) => setLessonsLearned(e.target.value)}
-                placeholder="What did you learn or what will you optimize next session?"
-                className="min-h-20 border-white/10 bg-black/40 text-xs text-white resize-none"
-              />
-            </div>
-
-            {/* Screenshot attachment */}
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Attach Screenshot / Progress Image
-              </label>
-              
+            <div className="space-y-2">
+              <p className="t-label">Proof</p>
               {screenshotBase64 ? (
-                <div className="relative rounded-xl border border-white/10 bg-black/40 overflow-hidden aspect-video w-full flex items-center justify-center">
-                  <img src={screenshotBase64} alt="Attached Preview" className="object-cover w-full h-full" />
+                <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="relative aspect-video w-full overflow-hidden rounded-xl border border-line">
+                  <img src={screenshotBase64} alt="Attached screenshot" className="h-full w-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setScreenshotBase64(null)}
-                    className="absolute top-2 right-2 rounded-full bg-black/75 p-1 text-zinc-400 hover:text-white transition"
+                    aria-label="Remove screenshot"
+                    className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/75 text-ink backdrop-blur"
                   >
                     <X className="h-4 w-4" />
                   </button>
-                </div>
+                </motion.div>
               ) : (
-                <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-black/40 h-20 cursor-pointer hover:bg-white/5 transition">
-                  <Plus className="h-5 w-5 text-zinc-500 mb-1" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Upload Image
-                  </span>
+                <label className="flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-line bg-raised text-ink-3 transition-colors hover:border-ink-3/50 hover:text-ink-2">
+                  <Plus className="h-5 w-5" />
+                  <span className="text-subhead">Add a screenshot</span>
                   <input
                     type="file"
                     accept="image/*"
-                    className="hidden"
+                    className="sr-only"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
+                      e.target.value = "";
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setScreenshotBase64(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
+                        uploadImage(file).then(setScreenshotBase64).catch((err) => alert(err.message));
                       }
                     }}
                   />
                 </label>
               )}
-            </div>
-
-            {/* Project Link attachment */}
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                Project Link
-              </label>
-              <Input
-                type="text"
-                placeholder="e.g. github.com/user/repo"
-                value={attachLink}
-                onChange={(e) => setAttachLink(e.target.value)}
-                className="h-9 border-white/10 bg-black/40 text-xs text-white"
-              />
-            </div>
-
-            <div className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Make Reflection Public</span>
-              <button
-                type="button"
-                onClick={() => setIsPublicReflection(!isPublicReflection)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isPublicReflection ? "bg-cherryRed" : "bg-zinc-800"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    isPublicReflection ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              <Input type="url" inputMode="url" placeholder="Link (repo, doc, video)" value={attachLink} onChange={(e) => setAttachLink(e.target.value)} aria-label="Project link" />
             </div>
 
             <button
-              onClick={submitFinishSession}
-              disabled={submittingReflection}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-cherryRed/35 bg-cherryRed text-xs font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(210,4,45,0.15)] hover:bg-[#810100] transition active:scale-[0.98] disabled:opacity-50"
+              type="button"
+              role="switch"
+              aria-checked={isPublicReflection}
+              onClick={() => setIsPublicReflection(!isPublicReflection)}
+              className="flex w-full items-center justify-between rounded-xl border border-line bg-raised p-4 text-left"
             >
-              {submittingReflection ? "Finalizing..." : "Complete & Save"}
+              <span>
+                <span className="block text-subhead font-medium text-ink">Post to feed</span>
+                <span className="block text-footnote text-ink-3">Your campus sees the recap.</span>
+              </span>
+              <span className={`relative flex h-7 w-12 shrink-0 items-center rounded-sm border border-line p-1 transition-colors ${isPublicReflection ? "bg-signal" : "bg-overlay"}`}>
+                <motion.span layout transition={spring.snap} className={`h-5 w-5 rounded-sm bg-ink ${isPublicReflection ? "ml-auto" : ""}`} />
+              </span>
             </button>
+
+            <ActionButton onClick={submitFinishSession} disabled={submittingReflection}>
+              {submittingReflection ? "Saving" : "Save recap"}
+            </ActionButton>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Fullscreen Focus Overlay */}
-      {activeFocusMission && (
-        <div 
-          className="fixed inset-0 bg-[#120F0D] z-[990] flex flex-col justify-between p-6 sm:p-10 select-none overflow-y-auto text-cotton"
-          style={{ backgroundImage: "linear-gradient(135deg, #1B1716 0%, #120F0D 100%)" }}
-        >
-          {/* Top navigation */}
-          <div className="flex justify-between items-center border-b border-white/5 pb-4 text-left">
-            <div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-cherryRed">
-                Focus Runway Active
-              </span>
-              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider mt-0.5">
-                {activeFocusMission.title}
-              </h2>
-            </div>
-            
-            <button
-              onClick={() => setActiveFocusMission(null)}
-              className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-white hover:bg-white/10 transition"
+      {/* Fullscreen focus */}
+      <Portal>
+      <AnimatePresence>
+        {activeFocusMission && (
+          <FocusOverlay
+            mission={activeFocusMission}
+            time={formatTime(timeLeftSeconds)}
+            progress={activeTimerDuration > 0 ? 1 - timeLeftSeconds / activeTimerDuration : (timeLeftSeconds % 3600) / 3600}
+            countdown={activeTimerDuration > 0}
+            running={timerRunning}
+            onToggle={() => setTimerRunning(!timerRunning)}
+            onMinimize={() => setActiveFocusMission(null)}
+            onFinish={() => initiateFinishSession(activeFocusMission)}
+          >
+            <TaskList
+              tasks={missionTasks[activeFocusMission.id] || []}
+              newTitle={newTaskTitles[activeFocusMission.id] || ""}
+              setNewTitle={(v) => setNewTaskTitles((prev) => ({ ...prev, [activeFocusMission.id]: v }))}
+              onAdd={() => handleAddTask(activeFocusMission.id)}
+              onToggle={(id) => handleToggleTask(activeFocusMission.id, id)}
+            />
+          </FocusOverlay>
+        )}
+      </AnimatePresence>
+      </Portal>
+    </section>
+  );
+}
+
+/* ───────────────────────── Pieces ───────────────────────── */
+
+function Alert({ icon: Icon, title, body }: { icon: React.ElementType; title: string; body: string }) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={spring.glide}
+      className="flex items-start gap-3 rounded-card border border-signal/70 bg-signal/[0.07] p-4"
+    >
+      <span className="relative mt-0.5 flex">
+        <Icon className="h-5 w-5 text-crimson" />
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 animate-ping rounded-full bg-signal" />
+      </span>
+      <div>
+        <p className="text-headline text-ink">{title}</p>
+        <p className="mt-0.5 text-subhead leading-snug text-ink-2">{body}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+function Panel({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "muted" }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`space-y-4 rounded-xl border p-4 ${tone === "muted" ? "border-line bg-raised/50" : "border-line bg-raised"}`}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ActionButton({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      whileTap={{ scale: 0.97 }}
+      transition={spring.snap}
+      className="flex h-12 w-full items-center justify-center gap-2 btn-primary"
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function VibeButton({ onClick, label, sub, good }: { onClick: () => void; label: string; sub: string; good?: boolean }) {
+  const [hit, setHit] = useState(false);
+  return (
+    <motion.button
+      type="button"
+      onClick={() => {
+        setHit(true);
+        onClick();
+      }}
+      whileTap={{ scale: 0.85 }}
+      animate={hit ? { scale: [1, 1.2, 1] } : {}}
+      transition={spring.pop}
+      aria-label={`${label} vibe, ${sub} ${POINTS_NAME}`}
+      className={`flex h-11 min-w-[64px] items-center justify-center gap-1 rounded-xl border px-3 font-display text-title-3 font-bold ${
+        good ? "border-gold/40 bg-gold/10 text-gold" : "border-line bg-raised text-ink-2"
+      }`}
+    >
+      {label}
+      <span className="text-caption font-semibold opacity-70">{sub}</span>
+    </motion.button>
+  );
+}
+
+function CodeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="relative" onClick={() => ref.current?.focus()}>
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={4}
+        aria-label="4-digit check-in code"
+        className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+      <div className="flex justify-center gap-2" aria-hidden="true">
+        {[0, 1, 2, 3].map((i) => {
+          const ch = value[i];
+          const isCaret = i === value.length;
+          return (
+            <motion.div
+              key={i}
+              animate={ch ? { scale: [1.12, 1] } : { scale: 1 }}
+              transition={spring.pop}
+              className={`t-display tabular flex h-16 w-14 items-center justify-center rounded-xl border bg-bg text-large-title transition-colors ${
+                ch ? "border-ink-3 text-ink" : isCaret ? "border-signal peer-focus:border-signal" : "border-line text-ink-3"
+              }`}
             >
-              Minimize
-            </button>
-          </div>
+              {ch ?? (isCaret ? <motion.span className="h-7 w-[2px] bg-signal" animate={{ opacity: [1, 0, 1] }} transition={{ duration: 1, repeat: Infinity }} /> : "")}
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-          {/* Center Timer section */}
-          <div className="my-auto py-10 flex flex-col items-center justify-center text-center space-y-8">
-            <div className="relative flex items-center justify-center">
-              {/* Circular progress glow ring */}
-              <div 
-                className="absolute h-56 w-56 sm:h-64 sm:w-64 rounded-full border border-cherryRed/10 animate-pulse pointer-events-none"
-                style={{
-                  boxShadow: `0 0 40px ${
-                    activeTimerDuration > 0
-                      ? "rgba(210, 4, 45, 0.15)"
-                      : "rgba(210, 4, 45, 0.15)"
-                  }`,
-                  borderColor: "rgba(210, 4, 45, 0.15)"
-                }}
-              />
-              
-              <div className="flex flex-col items-center justify-center h-48 w-48 sm:h-56 sm:w-56 rounded-full bg-[#1B1716]/60 border border-white/5 shadow-2xl backdrop-blur-xl">
-                <span className="text-4xl sm:text-5xl font-black text-white tracking-widest tabular-nums leading-none">
-                  {formatTime(timeLeftSeconds)}
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mt-2">
-                  {activeTimerDuration > 0 ? "Countdown" : "Elapsed Time"}
-                </span>
-              </div>
-            </div>
+type TaskT = { id: number; title: string; completed: boolean };
 
-            {/* Checklist Tasks in Fullscreen */}
-            <div className="w-full max-w-sm space-y-3 bg-black/40 border border-white/5 p-4 sm:p-5 rounded-2xl">
-              <div className="flex justify-between items-center text-left">
-                <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Runway Checklist</span>
-                <span className="text-[9px] font-black text-cherryRed">
-                  {(missionTasks[activeFocusMission.id] || []).filter(t => t.completed).length} / {(missionTasks[activeFocusMission.id] || []).length} Done
-                </span>
-              </div>
-              
-              {/* Add checklist item */}
-              <div className="flex gap-2">
-                <Input
-                  value={newTaskTitles[activeFocusMission.id] || ""}
-                  onChange={(e) => setNewTaskTitles(prev => ({ ...prev, [activeFocusMission.id]: e.target.value }))}
-                  placeholder="Add checklist item..."
-                  className="h-8 border-white/5 bg-[#1B1716]/40 text-[10px] text-white"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddTask(activeFocusMission.id);
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => handleAddTask(activeFocusMission.id)}
-                  className="h-8 px-3 rounded-lg bg-cherryRed/20 border border-cherryRed/40 text-[9px] text-cotton font-black hover:bg-cherryRed/40 transition shrink-0"
-                >
-                  Add
-                </button>
-              </div>
-
-              {/* Tasks list */}
-              <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-left">
-                {(missionTasks[activeFocusMission.id] || []).length === 0 ? (
-                  <p className="text-[9px] text-zinc-600 font-semibold text-center py-2">No tasks added.</p>
-                ) : (
-                  (missionTasks[activeFocusMission.id] || []).map((t) => (
-                    <div key={t.id} className="flex justify-between items-center bg-zinc-950/40 p-2 rounded-lg border border-white/5">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleTask(activeFocusMission.id, t.id)}
-                        className="flex items-center gap-2 text-[10.5px] font-semibold text-cotton/90 truncate flex-1 text-left"
-                      >
-                        {t.completed ? (
-                          <CheckSquare className="h-3.5 w-3.5 text-cherryRed shrink-0" />
-                        ) : (
-                          <Square className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
-                        )}
-                        <span className={t.completed ? "line-through text-zinc-500" : ""}>{t.title}</span>
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom control row */}
-          <div className="flex flex-col gap-3.5 border-t border-white/5 pt-5 max-w-sm mx-auto w-full">
-            <div className="flex gap-3">
-              <button
-                onClick={() => setTimerRunning(!timerRunning)}
-                className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 text-xs font-black uppercase tracking-wider text-cotton hover:bg-white/10 transition"
-              >
-                {timerRunning ? "Pause Focus" : "Resume Focus"}
-              </button>
-              <button
-                onClick={() => initiateFinishSession(activeFocusMission)}
-                className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-cherryRed text-xs font-black uppercase tracking-wider text-white hover:bg-cherryRed/95 transition shadow-[0_0_15px_rgba(210,4,45,0.15)]"
-              >
-                Complete Runway
-              </button>
-            </div>
-          </div>
+function TaskList({
+  tasks,
+  loading,
+  newTitle,
+  setNewTitle,
+  onAdd,
+  onToggle,
+  onDelete
+}: {
+  tasks: TaskT[];
+  loading?: boolean;
+  newTitle: string;
+  setNewTitle: (v: string) => void;
+  onAdd: () => void;
+  onToggle: (id: number) => void;
+  onDelete?: (id: number) => void;
+}) {
+  const done = tasks.filter((t) => t.completed).length;
+  const pct = tasks.length ? done / tasks.length : 0;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="t-label">Checklist</p>
+        {tasks.length > 0 && (
+          <span className="tabular text-subhead font-medium text-ink-2">
+            {done}/{tasks.length}
+          </span>
+        )}
+      </div>
+      {tasks.length > 0 && (
+        <div className="h-px bg-line">
+          <motion.div className="h-full rounded-full bg-signal" initial={false} animate={{ width: `${pct * 100}%` }} transition={spring.glide} />
         </div>
       )}
-    </section>
+
+      {loading ? (
+        <Skeleton className="h-12" />
+      ) : (
+        <ul className="space-y-1.5">
+          <AnimatePresence initial={false}>
+            {tasks.map((t) => (
+              <motion.li
+                key={t.id}
+                layout
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10, transition: { duration: 0.15 } }}
+                className="flex items-center gap-1 rounded-xl border border-line bg-bg/40 pr-1"
+              >
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={t.completed}
+                  onClick={() => onToggle(t.id)}
+                  className="flex min-h-[48px] flex-1 items-center gap-3 px-3 text-left"
+                >
+                  <motion.span
+                    animate={t.completed ? { scale: [0.8, 1.15, 1] } : { scale: 1 }}
+                    transition={spring.pop}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-150 ${t.completed ? "border-signal bg-signal" : "border-ink-3/60 bg-transparent"}`}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+                      <motion.path
+                        d="M5 12.5l4.5 4.5L19 7.5"
+                        stroke="white"
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        initial={false}
+                        animate={{ pathLength: t.completed ? 1 : 0, opacity: t.completed ? 1 : 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                      />
+                    </svg>
+                  </motion.span>
+                  <span className="relative min-w-0 truncate text-subhead text-ink">
+                    <span className={t.completed ? "text-ink-3" : ""}>{t.title}</span>
+                    <motion.span
+                      className="absolute left-0 top-1/2 h-px w-full origin-left bg-ink-3"
+                      initial={false}
+                      animate={{ scaleX: t.completed ? 1 : 0 }}
+                      transition={{ duration: 0.25 }}
+                    />
+                  </span>
+                </button>
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(t.id)}
+                    aria-label={`Delete ${t.title}`}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:text-crimson"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
+      )}
+
+      <div className="flex gap-2">
+        <Input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          placeholder="Add a task"
+          aria-label="New task"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onAdd();
+            }
+          }}
+        />
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          onClick={onAdd}
+          aria-label="Add task"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-line bg-raised text-ink transition-colors hover:bg-overlay"
+        >
+          <Plus className="h-5 w-5" />
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+function FocusOverlay({
+  mission,
+  time,
+  progress,
+  countdown,
+  running,
+  onToggle,
+  onMinimize,
+  onFinish,
+  children
+}: {
+  mission: Mission;
+  time: string;
+  progress: number;
+  countdown: boolean;
+  running: boolean;
+  onToggle: () => void;
+  onMinimize: () => void;
+  onFinish: () => void;
+  children: React.ReactNode;
+}) {
+  const R = 130;
+  const C = 2 * Math.PI * R;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.2 } }}
+      className="fixed inset-0 z-[990] flex select-none flex-col overflow-y-auto bg-bg text-ink"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Focus: ${mission.title}`}
+    >
+      {/* Breathing atmosphere */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0"
+        style={{ background: "radial-gradient(60% 45% at 50% 40%, rgb(var(--cherry) / 0.16), transparent 70%)" }}
+        animate={running ? { opacity: [0.5, 0.9, 0.5], scale: [1, 1.06, 1] } : { opacity: 0.25, scale: 1 }}
+        transition={running ? { duration: 6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.6 }}
+      />
+
+      <div className="relative flex items-center justify-between gap-4 px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
+        <div className="min-w-0">
+          <h2 className="t-display truncate text-title-2 text-ink">{mission.title}</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="flex h-11 shrink-0 items-center rounded-xl border border-line bg-surface/70 px-4 text-subhead font-medium text-ink-2 backdrop-blur transition-colors hover:text-ink"
+        >
+          Minimize
+        </button>
+      </div>
+
+      <div className="relative mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-10 px-5 py-8">
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ ...spring.glide, delay: 0.1 }}
+          className="relative flex h-[300px] w-[300px] items-center justify-center"
+        >
+          <svg viewBox="0 0 300 300" className="absolute inset-0 -rotate-90" aria-hidden="true">
+            <circle cx="150" cy="150" r={R} fill="none" stroke="rgb(var(--line))" strokeWidth="4" />
+            <motion.circle
+              cx="150"
+              cy="150"
+              r={R}
+              fill="none"
+              stroke="rgb(var(--signal))"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray={C}
+              animate={{ strokeDashoffset: C * (1 - Math.min(1, Math.max(0, progress))) }}
+              transition={{ duration: 0.9, ease: "linear" }}
+              
+            />
+          </svg>
+          <div className="text-center">
+            <motion.p
+              key={running ? "run" : "pause"}
+              initial={{ opacity: 0.4 }}
+              animate={running ? { opacity: 1 } : { opacity: [1, 0.35, 1] }}
+              transition={running ? { duration: 0.2 } : { duration: 1.4, repeat: Infinity }}
+              className="t-display tabular text-[64px] leading-none text-ink"
+            >
+              {time}
+            </motion.p>
+            <p className="t-label mt-3">{running ? (countdown ? "Remaining" : "Elapsed") : "Paused"}</p>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="w-full rounded-card border border-line bg-surface/80 p-4 backdrop-blur">
+          {children}
+        </motion.div>
+      </div>
+
+      <div className="relative mx-auto flex w-full max-w-sm gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.94 }}
+          onClick={onToggle}
+          aria-label={running ? "Pause" : "Resume"}
+          className="btn-ghost h-14 w-14 shrink-0 tracking-normal"
+        >
+          {running ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current" />}
+        </motion.button>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.97 }}
+          onClick={onFinish}
+          className="flex h-14 flex-1 items-center justify-center gap-2 btn-primary"
+        >
+          <Check className="h-5 w-5" strokeWidth={2.75} /> Finish
+        </motion.button>
+      </div>
+    </motion.div>
   );
 }

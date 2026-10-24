@@ -125,8 +125,9 @@ export default function ShareToFeedSheet({ isOpen, onClose, recapId, recapData, 
           const url = await uploadImage(file);
           uploadedUrls.push(url);
         } else if (preview && preview.startsWith("data:")) {
-          // It's a base64 data URL (e.g. recap card capture)
-          const url = await uploadImage(preview);
+          // A base64 capture (e.g. recap card): upload it as a real file.
+          const blob = await (await fetch(preview)).blob();
+          const url = await uploadImage(new File([blob], "capture.png", { type: blob.type || "image/png" }));
           uploadedUrls.push(url);
         } else if (preview) {
           // Already a URL

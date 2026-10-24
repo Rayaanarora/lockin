@@ -18,16 +18,22 @@ import {
   Users,
   ListTodo,
   Calendar as CalendarIcon,
-  LogOut
+  LogOut,
+  RefreshCw,
+  Camera
 } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
+import { Input, fieldClass } from "./ui/input";
+import { CountUp, Reveal, Skeleton, Spotlight } from "./ui/motion";
+import { spring } from "../lib/motion";
+import { AuraAvatar } from "./ui/AuraAvatar";
 import RecapCard from "./RecapCard";
 import HeatMap from "./HeatMap";
 import PublicProfile from "./PublicProfile";
 import { uploadImage, supabase } from "../lib/supabase";
 import FollowListModal from "./FollowListModal";
+import { POINTS_NAME } from "../lib/brand";
 
 interface ProfileProps {
   user: User;
@@ -288,621 +294,517 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
     }
   }
 
+  const tier = aura < 100 ? { name: "Initiate", floor: 0, ceil: 100 } : aura < 250 ? { name: "Executor", floor: 100, ceil: 250 } : aura < 500 ? { name: "Specialist", floor: 250, ceil: 500 } : { name: "Elite", floor: 500, ceil: 500 };
+  const tierProgress = tier.ceil === tier.floor ? 1 : (aura - tier.floor) / (tier.ceil - tier.floor);
+
+  const streak = Number(profileStats?.currentStreak ?? 0);
+  const stats = [
+    { label: "Missions", value: Number(profileStats?.totalMissions ?? 0), suffix: "" },
+    { label: "Focus hours", value: Number(profileStats?.focusHours ?? 0), suffix: "" },
+    { label: "Completion", value: Number(profileStats?.completionRate ?? 0), suffix: "%" },
+    { label: "Tasks done", value: Number(profileStats?.tasksCompleted ?? 0), suffix: "" }
+  ];
+
   return (
-    <section className="mx-auto w-full max-w-md md:max-w-5xl px-4 py-6 pb-24 md:pb-6 space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        {/* Left Column: Profile Card */}
-        <div className="md:col-span-1">
-          {/* ── Profile header ── */}
-          <div className="relative overflow-hidden rounded-2xl border border-luxuryMaroon/15 bg-noirBlack/60 p-5 md:p-6.5">
-        <div className="flex items-center gap-4">
-          {user.avatar_url ? (
-            <img
-              src={user.avatar_url}
-              alt={user.name || "User"}
-              className="h-14 w-14 md:h-16 md:w-16 shrink-0 rounded-2xl object-cover border border-cherryRed/35 bg-cherryRed/5 shadow-[0_0_24px_rgba(129,1,0,0.15)]"
-            />
-          ) : (
-            <div className="flex h-14 w-14 md:h-16 md:w-16 shrink-0 items-center justify-center rounded-2xl border border-cherryRed/35 bg-cherryRed/5 text-lg md:text-xl font-black text-white shadow-[0_0_24px_rgba(129,1,0,0.15)]">
-              {initials}
-            </div>
-          )}
-          <div className="flex-1 min-w-0 text-left">
-            <h2 className="text-base md:text-xl font-black text-white leading-tight">{user.name}</h2>
-            <p className="text-[11px] md:text-xs text-zinc-500 font-semibold mt-1 truncate">{user.department}</p>
-            {user.bio && (
-              <p className="text-[11px] md:text-xs text-white/70 mt-1.5 leading-snug line-clamp-2">{user.bio}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Aura + location pills */}
-        <div className="mt-4 md:mt-5 flex flex-wrap gap-2">
-          <span className="flex items-center gap-1.5 rounded-lg border border-cherryRed/30 bg-cherryRed/[0.08] px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-sans font-black text-cherryRed uppercase tracking-wider">
-            <img src="/aura-bolt.png" alt="Aura" className="h-3.5 w-3.5 object-contain shrink-0" />
-            {aura} Aura
-          </span>
-          {user.location && (
-            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-zinc-500">
-              <MapPin className="h-3 w-3" />
-              {user.location}
-            </span>
-          )}
-          {user.interests && (
-            <span className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-2.5 md:px-3.5 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-zinc-500 truncate max-w-[160px]">
-              {user.interests}
-            </span>
-          )}
-        </div>
-
-        {/* Follow counts */}
-        <div className="mt-2.5 flex gap-2.5 text-[10px] font-bold text-zinc-500 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5 w-fit">
-          <div
-            onClick={() => {
-              setFollowListInitialTab("followers");
-              setIsFollowListOpen(true);
-            }}
-            className="cursor-pointer hover:text-white transition-colors"
-          >
-            <span className="text-white font-black mr-0.5">{followersCount}</span> Followers
-          </div>
-          <div className="w-px bg-white/10" />
-          <div
-            onClick={() => {
-              setFollowListInitialTab("following");
-              setIsFollowListOpen(true);
-            }}
-            className="cursor-pointer hover:text-white transition-colors"
-          >
-            <span className="text-white font-black mr-0.5">{followingCount}</span> Following
-          </div>
-        </div>
-
-        {/* Socials row */}
-        {(user.instagram || user.github) && (
-          <div className="mt-3.5 flex gap-3.5">
-            {user.instagram && (
-              <a
-                href={`https://instagram.com/${user.instagram}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-zinc-500 hover:text-white transition"
-              >
-                <Instagram className="h-3.5 w-3.5 md:h-4 md:w-4" />@{user.instagram}
-              </a>
-            )}
-            {user.github && (
-              <a
-                href={`https://github.com/${user.github}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-zinc-500 hover:text-white transition"
-              >
-                <Github className="h-3.5 w-3.5 md:h-4 md:w-4" />@{user.github}
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="mt-4 md:mt-5 grid grid-cols-2 gap-2">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-cherryRed/20 bg-cherryRed/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-white transition hover:bg-cherryRed/10 hover:text-white disabled:opacity-50"
-          >
-            <Activity className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Sync"}
-          </button>
-          <button
-            onClick={() => setShowEdit(true)}
-            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-cherryRed/20 bg-cherryRed/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-white transition hover:bg-cherryRed/10 hover:text-white"
-          >
-            Edit Profile
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex h-9 md:h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[11px] md:text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white transition hover:bg-white/10"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Log Out
-          </button>
-        </div>
-          </div>
-        </div>
-
-        {/* Right Column: Content */}
-        <div className="md:col-span-2 space-y-5">
-          {/* ── Tab bar ── */}
-          <div className="relative flex gap-0 rounded-xl border border-white/5 bg-black/60 p-1">
+    <section className="mx-auto w-full max-w-md space-y-5 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-14">
+      <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-3">
+        {/* ── Identity ── */}
         <motion.div
-          className="absolute top-1 bottom-1 rounded-lg bg-cherryRed/15 border border-cherryRed/30"
-          animate={{ left: indicator.left, width: indicator.width }}
-          transition={{ type: "spring", stiffness: 400, damping: 35 }}
-        />
-        {TABS.map((tab, idx) => (
-          <button
-            key={tab}
-            ref={(el) => { tabRefs.current[idx] = el; }}
-            onClick={() => setActiveTab(tab)}
-            className={`relative z-10 flex-1 py-2 md:py-2.5 text-[11px] md:text-xs font-black uppercase tracking-wider transition ${
-              activeTab === tab ? "text-white" : "text-zinc-600"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={spring.glide}
+          className="relative overflow-hidden rounded-card border border-line bg-surface md:sticky md:top-20"
+        >
+          <div className="relative flex flex-col items-center px-5 pb-5 pt-8 text-center">
+            <AuraAvatar src={user.avatar_url} initials={initials} progress={tierProgress} />
 
-      {/* ── Tab content ── */}
-      <AnimatePresence mode="wait">
-        {activeTab === "Stats" && (
-          <motion.div
-            key="stats"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            {/* Aura bar */}
-            <div className="rounded-2xl border border-white/5 bg-black/60 p-4 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aura Points</span>
-                <span className="text-sm font-black text-cherryRed">{aura}</span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-black border border-white/5">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (aura / 500) * 100)}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="h-full rounded-full bg-gradient-to-r from-red-950 to-cherryRed"
-                />
-              </div>
-              <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-semibold text-left">
-                {aura < 100 ? "Initiate" : aura < 250 ? "Executor" : aura < 500 ? "Specialist" : "Elite"}
-                {" — "}{Math.max(0, 500 - aura)} Aura to Elite
-              </p>
+            <h1 className="t-display mt-5 text-title-1 text-ink">{user.name}</h1>
+            <p className="mt-1 text-subhead text-ink-3">{user.department}</p>
+            {user.bio && <p className="mt-3 max-w-[280px] text-subhead leading-relaxed text-ink-2">{user.bio}</p>}
+
+            <div className="mt-4 flex items-center gap-2 rounded-sm border border-gold/30 bg-gold/[0.08] py-1.5 pl-2 pr-3.5">
+              <CountUp value={aura} className="font-display text-title-3 font-bold text-ink" />
+              <span className="text-micro font-semibold uppercase text-gold">{POINTS_NAME} · {tier.name}</span>
             </div>
 
-            {/* Info tiles */}
-            <div className="space-y-2">
-              {[
-                { label: "Institution", value: user.college },
-                { label: "Email / Reg ID", value: user.college_id },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-xl border border-white/5 bg-black/40 px-4 py-3 flex justify-between items-center"
+            {/* Follow counts */}
+            <div className="mt-5 grid w-full grid-cols-2 divide-x divide-line rounded-xl border border-line">
+              {(
+                [
+                  { tab: "followers", n: followersCount, label: "Followers" },
+                  { tab: "following", n: followingCount, label: "Following" }
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.tab}
+                  type="button"
+                  onClick={() => {
+                    setFollowListInitialTab(f.tab);
+                    setIsFollowListOpen(true);
+                  }}
+                  className="flex flex-col items-center py-3 transition-colors hover:bg-raised"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-wider text-zinc-600">{item.label}</span>
-                  <span className="text-[11px] font-semibold text-white max-w-[200px] truncate text-right">{item.value}</span>
-                </div>
+                  <CountUp value={f.n} className="t-display text-title-2 text-ink" />
+                  <span className="t-label mt-0.5">{f.label}</span>
+                </button>
               ))}
             </div>
 
-            {/* Execution Metrics Grid */}
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left pl-1">
-                Execution Metrics
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {[
-                  { label: "Missions Completed", value: profileStats?.totalMissions ?? 0, icon: Flame, color: "text-cherryRed" },
-                  { label: "Focus Hours", value: `${profileStats?.focusHours ?? 0}h`, icon: Clock, color: "text-cherryRed" },
-                  { label: "Completion Rate", value: `${profileStats?.completionRate ?? 100}%`, icon: CheckCircle2, color: "text-emerald-500" },
-                  { label: "Current Streak", value: `${profileStats?.currentStreak ?? 0}d`, icon: Zap, color: "text-amber-500" },
-                  { label: "Tasks Completed", value: profileStats?.tasksCompleted ?? 0, icon: ListTodo, color: "text-white" },
-                  { label: "Active Days", value: profileStats?.activeDays ?? 0, icon: CalendarIcon, color: "text-sky-500" },
-                ].map((stat) => {
-                  const Icon = stat.icon;
-                  return (
-                    <div key={stat.label} className="rounded-xl border border-white/5 bg-black/40 p-3 flex flex-col justify-between space-y-2 text-left">
-                      <div className="flex justify-between items-start">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500 leading-tight">{stat.label}</span>
-                        <Icon className={`h-3.5 w-3.5 ${stat.color}`} />
-                      </div>
-                      <span className="text-lg font-black text-white leading-none">{stat.value}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* LOCKIN Heatmap */}
-            <HeatMap userId={user.id} userJoinedAt={user.verified_at} api={api} />
-
-            {/* Wrapped Recaps Action Block */}
-            <div className="rounded-2xl border border-white/5 bg-black/60 p-4 space-y-4">
-              <span className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">
-                Wrapped Achievement Cards
-              </span>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => handleGenerateWrapped("weekly")}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#09090b]/50 text-xs font-black uppercase tracking-wider text-white/80 hover:text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition group"
-                >
-                  <Zap className="h-3.5 w-3.5 text-white transition-colors duration-200 group-hover:text-cherryRed" /> Weekly Wrapped
-                </button>
-                <button
-                  onClick={() => handleGenerateWrapped("monthly")}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#09090b]/50 text-xs font-black uppercase tracking-wider text-white/80 hover:text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition group"
-                >
-                  <Trophy className="h-3.5 w-3.5 text-white transition-colors duration-200 group-hover:text-cherryRed" /> Monthly Wrapped
-                </button>
-                <button
-                  onClick={() => handleGenerateWrapped("yearly")}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#09090b]/50 text-xs font-black uppercase tracking-wider text-white/80 hover:text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition group"
-                >
-                  <Activity className="h-3.5 w-3.5 text-white transition-colors duration-200 group-hover:text-cherryRed" /> Yearly Wrapped
-                </button>
-                <button
-                  onClick={handleGenerateTeamSummary}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#09090b]/50 text-xs font-black uppercase tracking-wider text-white/80 hover:text-white hover:bg-cherryRed/10 hover:border-cherryRed/30 transition group"
-                >
-                  <Users className="h-3.5 w-3.5 text-white transition-colors duration-200 group-hover:text-cherryRed" /> Team Summary
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {activeTab === "Leaderboard" && (
-          <motion.div
-            key="leaderboard"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-3"
-          >
-            {!user.campus_id ? (
-              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
-                <Trophy className="h-6 w-6 mx-auto text-zinc-700 mb-3" />
-                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">Campus not set</p>
-                <p className="text-[11px] text-zinc-700 mt-1">Re-register with a campus to see rankings.</p>
-              </div>
-            ) : loadingLeaderboard ? (
-              <div className="py-12 text-center text-[11px] font-bold text-zinc-700 uppercase tracking-widest">
-                Loading...
-              </div>
-            ) : leaderboard.length === 0 ? (
-              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
-                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">No data yet</p>
-                <p className="text-[11px] text-zinc-700 mt-1">Complete missions to appear on the board.</p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/8 bg-zinc-950/60 overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
-                  <Trophy className="h-3.5 w-3.5 text-cherryRed" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Campus Leaderboard</span>
-                </div>
-                <div className="divide-y divide-white/4">
-                  {leaderboard.map((entry, idx) => {
-                    const isYou = entry.id === user.id;
-                    const rankColor =
-                      idx === 0
-                        ? "text-cherryRed font-black"
-                        : idx === 1
-                        ? "text-zinc-300 font-black"
-                        : idx === 2
-                        ? "text-zinc-500 font-bold"
-                        : "text-zinc-700 font-bold";
-                    return (
-                      <div
-                        key={entry.id}
-                        onClick={() => {
-                          if (!isYou) {
-                            setSelectedLeaderboardUserId(entry.id);
-                            setLeaderboardProfileOpen(true);
-                          }
-                        }}
-                        className={`flex items-center gap-3 px-4 py-3 ${
-                          isYou ? "bg-cherryRed/5" : "cursor-pointer hover:bg-white/2"
-                        }`}
-                      >
-                        <span className={`w-5 text-xs shrink-0 text-right ${rankColor}`}>
-                          {idx === 0 ? "①" : idx === 1 ? "②" : idx === 2 ? "③" : `${idx + 1}`}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-bold truncate ${isYou ? "text-cherryRed" : "text-white"}`}>
-                            {entry.name} {isYou && <span className="text-[9px] text-zinc-600">(you)</span>}
-                          </p>
-                          <p className="text-[10px] text-zinc-600 truncate">{entry.department}</p>
-                        </div>
-                        <span className="text-xs font-black text-white shrink-0">
-                          {entry.reputation_score}
-                          <span className="text-[9px] text-zinc-600 ml-0.5 font-normal">Aura</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+            {(user.location || user.instagram || user.github) && (
+              <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-subhead">
+                {user.location && (
+                  <span className="flex items-center gap-1.5 text-ink-2">
+                    <MapPin className="h-4 w-4 text-crimson" />
+                    {user.location}
+                  </span>
+                )}
+                {user.instagram && (
+                  <a href={`https://instagram.com/${user.instagram}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-ink-2 transition-colors hover:text-ink">
+                    <Instagram className="h-4 w-4" />@{user.instagram}
+                  </a>
+                )}
+                {user.github && (
+                  <a href={`https://github.com/${user.github}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-ink-2 transition-colors hover:text-ink">
+                    <Github className="h-4 w-4" />@{user.github}
+                  </a>
+                )}
               </div>
             )}
-          </motion.div>
-        )}
 
-        {activeTab === "Missions" && (
-          <motion.div
-            key="missions"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-3"
-          >
-            {loadingMissions ? (
-              <div className="py-12 text-center text-[11px] font-bold text-zinc-700 uppercase tracking-widest">
-                Loading...
-              </div>
-            ) : pastMissions.length === 0 ? (
-              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
-                <LayoutGrid className="h-6 w-6 mx-auto text-zinc-700 mb-3" />
-                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">No missions yet</p>
-                <p className="text-[11px] text-zinc-700 mt-1">Accept a mission from the feed to get started.</p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/8 bg-zinc-950/60 overflow-hidden">
-                <div className="divide-y divide-white/4">
-                  {pastMissions.map((m) => {
-                    const done = m.status === "Completed";
-                    const missed = m.status === "Missed";
-                    return (
-                      <div key={`${m.id}-${m.role}`} className="flex items-center gap-3 px-4 py-3">
-                        {done ? (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-white" />
-                        ) : missed ? (
-                          <XCircle className="h-4 w-4 shrink-0 text-boxRed" />
-                        ) : (
-                          <Clock className="h-4 w-4 shrink-0 text-zinc-600" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-white truncate">{m.title}</p>
-                          <p className="text-[10px] text-zinc-600">
-                            {m.role === "creator" ? "You hosted" : `Partner: ${m.creator_name}`}
-                            {" · "}
-                            {new Date(m.datetime).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                            })}
-                          </p>
-                        </div>
-                        {done && (
-                          <button
-                            onClick={() => handleViewMissionRecap(m.id)}
-                            className="text-[9px] font-black uppercase border border-cherryRed/30 bg-cherryRed/5 px-2.5 py-1 rounded-lg text-cherryRed hover:bg-cherryRed/10 transition mr-2"
-                          >
-                            View Recap
-                          </button>
-                        )}
-                        <span
-                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
-                            done
-                              ? "border-white/20 bg-white/5 text-white"
-                              : missed
-                              ? "border-cherryRed/25 bg-cherryRed/8 text-cherryRed"
-                              : "border-white/10 text-zinc-600"
-                          }`}
-                        >
-                          {m.status}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {activeTab === "Gallery" && (
-          <motion.div
-            key="gallery"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            {/* Filters bar */}
-            <div className="flex flex-wrap gap-2.5 items-center justify-between bg-zinc-950/60 p-3 rounded-2xl border border-white/5">
-              <div className="flex flex-1 gap-2 min-w-[200px]">
-                <select
-                  value={galleryCategory}
-                  onChange={(e) => setGalleryCategory(e.target.value)}
-                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-cherryRed"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="Programming">Programming</option>
-                  <option value="Study">Study</option>
-                  <option value="Design">Design</option>
-                  <option value="Writing">Writing</option>
-                  <option value="Research">Research</option>
-                  <option value="Fitness">Fitness</option>
-                  <option value="Other">Other</option>
-                </select>
-
-                <select
-                  value={galleryYear}
-                  onChange={(e) => setGalleryYear(e.target.value)}
-                  className="flex-1 h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-cherryRed"
-                >
-                  <option value="all">All Years</option>
-                  <option value="2026">2026</option>
-                  <option value="2025">2025</option>
-                </select>
-              </div>
-
-              <select
-                value={gallerySort}
-                onChange={(e) => setGallerySort(e.target.value)}
-                className="h-9 rounded-lg border border-white/10 bg-zinc-900 text-[10px] font-black uppercase tracking-wider text-white px-2 outline-none focus:border-cherryRed"
+            <div className="mt-5 grid w-full grid-cols-[1fr_auto_auto] gap-2">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowEdit(true)}
+                className="btn-primary h-11"
               >
-                <option value="newest">Newest First</option>
-                <option value="longest">Longest Session</option>
-                <option value="tasks">Most Tasks</option>
-              </select>
+                Edit profile
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={handleSync}
+                disabled={syncing}
+                aria-label="Refresh"
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-line text-ink-2 transition-colors hover:text-ink"
+              >
+                <motion.span animate={syncing ? { rotate: 360 } : { rotate: 0 }} transition={syncing ? { duration: 0.8, repeat: Infinity, ease: "linear" } : { duration: 0 }} className="flex">
+                  <RefreshCw className="h-[18px] w-[18px]" />
+                </motion.span>
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={handleLogout}
+                aria-label="Log out"
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-line text-ink-2 transition-colors hover:border-signal/70 hover:text-crimson"
+              >
+                <LogOut className="h-[18px] w-[18px]" />
+              </motion.button>
             </div>
+          </div>
+        </motion.div>
 
-            {/* Gallery Grid */}
-            {loadingRecaps ? (
-              <div className="py-12 text-center text-[11px] font-bold text-zinc-700 uppercase tracking-widest">
-                Loading recaps...
-              </div>
-            ) : recapsList.length === 0 ? (
-              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-12 text-center">
-                <LayoutGrid className="h-6 w-6 mx-auto text-zinc-700 mb-3" />
-                <p className="text-xs font-black text-zinc-600 uppercase tracking-widest">Gallery Empty</p>
-                <p className="text-[11px] text-zinc-700 mt-1">Complete focus runs to accumulate achievement cards.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {recapsList.map((recap) => {
-                  const durationHrs = Math.floor(recap.sessionDuration / 60);
-                  const durationMins = recap.sessionDuration % 60;
-                  const durationText = durationHrs > 0 ? `${durationHrs}h ${durationMins}m` : `${durationMins}m`;
+        {/* ── Content ── */}
+        <div className="space-y-5 md:col-span-2">
+          <div className="flex rounded-xl border border-line bg-surface p-1" role="tablist">
+            {TABS.map((tab) => {
+              const on = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setActiveTab(tab)}
+                  className={`relative h-10 flex-1 rounded-sm text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
+                >
+                  {on && <motion.span layoutId="profile-tab" className="absolute inset-0 rounded-lg bg-raised shadow-[inset_0_-2px_0_rgb(var(--signal))]" transition={spring.glide} />}
+                  <span className="relative">{tab === "Leaderboard" ? "Ranks" : tab}</span>
+                </button>
+              );
+            })}
+          </div>
 
-                  return (
+          <AnimatePresence mode="wait">
+            {activeTab === "Stats" && (
+              <motion.div key="stats" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }} className="space-y-5">
+                {/* Tier */}
+                <div className="rounded-card border border-line bg-surface p-5">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="t-label">Level</p>
+                      <p className="t-display mt-1 text-title-1 text-ink">{tier.name}</p>
+                    </div>
+                    <p className="text-right text-subhead text-ink-2">
+                      {tier.name === "Elite" ? "Top tier" : (
+                        <>
+                          <span className="tabular font-semibold text-gold">{Math.max(0, tier.ceil - aura)}</span> to next
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="mt-5 h-px bg-line">
                     <motion.div
-                      key={recap.id}
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => {
-                        setRecapData(recap);
-                        setShowRecapCard(true);
-                      }}
-                      className="cursor-pointer group relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-950/40 p-5 flex flex-col justify-between hover:border-cherryRed/30 transition shadow-sm"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, tierProgress * 100)}%` }}
+                      transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+                      className="relative h-full bg-signal"
                     >
-                      <div className="flex justify-between items-start mb-2.5">
-                        <span className="rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest bg-white/5 text-zinc-500 font-display">
-                          {recap.categorySnapshot || "Other"}
-                        </span>
-                        <span className="text-[8px] font-bold text-zinc-500 font-display">
-                          {new Date(recap.generatedAt).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric"
-                          })}
-                        </span>
-                      </div>
-                      
-                      <h4 className="text-xs font-black text-white line-clamp-1 group-hover:text-cherryRed transition">
-                        {recap.missionTitle || "Focus Sprint"}
-                      </h4>
-                      
-                      <div className="mt-4 flex items-center justify-between border-t border-white/4 pt-3 text-[10px] font-bold text-zinc-400 font-display">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-cherryRed" />
-                          <span>{durationText}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-white" />
-                          <span>{recap.tasksCompleted} Tasks</span>
-                        </div>
-                      </div>
+                      <span className="absolute right-0 top-1/2 h-[5px] w-[5px] -translate-y-1/2 translate-x-1/2 bg-signal" />
                     </motion.div>
-                  );
-                })}
-              </div>
+                  </div>
+                </div>
+
+                {/* Metrics bento: the streak leads, four figures share one surface */}
+                <Reveal className="grid grid-cols-2 gap-3 sm:grid-cols-4" each={0.06}>
+                  <Reveal.Item className="col-span-2 sm:row-span-2">
+                    <Spotlight className="h-full overflow-hidden rounded-card border border-line bg-surface">
+                      <div className="relative flex h-full min-h-[148px] flex-col justify-between p-5">
+                        <div className="relative flex items-center justify-between">
+                          <p className="text-headline text-ink">Streak</p>
+                          <Flame className={`h-6 w-6 ${streak > 0 ? "text-crimson" : "text-ink-3"}`} />
+                        </div>
+                        <div className="relative">
+                          <p className="t-display text-[64px] leading-none text-ink">
+                            {loadingStats ? "–" : <CountUp value={streak} />}
+                            <span className="ml-1 text-title-2 text-ink-3">{streak === 1 ? "day" : "days"}</span>
+                          </p>
+                          <p className="mt-2 text-subhead text-ink-2">{streak > 0 ? "Don't break it today." : "Finish a mission to start one."}</p>
+                        </div>
+                      </div>
+                    </Spotlight>
+                  </Reveal.Item>
+                  <Reveal.Item className="col-span-2 sm:row-span-2">
+                    <dl className="grid h-full grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-card border border-line bg-surface [&>div:nth-child(2)]:border-t-0 [&>div:nth-child(odd)]:border-l-0">
+                      {stats.map((s) => (
+                        <div key={s.label} className="flex flex-col justify-end p-4">
+                          <dd className="t-display text-title-1 text-ink">
+                            {loadingStats ? "–" : <><CountUp value={s.value} />{s.suffix}</>}
+                          </dd>
+                          <dt className="mt-1 text-footnote text-ink-3">{s.label}</dt>
+                        </div>
+                      ))}
+                    </dl>
+                  </Reveal.Item>
+                </Reveal>
+
+                <HeatMap userId={user.id} userJoinedAt={user.verified_at} api={api} />
+
+                {/* Wrapped */}
+                <div className="rounded-card border border-line bg-surface p-5">
+                  <p className="t-label">Wrapped</p>
+                  <p className="mt-1 text-subhead text-ink-2">A shareable card of your recent work.</p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {[
+                      { label: "This week", icon: Zap, run: () => handleGenerateWrapped("weekly") },
+                      { label: "This month", icon: Trophy, run: () => handleGenerateWrapped("monthly") },
+                      { label: "This year", icon: Activity, run: () => handleGenerateWrapped("yearly") },
+                      { label: "Team runs", icon: Users, run: handleGenerateTeamSummary }
+                    ].map((w) => (
+                      <motion.button
+                        key={w.label}
+                        type="button"
+                        whileTap={{ scale: 0.96 }}
+                        onClick={w.run}
+                        className="group flex h-14 items-center gap-3 rounded-xl border border-line bg-raised px-4 text-left transition-colors hover:border-signal/70"
+                      >
+                        <w.icon className="h-5 w-5 text-ink-3 transition-colors group-hover:text-crimson" />
+                        <span className="text-subhead font-medium text-ink">{w.label}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-card border border-line bg-surface">
+                  {[
+                    { label: "College", value: user.college },
+                    { label: "Account", value: user.college_id }
+                  ].map((item, i) => (
+                    <div key={item.label} className={`flex items-center justify-between gap-4 px-5 py-4 ${i ? "border-t border-line" : ""}`}>
+                      <span className="t-label">{item.label}</span>
+                      <span className="truncate text-right text-subhead text-ink-2">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {activeTab === "Leaderboard" && (
+              <motion.div key="leaderboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}>
+                {!user.campus_id ? (
+                  <Empty icon={Trophy} title="No campus set" body="Add your college to see where you rank." />
+                ) : loadingLeaderboard ? (
+                  <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}</div>
+                ) : leaderboard.length === 0 ? (
+                  <Empty icon={Trophy} title="No ranks yet" body="Finish a mission to get on the board." />
+                ) : (
+                  <div className="space-y-4">
+                    {/* Podium */}
+                    {leaderboard.length >= 3 && (
+                      <div className="grid grid-cols-3 items-end gap-2">
+                        {[1, 0, 2].map((rank) => {
+                          const e = leaderboard[rank];
+                          const h = rank === 0 ? "h-36" : rank === 1 ? "h-28" : "h-24";
+                          return (
+                            <motion.button
+                              key={e.id}
+                              type="button"
+                              onClick={() => {
+                                if (e.id !== user.id) {
+                                  setSelectedLeaderboardUserId(e.id);
+                                  setLeaderboardProfileOpen(true);
+                                }
+                              }}
+                              initial={{ opacity: 0, y: 30 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ ...spring.pop, delay: 0.1 + (2 - rank) * 0.1 }}
+                              className="flex flex-col items-center gap-2 text-center"
+                            >
+                              <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-title-3 font-bold ${rank === 0 ? "border-gold bg-gold/15 text-gold" : "border-line bg-raised text-ink"}`}>
+                                {e.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
+                              </span>
+                              <span className="w-full truncate text-footnote font-medium text-ink">{e.name.split(" ")[0]}</span>
+                              <div
+                                className={`flex w-full flex-col items-center justify-start rounded-t-xl border border-b-0 pt-3 ${h} ${
+                                  rank === 0 ? "border-gold/40 bg-gradient-to-b from-gold/20 to-transparent" : "border-line bg-gradient-to-b from-raised to-transparent"
+                                }`}
+                              >
+                                <span className={`t-display text-title-1 ${rank === 0 ? "text-gold" : "text-ink-2"}`}>{rank + 1}</span>
+                                <span className="tabular text-footnote text-ink-3">{e.reputation_score}</span>
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <Reveal className="overflow-hidden rounded-card border border-line bg-surface" each={0.03}>
+                      {leaderboard.map((entry, idx) => {
+                        if (leaderboard.length >= 3 && idx < 3) return null;
+                        const isYou = entry.id === user.id;
+                        return (
+                          <Reveal.Item key={entry.id}>
+                            <button
+                              type="button"
+                              disabled={isYou}
+                              onClick={() => {
+                                setSelectedLeaderboardUserId(entry.id);
+                                setLeaderboardProfileOpen(true);
+                              }}
+                              className={`flex w-full items-center gap-4 border-t border-line px-5 py-3.5 text-left first:border-t-0 ${isYou ? "bg-signal/[0.07]" : "transition-colors hover:bg-raised"}`}
+                            >
+                              <span className="t-display tabular w-7 text-title-3 text-ink-3">{idx + 1}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className={`block truncate text-subhead font-medium ${isYou ? "text-crimson" : "text-ink"}`}>
+                                  {entry.name}
+                                  {isYou && <span className="ml-1.5 text-footnote text-ink-3">you</span>}
+                                </span>
+                                <span className="block truncate text-footnote text-ink-3">{entry.department}</span>
+                              </span>
+                              <span className="tabular text-subhead font-semibold text-ink">
+                                {entry.reputation_score}
+                                <span className="ml-1 text-caption font-normal text-gold">{POINTS_NAME}</span>
+                              </span>
+                            </button>
+                          </Reveal.Item>
+                        );
+                      })}
+                    </Reveal>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "Missions" && (
+              <motion.div key="missions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}>
+                {loadingMissions ? (
+                  <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)}</div>
+                ) : pastMissions.length === 0 ? (
+                  <Empty icon={LayoutGrid} title="No history yet" body="Missions you finish or miss land here." />
+                ) : (
+                  <Reveal className="overflow-hidden rounded-card border border-line bg-surface" each={0.04}>
+                    {pastMissions.map((m) => {
+                      const done = m.status === "Completed";
+                      const missed = m.status === "Missed";
+                      return (
+                        <Reveal.Item key={`${m.id}-${m.role}`}>
+                          <div className="flex items-center gap-4 border-t border-line px-5 py-4 first:border-t-0">
+                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${done ? "bg-success/10 text-success" : missed ? "bg-surface text-crimson" : "bg-raised text-ink-3"}`}>
+                              {done ? <CheckCircle2 className="h-5 w-5" /> : missed ? <XCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-subhead font-medium text-ink">{m.title}</p>
+                              <p className="text-footnote text-ink-3">
+                                {m.role === "creator" ? "Hosted" : `With ${m.creator_name}`} · {new Date(m.datetime).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                              </p>
+                            </div>
+                            {done ? (
+                              <button
+                                type="button"
+                                onClick={() => handleViewMissionRecap(m.id)}
+                                className="flex h-10 shrink-0 items-center gap-1 rounded-xl border border-line px-3 text-subhead text-ink transition-colors hover:border-gold/50 hover:text-gold"
+                              >
+                                Recap <ChevronRight className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <span className="t-label shrink-0">{m.status}</span>
+                            )}
+                          </div>
+                        </Reveal.Item>
+                      );
+                    })}
+                  </Reveal>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "Gallery" && (
+              <motion.div key="gallery" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }} className="space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    {
+                      label: "Category",
+                      value: galleryCategory,
+                      set: setGalleryCategory,
+                      opts: [["all", "All"], ["Programming", "Programming"], ["Study", "Study"], ["Design", "Design"], ["Writing", "Writing"], ["Research", "Research"], ["Fitness", "Fitness"], ["Other", "Other"]]
+                    },
+                    { label: "Year", value: galleryYear, set: setGalleryYear, opts: [["all", "All years"], ["2026", "2026"], ["2025", "2025"]] },
+                    { label: "Sort", value: gallerySort, set: setGallerySort, opts: [["newest", "Newest"], ["longest", "Longest"], ["tasks", "Most tasks"]] }
+                  ].map((f) => (
+                    <label key={f.label} className="block">
+                      <span className="sr-only">{f.label}</span>
+                      <select value={f.value} onChange={(e) => f.set(e.target.value)} className={`${fieldClass} h-11 appearance-none px-3 text-subhead`}>
+                        {f.opts.map(([v, l]) => (
+                          <option key={v} value={v} className="bg-surface">
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+
+                {loadingRecaps ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}</div>
+                ) : recapsList.length === 0 ? (
+                  <Empty icon={LayoutGrid} title="No recaps yet" body="Each finished session leaves a card here." />
+                ) : (
+                  <Reveal className="grid grid-cols-1 gap-3 sm:grid-cols-2" each={0.05}>
+                    {recapsList.map((recap) => {
+                      const h = Math.floor(recap.sessionDuration / 60);
+                      const m = recap.sessionDuration % 60;
+                      const failed = recap.metadata?.isFailed;
+                      return (
+                        <Reveal.Item key={recap.id}>
+                          <motion.button
+                            type="button"
+                            whileHover={{ y: -3 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={spring.snap}
+                            onClick={() => {
+                              setRecapData(recap);
+                              setShowRecapCard(true);
+                            }}
+                            className="group relative flex h-full w-full flex-col overflow-hidden rounded-card border border-line bg-surface p-5 text-left transition-colors hover:border-signal/70"
+                          >
+                            <div className="relative flex items-center justify-between">
+                              <span className="t-label">{recap.categorySnapshot || "Other"}</span>
+                              <span className="text-footnote text-ink-3">{new Date(recap.generatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            </div>
+                            <h3 className="t-display relative mt-3 line-clamp-2 text-title-2 text-ink">{recap.missionTitle || "Focus session"}</h3>
+                            <div className="relative mt-auto flex items-center gap-5 pt-5 text-subhead text-ink-2">
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-4 w-4 text-crimson" />
+                                {h > 0 ? `${h}h ${m}m` : `${m}m`}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <CheckCircle2 className="h-4 w-4 text-ink-3" />
+                                {recap.tasksCompleted} {recap.tasksCompleted === 1 ? "task" : "tasks"}
+                              </span>
+                            </div>
+                          </motion.button>
+                        </Reveal.Item>
+                      );
+                    })}
+                  </Reveal>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* ── Edit Profile Dialog ── */}
+      {/* Edit */}
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="border-white/10 bg-zinc-950/98 text-white max-w-sm rounded-3xl backdrop-blur-xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-sm font-black tracking-widest text-white uppercase">
-              Edit Profile
-            </DialogTitle>
+            <DialogTitle>Edit profile</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-3 mt-1">
-            {/* Profile Picture Upload Section */}
-            <div className="flex flex-col items-center gap-2.5 py-1">
-              <div
+          <form onSubmit={handleUpdate} className="space-y-5">
+            <div className="flex justify-center">
+              <button
+                type="button"
                 onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}
-                className="relative group cursor-pointer w-20 h-20 rounded-2xl overflow-hidden border border-white/[0.08] hover:border-cherryRed/40 transition-colors"
+                aria-label="Change photo"
+                className="group relative h-24 w-24 overflow-hidden rounded-full border-2 border-line transition-colors hover:border-signal"
               >
                 {form.avatarUrl ? (
-                  <img
-                    src={form.avatarUrl}
-                    alt="PFP Preview"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={form.avatarUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-lg font-black text-zinc-500 uppercase">
-                    {initials}
-                  </div>
+                  <span className="flex h-full w-full items-center justify-center bg-raised font-display text-title-1 font-bold text-ink-3">{initials}</span>
                 )}
-                {uploadingAvatar ? (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-t-cherryRed border-white/20 rounded-full animate-spin" />
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-[9px] font-black uppercase text-white tracking-wider">Change</span>
-                  </div>
-                )}
-              </div>
-              <input
-                type="file"
-                ref={avatarInputRef}
-                onChange={handleAvatarChange}
-                accept="image/*"
-                className="hidden"
-              />
+                <span className={`absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity ${uploadingAvatar ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                  {uploadingAvatar ? (
+                    <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-signal" />
+                  ) : (
+                    <Camera className="h-6 w-6 text-ink" />
+                  )}
+                </span>
+              </button>
+              <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} accept="image/*" className="sr-only" />
             </div>
 
             {[
-              { label: "Full Name", key: "name", placeholder: "Your Name" },
-              { label: "Department & Year", key: "department", placeholder: "e.g. CSE, 3rd Year" },
-              { label: "Meet Spot", key: "location", placeholder: "e.g. Library, Block B Canteen..." },
-              { label: "Bio", key: "bio", placeholder: "What are you building?" },
-              { label: "Instagram", key: "instagram", placeholder: "@username" },
-              { label: "GitHub", key: "github", placeholder: "@username" },
-            ].map(({ label, key, placeholder }) => (
-              <div key={key} className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">
-                  {label}
-                </label>
+              { label: "Name", key: "name", placeholder: "Your name", auto: "name" },
+              { label: "Department and year", key: "department", placeholder: "CSE, 3rd year" },
+              { label: "Usual spot", key: "location", placeholder: "Main library" },
+              { label: "Bio", key: "bio", placeholder: "What are you working on?" },
+              { label: "Instagram", key: "instagram", placeholder: "handle" },
+              { label: "GitHub", key: "github", placeholder: "handle" }
+            ].map(({ label, key, placeholder, auto }) => (
+              <div key={key} className="space-y-2">
+                <label htmlFor={`pe-${key}`} className="t-label block">{label}</label>
                 <Input
+                  id={`pe-${key}`}
+                  autoComplete={auto}
                   value={(form as any)[key]}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setForm((f) => ({ ...f, [key]: e.target.value }))
-                  }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   placeholder={placeholder}
-                  className="h-10 border-white/10 bg-black/40 text-xs text-white placeholder-zinc-700 focus:border-cherryRed focus:ring-1 focus:ring-cherryRed/10"
                 />
               </div>
             ))}
 
-
             {error && (
-              <p className="text-[11px] font-bold text-cherryRed">{error}</p>
+              <p role="alert" className="text-subhead font-medium text-crimson">
+                {error}
+              </p>
             )}
 
-            <button
+            <motion.button
               type="submit"
               disabled={updating}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-boxRed/20 bg-boxRed text-xs font-black uppercase tracking-wider text-white transition hover:bg-boxRed/90 disabled:opacity-50"
+              whileTap={{ scale: 0.97 }}
+              className="flex h-14 w-full items-center justify-center disabled:opacity-50 btn-primary"
             >
-              <Flame className="h-3.5 w-3.5 fill-current" />
-              {updating ? "Saving..." : "Save Changes"}
-            </button>
+              {updating ? "Saving" : "Save"}
+            </motion.button>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Recap Card Modal */}
-      {recapData && (
-        <RecapCard
-          isOpen={showRecapCard}
-          onClose={() => setShowRecapCard(false)}
-          recapData={recapData}
-        />
-      )}
+      {recapData && <RecapCard isOpen={showRecapCard} onClose={() => setShowRecapCard(false)} recapData={recapData} />}
 
-      {/* Leaderboard Public Profile Overlay */}
       {selectedLeaderboardUserId && (
         <PublicProfile
           userId={selectedLeaderboardUserId}
@@ -916,7 +818,6 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
         />
       )}
 
-      {/* Followers & Following listing modal */}
       <FollowListModal
         isOpen={isFollowListOpen}
         onClose={() => setIsFollowListOpen(false)}
@@ -929,5 +830,15 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
         api={api}
       />
     </section>
+  );
+}
+
+function Empty({ icon: Icon, title, body }: { icon: React.ElementType; title: string; body: string }) {
+  return (
+    <div className="flex flex-col items-center rounded-card border border-dashed border-line bg-surface/50 px-8 py-14 text-center">
+      <Icon className="h-8 w-8 text-ink-3" />
+      <p className="t-display mt-4 text-title-2 text-ink">{title}</p>
+      <p className="mt-1.5 max-w-[260px] text-subhead text-ink-2">{body}</p>
+    </div>
   );
 }

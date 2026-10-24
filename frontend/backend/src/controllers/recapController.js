@@ -1,328 +1,237 @@
 const prisma = require("../config/db");
 const crypto = require("crypto");
+const { toId, cleanText, safeImageRef } = require("../utils/security");
 const { checkAchievements } = require("../utils/achievements");
 const { isDbUnavailable } = require("../utils/dbFallback");
 
-// Helper to calculate streak from dates
+// Streaks count calendar days in the app's timezone (students are in IST;
+// the server runs in UTC, which split days at 05:30 local time).
+const APP_TZ = process.env.APP_TIMEZONE || "Asia/Kolkata";
+const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+const dayKey = (d) => dayFmt.format(new Date(d)); // "YYYY-MM-DD"
+
+/** The app-timezone calendar day of `d`, as a UTC-midnight Date (DailyActivity key). */
+function dayStart(d) {
+  return new Date(`${dayKey(d)}T00:00:00.000Z`);
+}
+
 function calculateStreak(recapDates) {
   if (recapDates.length === 0) return 0;
-  const dates = Array.from(new Set(recapDates.map(d => new Date(d).toDateString()))).map(d => new Date(d));
-  dates.sort((a, b) => b - a); // descending order
-
+  const days = new Set(recapDates.map(dayKey));
+  const step = (key, n) => {
+    const t = new Date(`${key}T00:00:00.000Z`);
+    t.setUTCDate(t.getUTCDate() + n);
+    return t.toISOString().slice(0, 10);
+  };
+  let cursor = dayKey(new Date());
+  if (!days.has(cursor)) cursor = step(cursor, -1);
   let streak = 0;
-  let currentDate = new Date(); // start checking from today
-  currentDate.setHours(0, 0, 0, 0);
-
-  const todayStr = currentDate.toDateString();
-  const yesterday = new Date(currentDate);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toDateString();
-
-  const hasToday = dates.some(d => d.toDateString() === todayStr);
-  const hasYesterday = dates.some(d => d.toDateString() === yesterdayStr);
-
-  if (!hasToday && !hasYesterday) {
-    return 0;
-  }
-
-  let expectedDate = hasToday ? currentDate : yesterday;
-  for (let i = 0; i < dates.length; i++) {
-    const d = dates[i];
-    d.setHours(0, 0, 0, 0);
-
-    if (d.getTime() === expectedDate.getTime()) {
-      streak++;
-      expectedDate.setDate(expectedDate.getDate() - 1);
-    } else if (d.getTime() < expectedDate.getTime()) {
-      break;
-    }
+  while (days.has(cursor)) {
+    streak++;
+    cursor = step(cursor, -1);
   }
   return streak;
 }
 
 // POST /api/missions/:id/finish
+// POST /api/missions/:id/finish
+//
+// Everything that affects Grit, streaks or history is computed here, from the
+// database, never taken from the client:
+//   - duration   = now − participation.workStartedAt (set at check-in)
+//   - tasks done = completed rows in the mission's checklist (client count only
+//                  when there is no checklist, capped)
+//   - crash      = under 3 minutes, or under 50% of the target with 0 tasks
+//                  (handoff §8 "Runway Crash")
+//   - once only  = the participation must be Executing; it is flipped to
+//                  Completed atomically, so a replay gets 409.
 async function finishSession(req, res) {
-  const missionId = Number(req.params.id);
-  const { userId, tasksCompleted, reflection, sessionDuration: requestedDuration, isFailed = false } = req.body;
+  const userId = req.userId;
+  const missionId = toId(req.params.id);
+  const body = req.body || {};
+  const reflection = body.reflection && typeof body.reflection === "object" ? body.reflection : {};
+  if (!missionId) return res.status(400).json({ error: "Invalid mission." });
 
-  if (!userId) {
-    return res.status(400).json({ error: "userId is required." });
+  const screenshot = safeImageRef(reflection.screenshot);
+  if (screenshot === undefined) return res.status(400).json({ error: "Attach screenshots by uploading them." });
+  let link = null;
+  if (reflection.link) {
+    const raw = String(reflection.link).trim().slice(0, 500);
+    const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+      const u = new URL(candidate);
+      if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error();
+      link = u.toString();
+    } catch {
+      return res.status(400).json({ error: "That link doesn't look like a web address." });
+    }
   }
+  const reflectionText = cleanText(reflection.reflectionText, 2000);
+  const lessonsLearned = cleanText(reflection.lessonsLearned, 2000);
+  const isPublic = reflection.isPublic !== false;
 
   try {
-    const numericUserId = Number(userId);
+    const outcome = await prisma.$transaction(async (tx) => {
+      const mission = await tx.mission.findUnique({ where: { id: missionId }, include: { category: true } });
+      if (!mission) throw new Error("NOT_FOUND");
 
-    // 1. Find the mission and user participation
-    const mission = await prisma.mission.findUnique({
-      where: { id: missionId },
-      include: {
-        category: true,
-        participations: {
-          include: { user: true }
-        }
-      }
-    });
+      const participation = await tx.participation.findUnique({ where: { unique_user_mission: { userId, missionId } } });
+      if (!participation) throw new Error("NOT_PART");
+      if (participation.status !== "Executing" || !participation.workStartedAt) throw new Error("NOT_ACTIVE");
 
-    if (!mission) {
-      return res.status(404).json({ error: "Mission not found." });
-    }
-
-    // Identify role
-    const isCreator = mission.createdBy === numericUserId;
-    const participation = mission.participations.find(p => p.userId === numericUserId);
-
-    if (!isCreator && !participation) {
-      return res.status(403).json({ error: "You are not part of this mission." });
-    }
-
-    // Use requested actual focus duration, otherwise fallback to mission focus duration
-    const sessionDuration = requestedDuration !== undefined ? Number(requestedDuration) : (mission.focusDuration || 25);
-
-    // 2. Mark participation status to Completed on database
-    if (participation && participation.status !== "Completed") {
-      await prisma.participation.update({
-        where: { id: participation.id },
+      // Claim the session atomically: a concurrent or repeated finish loses here.
+      const claimed = await tx.participation.updateMany({
+        where: { id: participation.id, status: "Executing" },
         data: { status: "Completed" }
       });
-    }
+      if (claimed.count !== 1) throw new Error("NOT_ACTIVE");
 
-    // 3. Calculate streak (incorporating previous recaps)
-    const prevRecaps = await prisma.sessionRecap.findMany({
-      where: { userId: numericUserId },
-      select: { generatedAt: true }
-    });
-    const recapDates = prevRecaps.map(r => r.generatedAt);
-    recapDates.push(new Date()); // include today
-    const currentStreak = calculateStreak(recapDates);
+      const now = new Date();
+      const elapsedSec = Math.max(0, Math.floor((now.getTime() - participation.workStartedAt.getTime()) / 1000));
+      const sessionDuration = Math.min(12 * 60, Math.max(1, Math.round(elapsedSec / 60)));
 
-    // 4. Calculate total participants
-    let participantCount = 1;
-    if (mission.missionType === "solo") {
-      participantCount = 1;
-    } else if (mission.createdBy && mission.participations.length > 0) {
-      // Creator + all accepted participants (excluding solo records if any)
-      const activeParticipants = mission.participations.filter(p => p.status === "Accepted" || p.status === "Executing" || p.status === "Completed").length;
-      participantCount = 1 + activeParticipants;
-    }
+      const tasks = await tx.task.findMany({ where: { missionId }, select: { completed: true } });
+      const tasksCompleted = tasks.length
+        ? tasks.filter((t) => t.completed).length
+        : Math.min(10, Math.max(0, Math.floor(Number(body.tasksCompleted) || 0)));
 
-    // 5. Calculate mission rank (based on other recaps submitted for this mission)
-    const existingRecaps = await prisma.sessionRecap.findMany({
-      where: { missionId: missionId }
-    });
+      // Target: group missions use the mission's focus duration; solo uses the
+      // timer the user picked at check-in (bounded), 0 = open-ended.
+      const isSolo = mission.missionType === "solo";
+      const target = isSolo
+        ? Math.min(240, Math.max(0, Math.floor(Number(body.targetMinutes) || 0)))
+        : participation.workDuration || mission.focusDuration || 0;
+      const isFailed = elapsedSec < 180 || (target > 0 && elapsedSec < target * 60 * 0.5 && tasksCompleted === 0);
 
-    // Compute numeric rank
-    let rank = 1;
-    existingRecaps.forEach(r => {
-      if (r.userId !== numericUserId) {
-        if (r.sessionDuration > sessionDuration) {
-          rank++;
-        } else if (r.sessionDuration === sessionDuration && r.tasksCompleted > tasksCompleted) {
-          rank++;
-        }
-      }
-    });
-
-    // 6. Personal Bests calculations
-    const allUserRecaps = await prisma.sessionRecap.findMany({
-      where: { userId: numericUserId }
-    });
-
-    const maxPastDuration = allUserRecaps.reduce((max, r) => Math.max(max, r.sessionDuration), 0);
-    const maxPastTasks = allUserRecaps.reduce((max, r) => Math.max(max, r.tasksCompleted), 0);
-    const maxPastStreak = allUserRecaps.reduce((max, r) => Math.max(max, r.streak), 0);
-
-    const isNewLongestSession = allUserRecaps.length === 0 || sessionDuration > maxPastDuration;
-    const isNewMostTasks = allUserRecaps.length === 0 || tasksCompleted > maxPastTasks;
-    const isNewLongestStreak = allUserRecaps.length === 0 || currentStreak > maxPastStreak;
-
-    // 7. Unlocked Achievements dynamic engine checks
-    const totalMissionsCount = allUserRecaps.length + 1;
-    const maxMinutes = Math.max(maxPastDuration, sessionDuration);
-    const totalTasks = allUserRecaps.reduce((sum, r) => sum + r.tasksCompleted, 0) + tasksCompleted;
-
-    // Calculate weekly / monthly focus minutes (including current session)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const weeklyFocusMinutes = allUserRecaps
-      .filter(r => new Date(r.generatedAt) >= sevenDaysAgo)
-      .reduce((sum, r) => sum + r.sessionDuration, 0) + sessionDuration;
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const monthlyFocusMinutes = allUserRecaps
-      .filter(r => new Date(r.generatedAt) >= thirtyDaysAgo)
-      .reduce((sum, r) => sum + r.sessionDuration, 0) + sessionDuration;
-
-    // Fetch user for reputation check
-    const user = await prisma.user.findUnique({
-      where: { id: numericUserId }
-    });
-    const currentAura = user ? user.reputationScore : 100;
-
-    const achievementStats = {
-      totalMissions: totalMissionsCount,
-      maxSessionMinutes: maxMinutes,
-      weeklyFocusMinutes,
-      monthlyFocusMinutes,
-      currentStreak,
-      totalTasksCompleted: totalTasks,
-      rank,
-      participantCount,
-      reputationScore: currentAura
-    };
-
-    const unlockedAchievements = checkAchievements(achievementStats);
-
-    // 8. If crashed, deduct 5 Aura. If successful solo, award 10 Aura.
-    if (isFailed) {
-      await prisma.user.update({
-        where: { id: numericUserId },
-        data: {
-          reputationScore: { decrement: 5 }
-        }
+      // Streak / personal bests from real history.
+      const allUserRecaps = await tx.sessionRecap.findMany({
+        where: { userId, recapType: "session" },
+        select: { sessionDuration: true, tasksCompleted: true, streak: true, generatedAt: true }
       });
-    } else if (mission.missionType === "solo") {
-      await prisma.user.update({
-        where: { id: numericUserId },
-        data: {
-          reputationScore: { increment: 10 }
-        }
+      const currentStreak = calculateStreak([...allUserRecaps.map((r) => r.generatedAt), now]);
+      const maxPastDuration = allUserRecaps.reduce((m, r) => Math.max(m, r.sessionDuration), 0);
+      const maxPastTasks = allUserRecaps.reduce((m, r) => Math.max(m, r.tasksCompleted), 0);
+      const maxPastStreak = allUserRecaps.reduce((m, r) => Math.max(m, r.streak), 0);
+      const first = allUserRecaps.length === 0;
+
+      // Crew size and rank within this mission.
+      const crew = isSolo
+        ? 1
+        : 1 + (await tx.participation.count({ where: { missionId, userId: { not: mission.createdBy || 0 }, status: { in: ["Accepted", "Executing", "Completed"] } } }));
+      const others = await tx.sessionRecap.findMany({ where: { missionId, userId: { not: userId } }, select: { sessionDuration: true, tasksCompleted: true } });
+      const rank = 1 + others.filter((r) => r.sessionDuration > sessionDuration || (r.sessionDuration === sessionDuration && r.tasksCompleted > tasksCompleted)).length;
+
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { reputationScore: true } });
+      const weekAgo = now.getTime() - 7 * 86400e3;
+      const monthAgo = now.getTime() - 30 * 86400e3;
+      const unlockedAchievements = checkAchievements({
+        totalMissions: allUserRecaps.length + 1,
+        maxSessionMinutes: Math.max(maxPastDuration, sessionDuration),
+        weeklyFocusMinutes: allUserRecaps.filter((r) => r.generatedAt.getTime() >= weekAgo).reduce((s, r) => s + r.sessionDuration, 0) + sessionDuration,
+        monthlyFocusMinutes: allUserRecaps.filter((r) => r.generatedAt.getTime() >= monthAgo).reduce((s, r) => s + r.sessionDuration, 0) + sessionDuration,
+        currentStreak,
+        totalTasksCompleted: allUserRecaps.reduce((s, r) => s + r.tasksCompleted, 0) + tasksCompleted,
+        rank,
+        participantCount: crew,
+        reputationScore: user ? user.reputationScore : 0
       });
-    }
 
-    // 9. Create SessionRecap database record
-    const shareId = crypto.randomUUID();
-    const recap = await prisma.sessionRecap.create({
-      data: {
-        userId: numericUserId,
-        missionId: missionId,
-        missionTitle: mission.title,
-        categoryId: mission.categoryId,
-        categorySnapshot: mission.category?.categoryName || "Other",
-        sessionDuration: sessionDuration,
-        tasksCompleted: tasksCompleted,
-        streak: currentStreak,
-        missionRank: rank,
-        cardVersion: 1,
-        shareId: shareId,
-        achievements: unlockedAchievements,
-        participantCount: participantCount,
-        recapType: "session",
-        reflectionText: reflection?.reflectionText || null,
-        lessonsLearned: reflection?.lessonsLearned || null,
-        isPublic: reflection?.isPublic !== undefined ? reflection.isPublic : true,
-        metadata: {
-          isNewLongestSession,
-          isNewMostTasks,
-          isNewLongestStreak,
-          screenshot: reflection?.screenshot || null,
-          link: reflection?.link || null,
-          isFailed: isFailed
-        }
+      // Grit: crash −5; successful solo +10 (group rewards come from the vibe check).
+      const gritDelta = isFailed ? -5 : isSolo ? 10 : 0;
+      if (gritDelta !== 0) {
+        await tx.user.update({ where: { id: userId }, data: { reputationScore: { increment: gritDelta } } });
       }
-    });
 
-    // 10. Upsert DailyActivity for user
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dailyMissionsInc = isFailed ? 0 : 1;
-    const dailyAuraInc = isFailed ? -5 : 10;
-
-    await prisma.dailyActivity.upsert({
-      where: {
-        userId_date: {
-          userId: numericUserId,
-          date: today
-        }
-      },
-      update: {
-        missionsCompleted: { increment: dailyMissionsInc },
-        focusMinutes: { increment: sessionDuration },
-        tasksCompleted: { increment: tasksCompleted || 0 },
-        auraEarned: { increment: dailyAuraInc }
-      },
-      create: {
-        userId: numericUserId,
-        date: today,
-        missionsCompleted: dailyMissionsInc,
-        focusMinutes: sessionDuration,
-        tasksCompleted: tasksCompleted || 0,
-        auraEarned: dailyAuraInc
-      }
-    });
-
-    // 11. Create a FeedItem and Post if public
-    if (recap.isPublic) {
-      await prisma.feedItem.create({
+      const recap = await tx.sessionRecap.create({
         data: {
-          userId: numericUserId,
-          type: "mission_completed",
-          title: isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`,
-          description: reflection?.reflectionText || null,
+          userId,
+          missionId,
+          missionTitle: mission.title,
+          categoryId: mission.categoryId,
+          categorySnapshot: mission.category?.categoryName || "Other",
+          sessionDuration,
+          tasksCompleted,
+          streak: currentStreak,
+          missionRank: rank,
+          cardVersion: 1,
+          shareId: crypto.randomUUID(),
+          achievements: unlockedAchievements,
+          participantCount: crew,
+          recapType: "session",
+          reflectionText,
+          lessonsLearned,
+          isPublic,
           metadata: {
-            sessionDuration,
-            tasksCompleted: tasksCompleted || 0,
-            category: mission.category?.categoryName || "Other",
-            missionType: mission.missionType || "group",
-            participantCount,
-            screenshot: reflection?.screenshot || null,
-            link: reflection?.link || null,
-            isFailed: isFailed
-          },
-          recapId: recap.id
+            isNewLongestSession: first || sessionDuration > maxPastDuration,
+            isNewMostTasks: first || tasksCompleted > maxPastTasks,
+            isNewLongestStreak: first || currentStreak > maxPastStreak,
+            screenshot: screenshot || null,
+            link,
+            isFailed,
+            gritDelta
+          }
         }
       });
 
-      await prisma.post.create({
-        data: {
-          userId: numericUserId,
-          recapId: recap.id,
-          imageUrl: reflection?.screenshot || null,
-          caption: reflection?.reflectionText || (isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`),
-          visibility: "everyone"
-        }
+      const day = dayStart(now);
+      await tx.dailyActivity.upsert({
+        where: { userId_date: { userId, date: day } },
+        update: {
+          missionsCompleted: { increment: isFailed ? 0 : 1 },
+          focusMinutes: { increment: sessionDuration },
+          tasksCompleted: { increment: tasksCompleted },
+          auraEarned: { increment: gritDelta }
+        },
+        create: { userId, date: day, missionsCompleted: isFailed ? 0 : 1, focusMinutes: sessionDuration, tasksCompleted, auraEarned: gritDelta }
       });
-    }
 
+      if (isPublic) {
+        const title = isFailed ? `Crashed: ${mission.title}` : `Completed: ${mission.title}`;
+        await tx.feedItem.create({
+          data: {
+            userId,
+            type: "mission_completed",
+            title: title.slice(0, 200),
+            description: reflectionText,
+            metadata: { sessionDuration, tasksCompleted, category: mission.category?.categoryName || "Other", missionType: mission.missionType, participantCount: crew, screenshot: screenshot || null, link, isFailed },
+            recapId: recap.id
+          }
+        });
+        await tx.post.create({
+          data: {
+            userId,
+            recapId: recap.id,
+            imageUrl: screenshot ? JSON.stringify([screenshot]) : null,
+            caption: (reflectionText || title).slice(0, 300),
+            visibility: "college"
+          }
+        });
+      }
+
+      return {
+        recap,
+        personalBests: recap.metadata,
+        unlockedAchievements
+      };
+    });
 
     res.status(201).json({
-      ...recap,
+      ...outcome.recap,
       personalBests: {
-        isNewLongestSession,
-        isNewMostTasks,
-        isNewLongestStreak
+        isNewLongestSession: outcome.personalBests.isNewLongestSession,
+        isNewMostTasks: outcome.personalBests.isNewMostTasks,
+        isNewLongestStreak: outcome.personalBests.isNewLongestStreak
       },
-      unlockedAchievements
+      unlockedAchievements: outcome.unlockedAchievements
     });
   } catch (error) {
-    if (isDbUnavailable(error)) {
-      console.warn("Database offline. Falling back to memoryStore mock for finishSession.");
-      res.status(201).json({
-        id: Math.floor(Math.random() * 1000) + 1000,
-        userId: Number(userId),
-        missionId: missionId,
-        missionTitle: "Focus Runway Run",
-        categoryId: 1,
-        categorySnapshot: "Other",
-        sessionDuration: 25,
-        tasksCompleted: Number(tasksCompleted || 0),
-        streak: 3,
-        missionRank: 1,
-        cardVersion: 1,
-        shareId: crypto.randomUUID(),
-        recapType: "session",
-        generatedAt: new Date().toISOString(),
-        personalBests: {
-          isNewLongestSession: true,
-          isNewMostTasks: false,
-          isNewLongestStreak: true
-        },
-        unlockedAchievements: []
-      });
-      return;
-    }
-    console.error("Error finishing session", error);
-    res.status(500).json({ error: "Failed to finish session." });
+    const map = {
+      NOT_FOUND: [404, "Mission not found."],
+      NOT_PART: [403, "You're not part of this mission."],
+      NOT_ACTIVE: [409, "There's no active session to finish. Check in first."]
+    };
+    if (map[error.message]) return res.status(map[error.message][0]).json({ error: map[error.message][1] });
+    throw error;
   }
 }
 
@@ -465,7 +374,8 @@ async function generatePeriodRecap(req, res) {
 
 // GET /api/recaps/user/:userId
 async function getUserRecaps(req, res) {
-  const { userId } = req.params;
+  // Your gallery only: private recaps (reflections, screenshots) never leave their owner.
+  const userId = req.userId;
   const { sortBy, category, year } = req.query;
 
   try {
@@ -522,7 +432,7 @@ async function getUserRecaps(req, res) {
 // GET /api/recaps/mission/:missionId/user/:userId
 async function getMissionRecap(req, res) {
   const missionId = Number(req.params.missionId);
-  const userId = Number(req.params.userId);
+  const userId = req.userId;
 
   try {
     const recap = await prisma.sessionRecap.findFirst({
@@ -580,7 +490,8 @@ async function getPublicShareRecap(req, res) {
       }
     });
 
-    if (!recap) {
+    // Private recaps are not shareable, even with the link.
+    if (!recap || !recap.isPublic) {
       return res.status(404).json({ error: "Recap page not found." });
     }
 

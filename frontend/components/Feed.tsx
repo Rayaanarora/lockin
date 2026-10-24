@@ -1,22 +1,31 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from "framer-motion";
-import { Flame, CalendarClock, MapPin, X, Check, Plus, AlertCircle, ChevronLeft, ChevronRight, Users, Share2, RefreshCw } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { X, Check, Plus, AlertCircle, Share2, RefreshCw, ImagePlus } from "lucide-react";
+import { LockinMark } from "./ui/LockinLogo";
+import { uploadImage } from "../lib/supabase";
 import { User, Mission } from "../app/types";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Input, fieldClass } from "./ui/input";
 import { Textarea } from "./ui/textarea";
-import { CometCard } from "./ui/comet-card";
+import { spring } from "../lib/motion";
 
-// Feature flag: set to false to completely revert the 3D card tilt animation back to original card styling
-const ENABLE_3D_COMET_TILT = true;
+const SWIPE_THRESHOLD = 120;
 
 const getDefaultDatetime = () => {
   const d = new Date(Date.now() + 2 * 60 * 60 * 1000);
   d.setMinutes(0, 0, 0);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
+
+const initials = (name = "?") =>
+  name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("en", {
+    weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric"
+  }).format(new Date(value));
 
 interface FeedProps {
   user: User;
@@ -27,19 +36,27 @@ interface FeedProps {
   setTab?: (tab: string) => void;
 }
 
+type Dir = "left" | "right";
+
 export default function Feed({ user, refreshUser, locked, setLocked, api, setTab }: FeedProps) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [categories, setCategories] = useState<{ id: number; categoryName: string; emoji?: string; colorHex?: string }[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [index, setIndex] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [exitDir, setExitDir] = useState<Dir>("left");
+  const [busy, setBusy] = useState(false);
+  const [lockedFlash, setLockedFlash] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-
-  const scrollLeft = () => scrollContainerRef.current?.scrollBy({ left: -200, behavior: "smooth" });
-  const scrollRight = () => scrollContainerRef.current?.scrollBy({ left: 200, behavior: "smooth" });
+  // One clock for the whole board: countdowns tick together.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -65,44 +82,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
   const removeTask = (idx: number) => setTasks(tasks.filter((_, i) => i !== idx));
 
-  const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-10, 10]);
-  const opacityAccept = useTransform(x, [20, 100], [0, 1]);
-  const opacityPass = useTransform(x, [-100, -20], [1, 0]);
-
-  // 3D Tilt properties
-  const tiltX = useMotionValue(0);
-  const tiltY = useMotionValue(0);
-  const mouseXSpring = useSpring(tiltX, { stiffness: 300, damping: 30 });
-  const mouseYSpring = useSpring(tiltY, { stiffness: 300, damping: 30 });
-
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["-12deg", "12deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["12deg", "-12deg"]);
-  const translateX = useTransform(mouseXSpring, [-0.5, 0.5], ["-8px", "8px"]);
-  const translateY = useTransform(mouseYSpring, [-0.5, 0.5], ["8px", "-8px"]);
-
-  const glareX = useTransform(mouseXSpring, [-0.5, 0.5], [0, 100]);
-  const glareY = useTransform(mouseYSpring, [-0.5, 0.5], [0, 100]);
-  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255, 255, 255, 0.25) 10%, rgba(255, 255, 255, 0.15) 20%, rgba(255, 255, 255, 0) 80%)`;
-
-  const cardRef = React.useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ENABLE_3D_COMET_TILT || !cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    tiltX.set(mouseX / width - 0.5);
-    tiltY.set(mouseY / height - 0.5);
-  };
-
-  const handleMouseLeave = () => {
-    tiltX.set(0);
-    tiltY.set(0);
-  };
-
   async function load(catId: string = "all") {
     try {
       const [feed, lock] = await Promise.all([
@@ -110,7 +89,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         api(`/users/${user.id}/lock`).catch(() => ({ locked: false }))
       ]);
       setLocked(Boolean(lock?.locked));
-      // Swiped-left cards come back on refresh! Purge local storage rejection.
       if (typeof window !== "undefined") {
         localStorage.removeItem(`lockin_passed_${user.id}`);
       }
@@ -119,6 +97,8 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     } catch (err: any) {
       console.error("Feed load error:", err);
       setError(err.message || "Failed to load feed.");
+    } finally {
+      setLoaded(true);
     }
   }
 
@@ -129,31 +109,54 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       .catch((err) => console.error("Error loading categories:", err));
   }, []);
 
-  const currentMission = missions[index];
+  const currentMission = missions[Math.min(index, Math.max(0, missions.length - 1))];
 
-  async function handleAction(action: "accept" | "pass") {
-    if (!currentMission) return;
+  const handleAction = useCallback(async (action: "accept" | "pass") => {
+    if (!currentMission || busy) return;
+    if (action === "accept" && locked) {
+      setError("Mission queue full. Finish an active mission first.");
+      return;
+    }
     setError("");
+    setBusy(true);
+    setExitDir(action === "accept" ? "right" : "left");
     try {
       if (action === "accept") {
         await api(`/missions/${currentMission.id}/accept`, {
           method: "POST",
           body: JSON.stringify({ userId: user.id })
         });
+        setLockedFlash(true);
+        setMissions((ms) => ms.filter((m) => m.id !== currentMission.id));
         await refreshUser();
-        setTab?.("active");
+        setTimeout(() => {
+          setLockedFlash(false);
+          setTab?.("active");
+        }, 900);
       } else {
         await api(`/missions/${currentMission.id}/pass`, { method: "POST" });
-        // Swiped-left cards come back on refresh — no localStorage rejection saved!
+        setMissions((ms) => ms.filter((m) => m.id !== currentMission.id));
       }
-      setIndex((curr) => curr + 1);
-      x.set(0);
     } catch (err: any) {
       if (err.message && err.message.includes("limit")) setLocked(true);
       setError(err.message || "Operation failed.");
-      x.set(0);
+    } finally {
+      setBusy(false);
     }
-  }
+  }, [currentMission, busy, locked, api, user.id, refreshUser, setTab, setLocked]);
+
+  // Keyboard: ← pass, → lock in
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showCreate) return;
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "ArrowLeft") handleAction("pass");
+      if (e.key === "ArrowRight") handleAction("accept");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleAction, showCreate]);
 
   async function handleCreateMission(e: React.FormEvent) {
     e.preventDefault();
@@ -191,443 +194,243 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       await load(activeCategory);
     } catch (err: any) {
       setCreateError(err.message || "Could not launch mission.");
-      setError(err.message || "Could not launch mission.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  const initials = (name = "?") =>
-    name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-
-  const formatDate = (value: string) =>
-    new Intl.DateTimeFormat("en", {
-      weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric"
-    }).format(new Date(value));
+  const remaining = missions.length;
+  const deck = missions.slice(index + 1, index + 3);
 
   return (
-    <section className="mx-auto flex w-full max-w-md md:max-w-xl flex-1 flex-col px-4 pt-4 pb-24 md:pb-6">
-      {/* Title bar */}
-      <div className="mb-5 flex items-center justify-between border-b border-white/[0.06] pb-4">
+    <section className="mx-auto w-full max-w-md flex-1 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-12">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4 border-b border-line pb-4 md:pb-8">
         <div>
-          <span className="text-[9px] font-black uppercase tracking-[0.22em] text-cherryRed/80">
-            Campus Quests
-          </span>
-          <h2 className="text-[22px] font-bold text-white tracking-tight mt-0.5 leading-tight">Live Missions</h2>
+          <p className="t-section">Campus · Live</p>
+          <h1 className="t-display mt-3 text-large-title text-ink md:text-[56px] md:leading-none">Missions</h1>
+          <p className="mt-2 text-subhead text-ink-3">
+            {loaded ? (remaining > 0 ? `${remaining} waiting on your call` : "You're all caught up") : "Scanning campus…"}
+          </p>
         </div>
-        <button
+        <motion.button
+          type="button"
           onClick={() => setShowCreate(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-white/[0.08] bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.07] hover:border-white/[0.12] transition-all duration-150 shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+          whileTap={{ scale: 0.95 }}
+          whileHover="hover"
+          transition={spring.snap}
+          className="group btn-primary h-11 shrink-0 px-4 md:h-12 md:px-6"
         >
-          <Plus className="h-5 w-5" />
-        </button>
+          <motion.span variants={{ hover: { rotate: 90 } }} transition={spring.snap} className="flex">
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+          </motion.span>
+          Launch
+        </motion.button>
       </div>
 
       {/* Categories */}
-      <div className="relative mb-5 group">
-        <button
-          type="button"
-          onClick={scrollLeft}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-[#0D0B0A]/95 text-zinc-400 hover:text-white transition shadow-lg opacity-0 group-hover:opacity-100"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </button>
-
-        <div
-          ref={scrollContainerRef}
-          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none shrink-0 -mx-4 px-4 scroll-smooth"
-        >
-          <button
-            onClick={() => { setActiveCategory("all"); setError(""); }}
-            className={`cat-pill h-8 rounded-full border px-4 text-[10px] font-semibold transition shrink-0 ${
-              activeCategory === "all"
-                ? "border-cherryRed/60 bg-cherryRed/90 text-white shadow-[0_0_14px_rgba(129,1,0,.3)]"
-                : "border-white/[0.07] bg-white/[0.03] text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05]"
-            }`}
-          >
-            All
-          </button>
-          {categories.map((c) => {
-            const selected = activeCategory === String(c.id);
-            return (
-              <button
-                key={c.id}
-                onClick={() => { setActiveCategory(String(c.id)); setError(""); }}
-                className="cat-pill flex items-center gap-1.5 h-8 rounded-full border px-4 text-[10px] font-semibold transition shrink-0"
-                style={{
-                  borderColor: selected ? `${c.colorHex}60` : "rgba(255,255,255,.06)",
-                  backgroundColor: selected ? `${c.colorHex}18` : "rgba(255,255,255,.025)",
-                  color: selected ? c.colorHex || "#fff" : "rgba(255,255,255,.4)",
-                  boxShadow: selected ? `0 0 14px ${c.colorHex}28` : "none"
-                }}
-              >
-                {c.categoryName}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-[#0D0B0A]/95 text-zinc-400 hover:text-white transition shadow-lg opacity-0 group-hover:opacity-100"
-        >
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
+      <div className="-mx-5 flex gap-1 overflow-x-auto border-b border-line px-5 py-2 scrollbar-none md:mx-0 md:justify-center md:px-0" role="tablist" aria-label="Mission categories">
+        {[{ id: "all", categoryName: "All" }, ...categories].map((c) => {
+          const key = String(c.id);
+          const selected = activeCategory === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => { setActiveCategory(key); setError(""); }}
+              className={`relative flex h-11 shrink-0 items-center px-3 text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${selected ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
+            >
+              {c.categoryName}
+              {selected && <motion.span layoutId="cat-active" className="absolute inset-x-3 bottom-1.5 h-px bg-signal" transition={spring.glide} />}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Locked warning */}
-      {locked && (
-        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-cherryRed/25 bg-cherryRed/[0.06] p-4">
-          <AlertCircle className="h-4 w-4 text-cherryRed shrink-0 mt-0.5 animate-pulse" />
-          <div className="text-left">
-            <h4 className="text-[10px] font-black uppercase tracking-wider text-white">Mission Queue Full</h4>
-            <p className="text-[10px] font-medium text-zinc-500 leading-relaxed mt-0.5">
-              3 active missions running. Mark attendance or complete to unlock.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Card stack */}
-      <div className="relative flex flex-1 items-center justify-center min-h-[460px] perspective-distant">
-        {/* Stack ghost cards */}
-        <div className="absolute inset-x-6 top-6 h-[420px] rounded-[28px] border border-white/[0.04] bg-white/[0.015] scale-[0.93] translate-y-4 -z-20" />
-        <div className="absolute inset-x-3 top-3 h-[420px] rounded-[28px] border border-white/[0.055] bg-white/[0.025] scale-[0.97] translate-y-2 -z-10" />
- 
-        <AnimatePresence mode="wait">
-          {currentMission ? (
-            <motion.article
-              key={currentMission.id}
-              ref={cardRef}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.55}
-              dragSnapToOrigin
-              onDragEnd={(_, info) => {
-                if (info.offset.x > 120) {
-                  if (locked) {
-                    setError("Mission queue full. Complete active queue first.");
-                    x.set(0);
-                  } else {
-                    handleAction("accept");
-                  }
-                } else if (info.offset.x < -120) {
-                  handleAction("pass");
-                }
-              }}
-              initial={{ opacity: 0, scale: 0.93, y: 18 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.88, y: -24 }}
-              whileDrag={{ scale: 1.015, cursor: "grabbing" }}
-              whileHover={ENABLE_3D_COMET_TILT ? { scale: 1.025, z: 20 } : undefined}
-              transition={{ type: "spring", stiffness: 280, damping: 26 }}
-              className="mission-card-inner relative flex h-[430px] w-full touch-none flex-col justify-between overflow-hidden rounded-[28px] border bg-[#161210]/80 p-0 shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl transform-3d"
-              style={{
-                x,
-                rotate,
-                rotateX: ENABLE_3D_COMET_TILT ? rotateX : 0,
-                rotateY: ENABLE_3D_COMET_TILT ? rotateY : 0,
-                translateX: ENABLE_3D_COMET_TILT ? translateX : 0,
-                translateY: ENABLE_3D_COMET_TILT ? translateY : 0,
-                transformStyle: ENABLE_3D_COMET_TILT ? "preserve-3d" : undefined,
-                borderColor: currentMission.cover_color ? `${currentMission.cover_color}55` : "rgba(255,255,255,0.08)",
-                boxShadow: currentMission.cover_color ? `0 24px 70px rgba(0,0,0,0.65), 0 0 20px ${currentMission.cover_color}18` : undefined
-              }}
-            >
-              {(() => {
-                const innerJSX = (
-                  <>
-                    {/* Optional Mission Cover Background */}
-                    {currentMission.cover_image && (
-                      <div 
-                        className="absolute inset-0 z-0 opacity-[0.18] pointer-events-none rounded-[28px]"
-                        style={{ 
-                          background: currentMission.cover_image.includes("gradient") 
-                            ? currentMission.cover_image 
-                            : `url(${currentMission.cover_image}) center/cover no-repeat`
-                        }}
-                      />
-                    )}
-                    {/* Swipe overlay — accept */}
-                    <motion.div
-                      style={{ opacity: opacityAccept }}
-                      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-cherryRed/[0.12] to-transparent backdrop-blur-[2px]"
-                    >
-                      <div className="rounded-2xl border border-cherryRed/40 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(210,4,45,.35)] flex items-center gap-1.5">
-                        <Check className="h-4 w-4 text-cherryRed stroke-[3]" /> Lock In
-                      </div>
-                    </motion.div>
-
-                    {/* Swipe overlay — pass */}
-                    <motion.div
-                      style={{ opacity: opacityPass }}
-                      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] bg-gradient-to-br from-white/[0.08] to-transparent backdrop-blur-[2px]"
-                    >
-                      <div className="rounded-2xl border border-white/20 bg-black/90 px-5 py-2.5 text-[11px] font-black tracking-[0.2em] text-white uppercase shadow-[0_0_30px_rgba(255,255,255,.1)] flex items-center gap-1.5">
-                        <X className="h-4 w-4 text-white stroke-[3]" /> Pass
-                      </div>
-                    </motion.div>
-
-                    {/* Inner top highlight */}
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
-
-                    <div className="space-y-5 z-10">
-                      {/* Creator row */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/[0.07] bg-white/[0.04] text-[12px] font-black text-cotton/90">
-                            {initials(currentMission.creator_name)}
-                          </div>
-                          <div className="text-left">
-                            <h3 className="text-[13px] font-semibold text-cotton/95 leading-tight">
-                              {currentMission.creator_name}
-                            </h3>
-                            <p className="text-[10px] font-medium text-zinc-500 mt-0.5 uppercase tracking-wide">
-                              {currentMission.creator_department || "Department"}
-                            </p>
-                            {currentMission.locked_in_count !== undefined && currentMission.locked_in_count > 2 && (
-                              <div className="flex items-center gap-1 mt-1 text-[9px] font-black uppercase text-zinc-500">
-                                <Users className="h-3 w-3 text-luxuryGold" />
-                                <span>{currentMission.locked_in_count} people locked in</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const origin = typeof window !== "undefined" ? window.location.origin : "https://lockin.campus";
-                              const text = `🔥 *MISSION ALERT ON LOCKIN*\n\n*${currentMission.title}*\n${currentMission.description}\n\n📍 *Location:* ${currentMission.location || "Campus"}\n⏰ *Time:* ${formatDate(currentMission.datetime)}\n👤 *Host:* ${currentMission.creator_name || "Campus Peer"}\n\n👉 *Lock in with us on LOCKIN:* ${origin}`;
-                              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                            }}
-                            className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
-                            title="Share mission to WhatsApp"
-                          >
-                            <Share2 className="h-2.5 w-2.5" />
-                            <span>Share</span>
-                          </button>
-                          <span
-                            className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black tracking-[0.14em] uppercase"
-                            style={{
-                              borderColor: currentMission.category_color ? `${currentMission.category_color}45` : "rgba(129,1,0,.3)",
-                              backgroundColor: currentMission.category_color ? `${currentMission.category_color}12` : "rgba(129,1,0,.08)",
-                              color: currentMission.category_color || "#ffa3a3"
-                            }}
-                          >
-                            {currentMission.category_name || "Mission"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 text-left">
-                        <h3 className="text-[18px] font-black text-cotton leading-snug tracking-tight">
-                          {currentMission.title}
-                        </h3>
-                        <p className="text-[12px] font-normal leading-relaxed text-zinc-400 line-clamp-5">
-                          {currentMission.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Meta block */}
-                    <div className="space-y-2 z-10">
-                      <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
-                        <CalendarClock className="h-4 w-4 text-white shrink-0 opacity-80" />
-                        <span className="text-[12px] font-medium text-cotton/85">
-                          {formatDate(currentMission.datetime)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2.5 rounded-[14px] border border-white/[0.06] bg-black/30 p-3">
-                        <MapPin className="h-4 w-4 text-cherryRed shrink-0 opacity-80" />
-                        <span className="text-[12px] font-medium text-cotton/85 truncate">
-                          {currentMission.location}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                );
-
-                return (
-                  <div className="relative w-full h-full flex flex-col justify-between p-6">
-                    {innerJSX}
-                    {ENABLE_3D_COMET_TILT && (
-                      <motion.div
-                        className="pointer-events-none absolute inset-0 z-50 h-full w-full rounded-[28px] mix-blend-overlay"
-                        style={{
-                          background: glareBackground,
-                          opacity: 0.4,
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })()}
-            </motion.article>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex h-[430px] w-full flex-col items-center justify-center rounded-[28px] border border-white/[0.06] bg-white/[0.02] p-8 text-center backdrop-blur-md"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cherryRed/20 bg-cherryRed/[0.06] shadow-[0_0_24px_rgba(129,1,0,.12)] mb-5">
-                <Flame className="h-6 w-6 text-cherryRed animate-pulse" />
-              </div>
-              <h3 className="text-[14px] font-black text-cotton uppercase tracking-wider">Feed Cleared</h3>
-              <p className="mt-2 text-[12px] font-normal text-zinc-500 leading-relaxed max-w-[220px]">
-                No active missions nearby. Launch one yourself or reset filters.
-              </p>
-              <div className="flex items-center gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => { setActiveCategory("all"); load("all"); }}
-                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-zinc-300 hover:bg-white/10 transition"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" /> Reload All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-cherryRed/35 bg-cherryRed/20 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-cherryRed/30 transition shadow-[0_0_20px_rgba(210,4,45,0.2)]"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Launch Mission
-                </button>
+      {/* The deck: one card, centred, the whole point of the page */}
+      <div className="mx-auto mt-4 w-full max-w-[640px] md:mt-10">
+        <AnimatePresence>
+          {locked && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="mb-5 flex items-center gap-3 rounded-sm border border-signal/70 p-4">
+                <AlertCircle className="h-4 w-4 shrink-0 text-crimson" strokeWidth={1.5} />
+                <p className="text-subhead text-ink-2">
+                  <span className="text-ink">Queue full.</span> Finish one of your 3 active missions to lock in again.
+                </p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        <div className="relative perspective-distant">
+          {deck.slice().reverse().map((m) => {
+            const depth = missions.indexOf(m) - index; // 1 or 2
+            return (
+              <motion.div
+                key={`deck-${m.id}`}
+                aria-hidden="true"
+                initial={false}
+                animate={{ scale: 1 - depth * 0.045, y: depth * 14, opacity: 1 - depth * 0.38 }}
+                transition={spring.card}
+                className="pointer-events-none absolute inset-0 rounded-sm border border-line bg-surface"
+              />
+            );
+          })}
+
+          <AnimatePresence custom={exitDir} initial={false} mode="popLayout">
+            {currentMission ? (
+              <SwipeCard key={currentMission.id} mission={currentMission} now={now} exitDir={exitDir} onSwipe={(dir) => handleAction(dir === "right" ? "accept" : "pass")} />
+            ) : loaded ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={spring.glide}
+                className="relative flex min-h-[360px] w-full flex-col justify-end overflow-hidden rounded-sm border border-line bg-surface p-6 md:min-h-[560px] md:p-10"
+              >
+                <div className="pointer-events-none absolute -right-14 -top-4 opacity-[0.06]" aria-hidden="true">
+                  <LockinMark size={360} color="rgb(var(--ink))" showTriangle={false} />
+                </div>
+                <p className="t-section relative">Deck cleared</p>
+                <h2 className="t-display relative mt-4 text-[40px] leading-[1] text-ink md:text-[56px]">Nothing new on campus right now.</h2>
+                <p className="relative mt-3 max-w-sm text-subhead text-ink-2 md:text-body">Start one. Others can lock in with you.</p>
+                <div className="relative mt-8 grid grid-cols-[2fr_1fr] gap-3">
+                  <button type="button" onClick={() => setShowCreate(true)} className="btn-primary h-14">
+                    <Plus className="h-4 w-4" strokeWidth={1.75} /> Launch
+                  </button>
+                  <button type="button" onClick={() => { setActiveCategory("all"); load("all"); }} className="btn-ghost h-14">
+                    <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refresh
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <div key="loading" className="min-h-[360px] w-full animate-pulse rounded-sm border border-line bg-surface md:min-h-[560px]" />
+            )}
+          </AnimatePresence>
+
+          {/* Lock-in moment */}
+          <AnimatePresence>
+            {lockedFlash && (
+              <motion.div
+                key="flash"
+                className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.25 } }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="absolute h-40 w-40 rounded-full border border-signal"
+                    initial={{ scale: 0.3, opacity: 0.9 }}
+                    animate={{ scale: 2.6, opacity: 0 }}
+                    transition={{ duration: 0.7, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                ))}
+                <motion.div
+                  initial={{ scale: 0.92, opacity: 0, letterSpacing: "0.6em" }}
+                  animate={{ scale: 1, opacity: 1, letterSpacing: "0.32em" }}
+                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  className="rounded-sm border border-ink bg-bg px-8 py-4 text-subhead font-medium uppercase text-ink"
+                >
+                  Locked in
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <AnimatePresence>
+          {error && (
+            <motion.p role="alert" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 text-center text-subhead text-crimson">
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {currentMission && (
+          <>
+            <div className="mt-4 grid grid-cols-[1fr_2fr] gap-3 md:mt-6">
+              <motion.button type="button" onClick={() => handleAction("pass")} disabled={busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-ghost h-14 md:h-16">
+                <X className="h-4 w-4" strokeWidth={1.75} /> Pass
+              </motion.button>
+              <motion.button type="button" onClick={() => handleAction("accept")} disabled={locked || busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-primary h-14 md:h-16">
+                <Check className="h-4 w-4" strokeWidth={1.75} /> Lock in
+              </motion.button>
+            </div>
+            <p className="t-label mt-4 text-center">
+              <span className="md:hidden">Swipe right to lock in · left to pass</span>
+              <span className="hidden md:inline">Swipe, or ← pass · → lock in</span>
+            </p>
+          </>
+        )}
       </div>
 
-      {/* Swipe hints */}
-      {currentMission && (
-        <div className="flex justify-between items-center w-full px-1 mt-4">
-          <span className="swipe-hint">← Pass</span>
-          <div className="flex gap-1">
-            {missions.slice(index, index + 4).map((_, i) => (
-              <div key={i} className={`h-1 rounded-full transition-all ${i === 0 ? "w-5 bg-cherryRed/60" : "w-1.5 bg-white/10"}`} />
-            ))}
-          </div>
-          <span className="swipe-hint text-cherryRed/70">Lock In →</span>
-        </div>
-      )}
-
-      {error && (
-        <p className="mt-3 text-center text-[11px] font-bold text-cherryRed">
-          {error}
-        </p>
-      )}
-
-      {/* Action buttons */}
-      {currentMission && (
-        <div className="mt-5 grid grid-cols-2 gap-3 shrink-0">
-          <button
-            onClick={() => handleAction("pass")}
-            className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-white/[0.07] bg-white/[0.03] text-[12px] font-bold uppercase tracking-wider text-zinc-400 transition hover:bg-white/[0.06] hover:text-white active:scale-[0.97]"
-          >
-            <X className="h-4 w-4" /> Pass
-          </button>
-          <button
-            onClick={() => !locked && handleAction("accept")}
-            disabled={locked}
-            className={`flex h-11 items-center justify-center gap-2 rounded-[14px] border text-[12px] font-black uppercase tracking-wider transition active:scale-[0.97] ${
-              locked
-                ? "border-white/[0.04] bg-white/[0.02] text-zinc-700 cursor-not-allowed"
-                : "border-cherryRed/40 bg-cherryRed text-cotton shadow-[0_0_24px_rgba(129,1,0,0.3)] hover:bg-cherryRed/90"
-            }`}
-          >
-            <Check className="h-4 w-4 stroke-[2.5]" /> Lock In
-          </button>
-        </div>
-      )}
-
-      {/* Create Mission Dialog */}
+      {/* Create mission */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="border-white/[0.08] bg-[#0F0D0C]/98 text-white max-w-sm rounded-3xl backdrop-blur-2xl shadow-[0_40px_100px_rgba(0,0,0,0.85)]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[15px] font-black tracking-tight text-white uppercase">
-              Launch Mission
-            </DialogTitle>
+            <DialogTitle>Launch a mission</DialogTitle>
+            <DialogDescription>Say what you're doing, when and where. People on your campus can lock in with you.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateMission} className="space-y-4 mt-1">
+          <form onSubmit={handleCreateMission} className="space-y-5">
             {createError && (
-              <div className="rounded-xl border border-cherryRed/35 bg-cherryRed/15 p-2.5 text-xs text-cherryRed font-semibold flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-cherryRed" />
+              <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-signal/70 bg-surface p-3 text-subhead text-ink">
+                <AlertCircle className="h-5 w-5 shrink-0 text-crimson" />
                 <span>{createError}</span>
               </div>
             )}
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Mission Type</label>
-              <div className="grid grid-cols-2 gap-1.5 bg-black/40 p-1 rounded-[14px] border border-white/[0.06]">
-                {["group", "solo"].map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setForm({ ...form, missionType: t })}
-                    className={`h-9 rounded-[11px] text-[10px] font-black uppercase tracking-wider transition ${
-                      form.missionType === t
-                        ? "bg-cherryRed text-cotton shadow-sm"
-                        : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    {t === "group" ? "Group" : "Solo"}
-                  </button>
-                ))}
+
+            <Field label="Type">
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-raised p-1" role="radiogroup">
+                {["group", "solo"].map((t) => {
+                  const on = form.missionType === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setForm({ ...form, missionType: t })}
+                      className={`relative h-10 rounded-sm text-footnote font-medium uppercase tracking-[0.22em] transition-colors ${on ? "text-bg" : "text-ink-3 hover:text-ink-2"}`}
+                    >
+                      {on && <motion.span layoutId="type-active" className="absolute inset-0 rounded-sm bg-ink" transition={spring.snap} />}
+                      <span className="relative">{t === "group" ? "Group" : "Solo"}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            </Field>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Mission Title</label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="e.g. LeetCode Lock-In"
-                className="h-10 border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-700"
-                required
-              />
-            </div>
+            <Field label="Mission" htmlFor="m-title">
+              <Input id="m-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="LeetCode lock-in" required />
+            </Field>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Description</label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="What exactly needs to get executed?"
-                className="min-h-[72px] border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-700 resize-none"
-                required
-              />
-            </div>
+            <Field label="What gets done" htmlFor="m-desc">
+              <Textarea id="m-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Five mediums on graphs. No phones." required />
+            </Field>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Category</label>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Category" htmlFor="m-cat">
                 <select
+                  id="m-cat"
                   value={form.categoryId}
                   onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-white/[0.08] bg-black/40 px-2.5 text-[12px] text-white outline-none focus:border-luxuryGold/40 cursor-pointer"
+                  className={`${fieldClass} h-12 appearance-none`}
                 >
                   {categories.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-zinc-950 text-white">
-                      {c.emoji ? `${c.emoji} ` : ""}{c.categoryName}
+                    <option key={c.id} value={c.id} className="bg-surface text-ink">
+                      {c.categoryName}
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
 
               {form.missionType === "group" && (
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Location</label>
-                  <Input
-                    list="campus-locations-list"
-                    value={form.location}
-                    onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    placeholder="e.g. Central Library, Tech Park, Canteen"
-                    className="h-10 border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-600"
-                    required
-                  />
+                <Field label="Where" htmlFor="m-loc">
+                  <Input id="m-loc" list="campus-locations-list" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Central Library" required />
                   <datalist id="campus-locations-list">
                     <option value="SRM KTR Library" />
                     <option value="SRM KTR Tech Park" />
@@ -638,178 +441,399 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                     <option value="Hostel Common Room" />
                     <option value="Online / Discord" />
                   </datalist>
-                </div>
+                </Field>
               )}
             </div>
 
             {form.missionType === "group" && (
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Schedule (Future Only)</label>
+              <Field label="When" htmlFor="m-when">
                 <Input
+                  id="m-when"
                   type="datetime-local"
                   value={form.datetime}
                   min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
                   onChange={(e) => setForm({ ...form, datetime: e.target.value })}
-                  className="h-10 border-white/[0.08] bg-black/40 text-[12px] text-white"
                   required
                 />
-              </div>
+              </Field>
             )}
 
-            <div className="space-y-2 border-t border-white/[0.05] pt-3">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Checklist (Optional)</label>
+            <Field label="Checklist" hint="Optional. Tasks count toward your outcome." htmlFor="m-task">
               <div className="flex gap-2">
                 <Input
+                  id="m-task"
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Add a task..."
-                  className="h-9 border-white/[0.08] bg-black/40 text-[12px] text-white placeholder:text-zinc-700"
+                  placeholder="Add a task"
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTask(); } }}
                 />
-                <button
-                  type="button"
-                  onClick={addTask}
-                  className="h-9 px-3.5 rounded-lg border border-white/[0.07] bg-white/[0.04] text-[11px] text-cotton font-bold hover:bg-white/[0.08] transition"
-                >
+                <button type="button" onClick={addTask} className="h-12 shrink-0 rounded-xl border border-line bg-raised px-4 text-subhead font-semibold text-ink transition-colors hover:bg-overlay">
                   Add
                 </button>
               </div>
-              {tasks.length > 0 && (
-                <div className="max-h-24 overflow-y-auto space-y-1 bg-black/25 p-2 rounded-xl border border-white/[0.05]">
-                  {tasks.map((t, idx) => (
-                    <div key={idx} className="flex justify-between items-center gap-2 bg-white/[0.03] px-2.5 py-1.5 rounded-lg">
-                      <span className="text-[11px] text-cotton/80 truncate">{t}</span>
-                      <button type="button" onClick={() => removeTask(idx)} className="text-[10px] text-cherryRed font-bold hover:text-red-400 shrink-0">×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Custom Cover & Theme (Optional) */}
-            <div className="space-y-2 border-t border-white/[0.05] pt-3">
+              <AnimatePresence initial={false}>
+                {tasks.map((t, idx) => (
+                  <motion.div
+                    key={`${t}-${idx}`}
+                    layout
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 12, transition: { duration: 0.15 } }}
+                    className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-line bg-raised py-1 pl-3.5 pr-1"
+                  >
+                    <span className="truncate text-subhead text-ink">{t}</span>
+                    <button type="button" onClick={() => removeTask(idx)} aria-label={`Remove ${t}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:text-crimson">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </Field>
+
+            {/* Cover */}
+            <div className="border-t border-line pt-4">
               <button
                 type="button"
                 onClick={() => setShowCustomizeCover(!showCustomizeCover)}
-                className="flex items-center justify-between w-full text-[9px] font-black uppercase tracking-wider text-zinc-500 hover:text-cotton transition"
+                aria-expanded={showCustomizeCover}
+                className="flex w-full items-center justify-between py-1 text-left"
               >
-                <span>Customize Cover & Theme (Optional)</span>
-                <span className="text-[12px]">{showCustomizeCover ? "−" : "+"}</span>
+                <span className="t-label">Cover &amp; accent</span>
+                <motion.span animate={{ rotate: showCustomizeCover ? 45 : 0 }} transition={spring.snap}>
+                  <Plus className="h-5 w-5 text-ink-3" />
+                </motion.span>
               </button>
 
-              {showCustomizeCover && (
-                <div className="space-y-3 bg-black/25 p-3 rounded-xl border border-white/[0.05] text-left">
-                  {/* Theme Colors */}
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-wider text-zinc-600">Accent Color</label>
-                    <div className="flex gap-2">
-                      {[
-                        { name: "Crimson", value: "#B11226" },
-                        { name: "Emerald", value: "#10B981" },
-                        { name: "Gold", value: "#F59E0B" },
-                        { name: "Indigo", value: "#6366F1" },
-                        { name: "Violet", value: "#8B5CF6" },
-                      ].map((color) => (
-                        <button
-                          key={color.name}
-                          type="button"
-                          onClick={() => setCoverColor(color.value)}
-                          className={`h-5 w-5 rounded-full border transition ${
-                            coverColor === color.value ? "border-white scale-110" : "border-transparent"
-                          }`}
-                          style={{ backgroundColor: color.value }}
-                          title={color.name}
+              <AnimatePresence initial={false}>
+                {showCustomizeCover && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-4 pt-4">
+                      <div className="flex items-center gap-3">
+                        {[
+                          { name: "Crimson", value: "#B11226" },
+                          { name: "Emerald", value: "#10B981" },
+                          { name: "Gold", value: "#C5A880" },
+                          { name: "Indigo", value: "#6366F1" },
+                          { name: "Violet", value: "#8B5CF6" }
+                        ].map((color) => (
+                          <motion.button
+                            key={color.name}
+                            type="button"
+                            whileTap={{ scale: 0.85 }}
+                            onClick={() => setCoverColor(coverColor === color.value ? "" : color.value)}
+                            aria-label={`${color.name} accent`}
+                            aria-pressed={coverColor === color.value}
+                            className="flex h-11 w-11 items-center justify-center rounded-full"
+                          >
+                            <span
+                              className={`h-7 w-7 rounded-sm ring-1 ring-offset-2 ring-offset-surface transition ${coverColor === color.value ? "ring-ink" : "ring-transparent"}`}
+                              style={{ backgroundColor: color.value }}
+                            />
+                          </motion.button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { name: "Ember", value: "linear-gradient(135deg, #2a0705 0%, #0b0b0b 100%)" },
+                          { name: "Night", value: "linear-gradient(135deg, #141414 0%, #050505 100%)" },
+                          { name: "Brass", value: "linear-gradient(135deg, #241b10 0%, #0b0b0b 100%)" },
+                          { name: "Deep", value: "linear-gradient(135deg, #0f1c1e 0%, #0b0b0b 100%)" }
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setCoverImage(coverImage === preset.value ? "" : preset.value)}
+                            aria-pressed={coverImage === preset.value}
+                            className={`h-12 rounded-xl border text-footnote font-semibold text-ink transition ${
+                              coverImage === preset.value ? "border-ink" : "border-line"
+                            }`}
+                            style={{ background: preset.value }}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="cover-upload"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) {
+                              setCreateError("");
+                              uploadImage(file).then(setCoverImage).catch((err) => setCreateError(err.message));
+                            }
+                          }}
                         />
-                      ))}
-                      {coverColor && (
-                        <button
-                          type="button"
-                          onClick={() => setCoverColor("")}
-                          className="text-[8px] font-bold uppercase text-zinc-500 hover:text-white"
+                        <label
+                          htmlFor="cover-upload"
+                          className="flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-raised px-4 text-subhead font-medium text-ink transition-colors hover:bg-overlay"
                         >
-                          Reset
-                        </button>
-                      )}
+                          <ImagePlus className="h-4 w-4" /> Upload image
+                        </label>
+                        {coverImage && !coverImage.includes("gradient") && <span className="text-subhead text-success">Image added</span>}
+                        {coverImage && (
+                          <button type="button" onClick={() => setCoverImage("")} className="text-subhead text-ink-3 hover:text-ink">
+                            Clear
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Preset Covers */}
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-wider text-zinc-600">Preset Patterns</label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {[
-                        { name: "Cosmic", value: "linear-gradient(135deg, #1b0f1c 0%, #0e0d10 100%)" },
-                        { name: "Aqua", value: "linear-gradient(135deg, #0f1c1e 0%, #0d0f11 100%)" },
-                        { name: "Amber Glow", value: "linear-gradient(135deg, #1f120c 0%, #110d0c 100%)" },
-                        { name: "Midnight", value: "linear-gradient(135deg, #121212 0%, #080808 100%)" },
-                      ].map((preset) => (
-                        <button
-                          key={preset.name}
-                          type="button"
-                          onClick={() => setCoverImage(preset.value)}
-                          className={`h-8 rounded-lg border text-[9px] font-bold uppercase tracking-wider text-cotton/85 transition ${
-                            coverImage === preset.value ? "border-white" : "border-white/10"
-                          }`}
-                          style={{ background: preset.value }}
-                        >
-                          {preset.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Image Upload */}
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-bold uppercase tracking-wider text-zinc-600">Custom Cover Image</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        id="cover-upload"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => setCoverImage(reader.result as string);
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor="cover-upload"
-                        className="flex h-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 text-[9px] font-bold uppercase tracking-wider text-cotton hover:bg-white/10 transition cursor-pointer"
-                      >
-                        Upload Image
-                      </label>
-                      {coverImage && !coverImage.includes("gradient") && (
-                        <span className="text-[8px] text-emerald-500 font-bold truncate max-w-[120px]">Image Loaded</span>
-                      )}
-                      {coverImage && (
-                        <button
-                          type="button"
-                          onClick={() => setCoverImage("")}
-                          className="text-[8px] font-bold uppercase text-zinc-500 hover:text-white"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <button
+            <motion.button
               type="submit"
               disabled={submitting}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-cherryRed/25 bg-cherryRed text-[12px] font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(210,4,45,0.22)] hover:bg-cherryRed/90 transition active:scale-[0.98] disabled:opacity-50"
+              whileTap={{ scale: 0.97 }}
+              className="flex h-14 w-full items-center justify-center gap-2 disabled:opacity-50 btn-primary"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
-              {submitting ? "Launching..." : "Launch Mission"}
-            </button>
+              {submitting ? (
+                <motion.span animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}>
+                  <RefreshCw className="h-5 w-5" />
+                </motion.span>
+              ) : (
+                <Plus className="h-5 w-5" strokeWidth={2.5} />
+              )}
+              {submitting ? "Launching" : "Launch mission"}
+            </motion.button>
           </form>
         </DialogContent>
       </Dialog>
     </section>
   );
 }
+
+/* ───────────────────────── Card pieces ───────────────────────── */
+
+/* ───────────────────────── Departures board ───────────────────────── */
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function clock(now: number) {
+  const d = new Date(now);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** "02:41:09", "2D 04H", or "NOW". */
+function countdown(target: string, now: number) {
+  const ms = new Date(target).getTime() - now;
+  if (ms <= 0) return { text: "NOW", soon: true, live: true };
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d >= 1) return { text: `${d}D ${pad(h)}H`, soon: false, live: false };
+  return { text: `${pad(h)}:${pad(m)}:${pad(s % 60)}`, soon: ms < 3600e3, live: false };
+}
+
+const handleOf = (name?: string) => (name || "host").toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "");
+
+/** Split-flap digits: each character flips in when it changes. */
+function Flap({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <span className={`tabular inline-flex ${className}`} aria-label={text}>
+      {text.split("").map((ch, i) => (
+        <span key={i} className="relative inline-flex overflow-hidden" aria-hidden="true">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={ch + i}
+              className="inline-block"
+              initial={{ y: "100%" }}
+              animate={{ y: "0%" }}
+              exit={{ y: "-100%" }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {ch === " " ? " " : ch}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function Field({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={htmlFor} className="t-label block">{label}</label>
+      {children}
+      {hint && <p className="text-footnote text-ink-3">{hint}</p>}
+    </div>
+  );
+}
+
+function CardBody({ mission, now }: { mission: Mission; now: number }) {
+  const t = countdown(mission.datetime, now);
+  const hoursUntil = (new Date(mission.datetime).getTime() - now) / 3600e3;
+  const soon = Math.min(1, Math.max(0.04, 1 - hoursUntil / 48));
+  const photo = mission.cover_image && !mission.cover_image.includes("gradient") ? mission.cover_image : null;
+  const crew = mission.locked_in_count ?? 0;
+
+  return (
+    <div className="relative flex min-h-[360px] flex-1 flex-col p-5 md:min-h-[560px] md:p-10">
+      {/* the stag, quietly, behind the type */}
+      <div className="pointer-events-none absolute -bottom-10 -right-16 opacity-[0.05]" aria-hidden="true">
+        <LockinMark size={340} color="rgb(var(--ink))" showTriangle={false} />
+      </div>
+
+      <div className="relative flex items-start justify-between gap-3">
+        <p className="t-section">
+          Mission #{pad(mission.id).padStart(4, "0")} · {mission.category_name || (mission.mission_type === "solo" ? "Solo" : "Group")}
+        </p>
+        <button
+          type="button"
+          onPointerDownCapture={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            const origin = typeof window !== "undefined" ? window.location.origin : "https://lockin.top";
+            const text = `*${mission.title}* on LOCKIN\n${mission.description}\n\nWhere: ${mission.location || "Campus"}\nWhen: ${formatDate(mission.datetime)}\nHost: ${mission.creator_name || "Campus peer"}\n\nLock in: ${origin}`;
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+          }}
+          aria-label="Share mission on WhatsApp"
+          className="-mr-2 -mt-3 flex h-11 w-11 shrink-0 items-center justify-center text-ink-3 transition-colors hover:text-ink"
+        >
+          <Share2 className="h-[18px] w-[18px]" strokeWidth={1.5} />
+        </button>
+      </div>
+
+      <h2 className="t-display relative mt-4 line-clamp-3 text-[32px] leading-[1.04] text-ink md:mt-8 md:text-[60px] md:leading-[0.98] md:tracking-[-0.04em]">
+        {mission.title}
+      </h2>
+
+      {photo && (
+        <div className="relative mt-5 h-36 overflow-hidden rounded-sm border border-line md:h-52">
+          <img src={photo} alt="" className="h-full w-full object-cover grayscale-[35%]" />
+        </div>
+      )}
+
+      <p className={`relative mt-3 max-w-[52ch] text-subhead leading-relaxed text-ink-2 md:mt-5 md:text-[17px] ${photo ? "line-clamp-2" : "line-clamp-2 md:line-clamp-3"}`}>{mission.description}</p>
+
+      <div className="relative mt-auto pt-6 md:pt-8">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="t-label">{t.live ? "Started" : "Leaves in"}</p>
+            <p className={`t-display mt-2 text-[34px] leading-none md:text-[56px] ${t.soon ? "text-crimson" : "text-ink"}`}>
+              {t.live ? "Now" : <Flap text={t.text} />}
+            </p>
+          </div>
+          <p className="t-label shrink-0 pb-1 text-right">
+            <span className="block text-callout normal-case tracking-normal text-ink">{crew}</span>
+            locked in
+          </p>
+        </div>
+        <div className="relative mt-4 h-px bg-line">
+          <motion.div className="absolute inset-y-0 left-0 bg-signal" initial={{ width: 0 }} animate={{ width: `${soon * 100}%` }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} />
+        </div>
+        <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
+          <p className="t-label truncate">
+            {formatDate(mission.datetime)} · {mission.location}
+          </p>
+          <p className="t-label truncate">@{handleOf(mission.creator_name)}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const flyOut = {
+  exit: (dir: Dir) => ({
+    x: dir === "right" ? 520 : -520,
+    rotate: dir === "right" ? 24 : -24,
+    opacity: 0,
+    transition: { duration: 0.42, ease: [0.4, 0, 0.6, 1] }
+  })
+};
+
+const SwipeCard = React.forwardRef<HTMLElement, { mission: Mission; now: number; exitDir: Dir; onSwipe: (dir: Dir) => void }>(function SwipeCard({ mission, now, exitDir, onSwipe }, forwarded) {
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-240, 240], [-8, 8]);
+  const acceptOpacity = useTransform(x, [30, SWIPE_THRESHOLD], [0, 1]);
+  const passOpacity = useTransform(x, [-SWIPE_THRESHOLD, -30], [1, 0]);
+  const acceptScale = useTransform(x, [30, SWIPE_THRESHOLD], [0.8, 1]);
+  const passScale = useTransform(x, [-SWIPE_THRESHOLD, -30], [1, 0.8]);
+  const edgeGlow = useTransform(x, [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD], [
+    "0 0 0 1px rgb(120,118,115)",
+    "0 0 0 1px rgb(32,32,32)",
+    "0 0 0 1px rgb(244,242,238)"
+  ]);
+
+  // Fine-pointer tilt + glare
+  const tx = useMotionValue(0);
+  const ty = useMotionValue(0);
+  const sx = useSpring(tx, { stiffness: 250, damping: 28 });
+  const sy = useSpring(ty, { stiffness: 250, damping: 28 });
+  const rotateX = useTransform(sy, [-0.5, 0.5], ["3deg", "-3deg"]);
+  const rotateY = useTransform(sx, [-0.5, 0.5], ["-3deg", "3deg"]);
+  const gx = useTransform(sx, [-0.5, 0.5], [0, 100]);
+  const gy = useTransform(sy, [-0.5, 0.5], [0, 100]);
+  const glare = useMotionTemplate`radial-gradient(circle at ${gx}% ${gy}%, rgba(255,255,255,0.14), transparent 55%)`;
+  const ref = useRef<HTMLElement | null>(null);
+
+  return (
+    <motion.article
+      ref={(el: HTMLElement | null) => {
+        (ref as React.MutableRefObject<HTMLElement | null>).current = el;
+        if (typeof forwarded === "function") forwarded(el);
+        else if (forwarded) (forwarded as React.MutableRefObject<HTMLElement | null>).current = el;
+      }}
+      custom={exitDir}
+      variants={flyOut}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.7}
+      dragSnapToOrigin
+      onDragEnd={(_, info) => {
+        const power = info.offset.x + info.velocity.x * 0.2;
+        if (power > SWIPE_THRESHOLD) onSwipe("right");
+        else if (power < -SWIPE_THRESHOLD) onSwipe("left");
+      }}
+      onPointerMove={(e) => {
+        if (e.pointerType !== "mouse" || !ref.current) return;
+        const r = ref.current.getBoundingClientRect();
+        tx.set((e.clientX - r.left) / r.width - 0.5);
+        ty.set((e.clientY - r.top) / r.height - 0.5);
+      }}
+      onPointerLeave={() => { tx.set(0); ty.set(0); }}
+      initial={{ scale: 0.95, y: 14, opacity: 0.65 }}
+      animate={{ scale: 1, y: 0, opacity: 1 }}
+      exit="exit"
+      whileDrag={{ scale: 1.03, cursor: "grabbing" }}
+      transition={spring.card}
+      style={{ x, rotate, rotateX, rotateY, boxShadow: edgeGlow }}
+      className="relative z-10 flex w-full cursor-grab touch-pan-y select-none flex-col overflow-hidden rounded-sm bg-surface transform-3d"
+      aria-roledescription="Mission card"
+      aria-label={mission.title}
+    >
+      <CardBody mission={mission} now={now} />
+
+
+      {/* Stamps */}
+      <motion.div
+        style={{ opacity: acceptOpacity, scale: acceptScale }}
+        className="pointer-events-none absolute left-6 top-1/2 z-30 -rotate-6 rounded-sm border border-ink bg-bg px-4 py-2 text-footnote font-medium uppercase tracking-[0.32em] text-ink"
+      >
+        Lock in
+      </motion.div>
+      <motion.div
+        style={{ opacity: passOpacity, scale: passScale }}
+        className="pointer-events-none absolute right-6 top-1/2 z-30 rotate-6 rounded-sm border border-ink-3 bg-bg px-4 py-2 text-footnote font-medium uppercase tracking-[0.32em] text-ink-3"
+      >
+        Pass
+      </motion.div>
+    </motion.article>
+  );
+});

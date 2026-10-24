@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import { User } from "./types";
+import { screen as screenVariants, spring } from "../lib/motion";
 
 // Import custom modular components
 import Shell from "../components/Shell";
@@ -17,68 +18,9 @@ import SocialFeed from "../components/SocialFeed";
 import LoadingScreen from "../components/LoadingScreen";
 
 import { supabase } from "../lib/supabase";
+import { api, API, isDemoSession } from "../lib/api";
 
-const API =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
-        ? process.env.NEXT_PUBLIC_API_URL
-        : "/api")
-    : (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
-        ? process.env.NEXT_PUBLIC_API_URL
-        : "/api");
 const SOCKET_URL = API.replace("/api", "");
-
-async function api(path: string, options: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-  let authHeaders: Record<string, string> = {};
-  const isDemo = typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true";
-  if (isDemo) {
-    authHeaders["Authorization"] = "Bearer demo-token-101";
-    authHeaders["x-demo-user-id"] = "101";
-  } else if (supabase) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      authHeaders["Authorization"] = `Bearer ${session.access_token}`;
-    }
-  }
-
-  try {
-    const response = await fetch(`${API}${path}`, {
-      headers: { 
-        "Content-Type": "application/json", 
-        "bypass-tunnel-reminder": "true",
-        ...authHeaders,
-        ...(options.headers || {}) 
-      },
-      signal: controller.signal,
-      ...options
-    });
-    clearTimeout(timeoutId);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (
-        !isDemo &&
-        ((response.status === 401 && data.error === "Invalid or expired session token.") ||
-        (response.status === 404 && data.error === "User not found."))
-      ) {
-        if (typeof window !== "undefined") {
-          if (supabase) {
-            await supabase.auth.signOut().catch(() => {});
-          }
-          localStorage.removeItem("lockin_user_id");
-          window.location.reload();
-        }
-      }
-      throw new Error(data.error || "Request failed");
-    }
-    return data;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -109,7 +51,8 @@ export default function Home() {
 
     if (!user || !supabase) return;
 
-    const channel = supabase.channel(`notifications:${user.id}`);
+    // Private channel: Supabase RLS lets only this user receive (supabase/security.sql).
+    const channel = supabase.channel(`notifications:${user.id}`, { config: { private: true } });
 
     channel.on(
       "broadcast",
@@ -141,8 +84,7 @@ export default function Home() {
   }, [user?.id]);
 
   async function refreshUser() {
-    const isDemo = typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true";
-    if (isDemo) {
+    if (isDemoSession()) {
       try {
         const nextUser = await api("/auth/me");
         if (nextUser && !nextUser.incomplete) {
@@ -182,7 +124,7 @@ export default function Home() {
     document.documentElement.classList.remove("light");
 
     // Check if demo session is active
-    if (typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true") {
+    if (isDemoSession()) {
       const demoUserStr = localStorage.getItem("lockin_demo_user");
       if (demoUserStr) {
         try {
@@ -205,7 +147,7 @@ export default function Home() {
     // Set up auth state change listener to sync login sessions
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       // If demo mode is active, don't overwrite user with null
-      if (typeof window !== "undefined" && localStorage.getItem("lockin_demo_active") === "true") {
+      if (isDemoSession()) {
         setLoading(false);
         return;
       }
@@ -274,38 +216,54 @@ export default function Home() {
   return (
     <Shell tab={tab} setTab={setTab} user={user}>
       <Header user={user} />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={tab}
-          initial={{ opacity: 0, x: 18 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -18 }}
-          className="flex flex-1 flex-col overflow-y-auto scrollbar-none pb-28 md:pb-6"
+          variants={screenVariants}
+          initial="initial"
+          animate="enter"
+          exit="exit"
+          className="flex flex-1 flex-col pb-32 md:pb-8"
         >
           {screen}
         </motion.div>
       </AnimatePresence>
       <Nav tab={tab} setTab={setTab} />
 
-      {/* Real-time Custom Toast Notification */}
+      {/* Realtime toast */}
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9, x: "-50%" }}
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: -40, scale: 0.94, x: "-50%" }}
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-            exit={{ opacity: 0, y: -20, scale: 0.9, x: "-50%" }}
-            className="fixed top-5 left-1/2 z-[1000] w-[88%] max-w-sm rounded-2xl border border-white/[0.08] bg-[#0F0D0C]/92 p-4 shadow-[0_16px_50px_rgba(0,0,0,.7),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-2xl flex items-start gap-3 text-left"
+            exit={{ opacity: 0, y: -16, scale: 0.96, x: "-50%", transition: { duration: 0.15 } }}
+            transition={spring.pop}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.6, bottom: 0.1 }}
+            onDragEnd={(_, info) => { if (info.offset.y < -30) setToast(null); }}
+            className="glass fixed left-1/2 top-4 z-[1000] flex w-[calc(100%-32px)] max-w-sm items-start gap-3 overflow-hidden rounded-2xl p-4 text-left"
           >
-            <div className="flex-1">
-              <h4 className="text-xs font-black text-white uppercase tracking-wider">{toast.title}</h4>
-              <p className="text-[11px] text-zinc-400 font-semibold mt-1 leading-normal">{toast.message}</p>
+            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-signal" />
+            <div className="min-w-0 flex-1">
+              <h4 className="text-headline text-ink">{toast.title}</h4>
+              <p className="mt-0.5 text-subhead leading-snug text-ink-2">{toast.message}</p>
             </div>
-            <button 
-              onClick={() => setToast(null)} 
-              className="text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-wider shrink-0 mt-0.5"
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="-mr-1 -mt-1 shrink-0 rounded-lg px-2 py-2 text-footnote font-medium text-ink-3 transition-colors hover:text-ink"
             >
               Dismiss
             </button>
+            <motion.span
+              className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-signal/70"
+              initial={{ scaleX: 1 }}
+              animate={{ scaleX: 0 }}
+              transition={{ duration: 4, ease: "linear" }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

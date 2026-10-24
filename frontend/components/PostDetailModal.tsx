@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, Send, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { fieldClass } from "./ui/input";
+import { Skeleton } from "./ui/motion";
+import { spring } from "../lib/motion";
 import { Post, Comment } from "../app/types";
 import FeedPostCard from "./FeedPostCard";
 
@@ -121,140 +126,100 @@ export default function PostDetailModal({
     onPostUpdated(updatedPost);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      {/* Backdrop Closer */}
-      <div className="absolute inset-0" onClick={onClose} />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg sm:p-0">
+        <DialogHeader className="border-b border-line px-5 pb-4 pt-5">
+          <DialogTitle>Post</DialogTitle>
+        </DialogHeader>
 
-      {/* Modal Dialog Container */}
-      <div className="relative z-10 w-full max-w-[430px] h-[90vh] rounded-[30px] border border-white/[0.08] bg-[#0c0a09] flex flex-col justify-between overflow-hidden shadow-2xl">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/20 px-6 py-4">
-          <h3 className="text-sm font-black uppercase tracking-wider text-white">Post Coordinates</h3>
-          <button
-            onClick={onClose}
-            className="rounded-full border border-white/5 bg-zinc-900 p-2 text-zinc-400 hover:text-white"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-none pb-24">
+        <div className="flex-1 space-y-6 overflow-y-auto p-5">
           {loading ? (
-            <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-8 w-8 text-cherryRed animate-spin" />
+            <div className="space-y-3">
+              <Skeleton className="h-14" />
+              <Skeleton className="h-64" />
+              <Skeleton className="h-10" />
             </div>
           ) : error || !post ? (
-            <div className="py-10 text-center text-zinc-500 font-semibold text-xs leading-normal">
-              {error || "Could not fetch details."}
-            </div>
+            <p className="py-12 text-center text-subhead text-ink-2">{error || "Couldn't load this post."}</p>
           ) : (
             <>
-              {/* The Post Card Rendered in Full Detail */}
-              <FeedPostCard
-                post={post}
-                currentUserId={currentUserId}
-                onReactionToggle={handleReactionLocal}
-                onCommentsClick={() => {}} // Disabled inside detail view
-              />
+              <FeedPostCard post={post} currentUserId={currentUserId} onReactionToggle={handleReactionLocal} onCommentsClick={() => {}} />
 
-              {/* Comments Section Header */}
-              <div className="border-t border-white/[0.06] pt-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-4">
-                  Peer Comments ({comments.length})
-                </h4>
-
-                {/* Comments List */}
+              <div>
+                <p className="t-label mb-4">
+                  {comments.length} comment{comments.length === 1 ? "" : "s"}
+                </p>
                 {comments.length === 0 ? (
-                  <p className="text-[10.5px] text-zinc-600 font-bold uppercase tracking-wide py-4 text-center">
-                    No comments yet. Start the discussion.
-                  </p>
+                  <p className="rounded-xl border border-dashed border-line py-8 text-center text-subhead text-ink-3">No comments yet. Say something.</p>
                 ) : (
-                  <div className="space-y-4">
-                    {comments.map((comment) => {
-                      const commInitials = comment.user?.name
-                        ? comment.user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase()
-                        : "??";
-
-                      const commentDate = new Date(comment.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      });
-
-                      return (
-                        <div key={comment.id} className="flex items-start gap-3 text-left">
-                          {/* Comm Avatar */}
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-white/[0.06] bg-white/[0.02] text-[10px] font-black text-white">
-                            {commInitials}
-                          </div>
-                          {/* Comm Bubble */}
-                          <div className="flex-1 min-w-0 rounded-2xl border border-white/[0.04] bg-white/[0.015] p-3">
-                            <div className="flex items-baseline justify-between mb-1 gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-white truncate max-w-[150px]">
-                                {comment.user?.name || "Student"}
-                              </span>
-                              <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest shrink-0">
-                                {commentDate}
-                              </span>
+                  <ul className="space-y-4">
+                    <AnimatePresence initial={false}>
+                      {comments.map((c) => {
+                        const ci = c.user?.name ? c.user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+                        const mine = c.user?.id === currentUserId;
+                        return (
+                          <motion.li
+                            key={c.id}
+                            layout
+                            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={spring.glide}
+                            className="flex items-start gap-3"
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-raised font-display text-title-3 font-bold text-ink">{ci}</span>
+                            <div className={`min-w-0 flex-1 rounded-2xl rounded-tl-md border px-3.5 py-2.5 ${mine ? "border-signal/70 bg-signal/[0.06]" : "border-line bg-raised"}`}>
+                              <div className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-subhead font-semibold text-ink">{c.user?.name || "Student"}</span>
+                                <time className="shrink-0 text-caption text-ink-3" dateTime={c.createdAt}>
+                                  {new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </time>
+                              </div>
+                              <p className="mt-0.5 break-words text-subhead leading-relaxed text-ink-2">{c.text}</p>
                             </div>
-                            {comment.user?.department && (
-                              <p className="text-[8px] text-zinc-500 font-semibold uppercase leading-none mb-1.5 truncate">
-                                {comment.user.department}
-                              </p>
-                            )}
-                            <p className="text-xs text-cotton/90 leading-relaxed font-semibold break-words">
-                              {comment.text}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          </motion.li>
+                        );
+                      })}
+                    </AnimatePresence>
                     <div ref={commentsEndRef} />
-                  </div>
+                  </ul>
                 )}
               </div>
             </>
           )}
         </div>
 
-        {/* Sticky Comment Entry bar */}
         {post && !loading && (
-          <form
-            onSubmit={handleSendComment}
-            className="absolute bottom-0 inset-x-0 border-t border-white/[0.08] bg-[#0c0a09]/92 backdrop-blur-xl px-5 py-4 flex items-center gap-3 z-20"
-          >
-            <input
-              type="text"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value.slice(0, 300))}
-              placeholder="Add a comment..."
-              className="flex-1 rounded-xl border border-white/[0.06] bg-black/40 px-4 py-2.5 text-xs font-semibold text-cotton placeholder-zinc-600 focus:border-cherryRed focus:outline-none transition-colors"
-            />
-            <button
+          <form onSubmit={handleSendComment} className="safe-bottom flex items-center gap-2 border-t border-line bg-surface px-4 pt-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value.slice(0, 300))}
+                placeholder="Add a comment"
+                aria-label="Add a comment"
+                className={`${fieldClass} h-12 pr-14`}
+              />
+              {newComment.length > 240 && (
+                <span className={`tabular absolute right-3 top-1/2 -translate-y-1/2 text-caption ${newComment.length >= 300 ? "text-crimson" : "text-ink-3"}`}>
+                  {300 - newComment.length}
+                </span>
+              )}
+            </div>
+            <motion.button
               type="submit"
               disabled={submitting || !newComment.trim()}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cherryRed text-white transition hover:bg-red-800 disabled:opacity-40"
+              whileTap={{ scale: 0.88 }}
+              animate={newComment.trim() ? { scale: 1, opacity: 1 } : { scale: 0.92, opacity: 0.5 }}
+              transition={spring.snap}
+              aria-label="Send"
+              className="flex h-12 w-12 shrink-0 items-center justify-center btn-primary"
             >
-              {submitting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Send size={14} />
-              )}
-            </button>
+              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            </motion.button>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

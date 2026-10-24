@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Sparkles, Calendar } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CountUp, Skeleton } from "./ui/motion";
+import { POINTS_NAME } from "../lib/brand";
 
 interface HeatMapProps {
   userId: number;
@@ -17,174 +19,173 @@ interface ActivityData {
   auraEarned: number;
 }
 
+/*
+ * Sequential single-hue ramp (brand Crimson #B11226 at step 2), validated with
+ * the dataviz validator in --ordinal mode against Surface #0C0C0C: monotone L,
+ * ΔL ≥ 0.06, low end 2.06:1, hue spread 12°. Index 0 = no activity.
+ */
+const RAMP = ["rgb(var(--raised))", "#8C1020", "#B11226", "#D23548", "#E8677A", "#F6A3AE"];
+
+const level = (count: number, minutes: number) => {
+  if (count === 0 && minutes === 0) return 0;
+  const score = count * 2 + Math.floor(minutes / 30);
+  if (score <= 2) return 1;
+  if (score <= 4) return 2;
+  if (score <= 6) return 3;
+  if (score <= 9) return 4;
+  return 5;
+};
+
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
 export default function HeatMap({ userId, userJoinedAt, api }: HeatMapProps) {
   const [activities, setActivities] = useState<ActivityData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hoveredDay, setHoveredDay] = useState<{
-    date: Date;
-    count: number;
-    minutes: number;
-    tasks: number;
-  } | null>(null);
+  const [hover, setHover] = useState<{ date: Date; count: number; minutes: number; tasks: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
-    async function fetchHeatData() {
-      try {
-        const data = await api(`/users/${userId}/heat`);
-        setActivities(data);
-      } catch (err) {
-        console.error("Failed to load heat map data:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchHeatData();
+    api(`/users/${userId}/heat`)
+      .then(setActivities)
+      .catch((err) => console.error("Failed to load heat map data:", err))
+      .finally(() => setLoading(false));
   }, [userId]);
 
-  // Generate days starting from userJoinedAt (aligned to Sunday) until today
-  const generateContributionDays = () => {
+  // Weeks (columns) from join date, aligned to Sunday, through today. Always at least a year, so the grid fills its card.
+  const weeks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     let start = new Date(today);
+    start.setDate(today.getDate() - 7 * 52);
     if (userJoinedAt) {
-      start = new Date(userJoinedAt);
-      start.setHours(0, 0, 0, 0);
-    } else {
-      start.setDate(today.getDate() - 364);
+      const joined = new Date(userJoinedAt);
+      joined.setHours(0, 0, 0, 0);
+      if (joined < start) start = joined;
     }
-
-    // Ensure start date is not in the future
-    if (start > today) {
-      start = new Date(today);
+    start.setDate(start.getDate() - start.getDay());
+    const cols: Date[][] = [];
+    const cur = new Date(start);
+    while (cur <= today) {
+      const week: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      cols.push(week);
     }
+    return { cols, today };
+  }, [userJoinedAt]);
 
-    // Align start to the Sunday of that week to start the grid rows cleanly
-    const startDayOfWeek = start.getDay();
-    start.setDate(start.getDate() - startDayOfWeek);
+  const byDay = useMemo(() => {
+    const m = new Map<string, ActivityData>();
+    activities.forEach((a) => m.set(dayKey(new Date(a.date)), a));
+    return m;
+  }, [activities]);
 
-    const days: Date[] = [];
-    const current = new Date(start);
-    while (current <= today) {
-      days.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-    }
-    return days;
-  };
-
-  const yearDays = generateContributionDays();
-  const padCount = 0;
-
-  // Helper to check if dates match
-  const getActivityForDate = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
-    return activities.find(a => {
-      const dbDateStr = new Date(a.date).toISOString().split("T")[0];
-      return dbDateStr === dateStr;
-    });
-  };
-
-  // Get color scale based on activity
-  const getColorClass = (count: number, minutes: number) => {
-    if (count === 0) return "bg-zinc-900/40 border-white/5 hover:border-zinc-700";
-    const score = count * 2 + Math.floor(minutes / 30);
-    if (score <= 2) return "bg-[#D2042D]/20 border-[#D2042D]/15 hover:border-[#D2042D]/40"; // Light
-    if (score <= 5) return "bg-[#D2042D]/45 border-[#D2042D]/30 hover:border-[#D2042D]/70"; // Medium
-    if (score <= 8) return "bg-[#D2042D]/80 border-[#D2042D]/60 hover:border-[#D2042D] shadow-[0_0_8px_rgba(210,4,45,0.2)]"; // Hot
-    return "bg-white border-white hover:bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.4)]"; // Extreme
-  };
-
-  // Statistics calculation
-  const totalMissions = activities.reduce((sum, a) => sum + a.missionsCompleted, 0);
-  const totalFocusHours = (activities.reduce((sum, a) => sum + a.focusMinutes, 0) / 60).toFixed(1);
-  const totalAura = activities.reduce((sum, a) => sum + a.auraEarned, 0);
-  const activeDaysCount = activities.filter(a => a.missionsCompleted > 0).length;
+  const totalMissions = activities.reduce((s, a) => s + a.missionsCompleted, 0);
+  const totalFocusHours = Math.round(activities.reduce((s, a) => s + a.focusMinutes, 0) / 60);
+  const totalAura = activities.reduce((s, a) => s + a.auraEarned, 0);
+  const activeDays = activities.filter((a) => a.missionsCompleted > 0).length;
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-noirBlack/45 p-4 md:p-6 shadow-md backdrop-blur-md text-left">
-      <div className="flex items-center justify-between border-b border-white/5 pb-3.5 mb-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-cherryRed" />
-          <h3 className="text-xs md:text-sm font-black uppercase tracking-wider text-cotton">
-            LOCKIN HEAT
-          </h3>
+    <div className="rounded-card border border-line bg-surface p-5">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="t-label">Activity</p>
+          <p className="t-display mt-1 text-title-2 text-ink">
+            <CountUp value={activeDays} /> active days
+          </p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-cherryRed/20 bg-cherryRed/5 px-2 py-0.5 text-[9px] font-black text-cherryRed">
-          <Sparkles className="h-3 w-3" /> {activeDaysCount} Active Days
+        {/* Legend */}
+        <div className="flex items-center gap-1.5 text-caption text-ink-3" aria-hidden="true">
+          Less
+          {RAMP.map((c, i) => (
+            <span key={i} className="h-3 w-3 rounded-[3px]" style={{ background: c }} />
+          ))}
+          More
         </div>
       </div>
 
       {loading ? (
-        <div className="h-28 flex items-center justify-center text-xs font-bold text-zinc-600 uppercase tracking-widest animate-pulse">
-          Rendering contribution graph...
-        </div>
+        <Skeleton className="mt-5 h-[112px]" />
       ) : (
-        <div className="space-y-4">
-          {/* Main Grid Wrapper */}
-          <div className="relative">
-            <div className="flex overflow-x-auto pb-2 scrollbar-thin scrollbar-track-zinc-950 scrollbar-thumb-cherryRed/20 -mx-2 px-2">
-              <div className="grid grid-flow-col grid-rows-7 gap-1 pt-1">
-                {/* Pad first week columns */}
-                {Array.from({ length: padCount }).map((_, idx) => (
-                  <div key={`pad-${idx}`} className="h-[10px] w-[10px] md:h-[12px] md:w-[12px] opacity-0 pointer-events-none" />
-                ))}
-
-                {/* Contribution cells */}
-                {yearDays.map((day, idx) => {
-                  const activity = getActivityForDate(day);
-                  const count = activity ? activity.missionsCompleted : 0;
-                  const minutes = activity ? activity.focusMinutes : 0;
-                  const tasks = activity ? activity.tasksCompleted : 0;
-
-                  const colorClass = getColorClass(count, minutes);
-
-                  return (
-                    <div
-                      key={idx}
-                      onMouseEnter={() => setHoveredDay({ date: day, count, minutes, tasks })}
-                      onMouseLeave={() => setHoveredDay(null)}
-                      className={`h-[10px] w-[10px] md:h-[12px] md:w-[12px] rounded-[2px] border transition-all cursor-pointer ${colorClass}`}
-                    />
-                  );
-                })}
-              </div>
+        <div data-heat-root className="relative mt-5" onMouseLeave={() => setHover(null)}>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1 scrollbar-none" dir="rtl">
+            <div className="flex w-max gap-[3px] md:w-full md:justify-between" dir="ltr" role="img" aria-label={`${activeDays} active days, ${totalMissions} missions, ${totalFocusHours} focus hours`}>
+              {weeks.cols.map((week, wi) => (
+                <div key={wi} className="flex flex-col gap-[3px]">
+                  {week.map((day) => {
+                    if (day > weeks.today) return <span key={day.toISOString()} className="h-[13px] w-[13px]" />;
+                    const a = byDay.get(dayKey(day));
+                    const count = a?.missionsCompleted ?? 0;
+                    const minutes = a?.focusMinutes ?? 0;
+                    const lv = level(count, minutes);
+                    const show = (e: React.SyntheticEvent<HTMLElement>) => {
+                      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const p = (e.currentTarget.closest("[data-heat-root]") as HTMLElement).getBoundingClientRect();
+                      setHover({ date: day, count, minutes, tasks: a?.tasksCompleted ?? 0, x: r.left - p.left + r.width / 2, y: r.top - p.top });
+                    };
+                    return (
+                      <motion.span
+                        key={day.toISOString()}
+                        initial={{ opacity: 0, scale: 0.4 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: Math.min(1, wi * 0.012), duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        onMouseEnter={show}
+                        onClick={show}
+                        className={`h-[13px] w-[13px] cursor-pointer rounded-[3px] ring-offset-1 ring-offset-surface transition-shadow hover:ring-1 hover:ring-ink ${lv === 0 ? "border border-line" : ""} ${
+                          lv === 5 ? "" : ""
+                        }`}
+                        style={{ background: RAMP[lv] }}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-
-            {/* Hover Tooltip */}
-            {hoveredDay && (
-              <div className="absolute top-[-54px] left-1/2 -translate-x-1/2 z-30 rounded-xl border border-cherryRed/30 bg-zinc-950 px-3 py-2 text-center text-[10px] font-semibold text-cotton shadow-2xl backdrop-blur-xl pointer-events-none min-w-[150px]">
-                <p className="font-bold text-cherryRed border-b border-white/5 pb-1 mb-1">
-                  {hoveredDay.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </p>
-                <p className="text-cotton/90">
-                  {hoveredDay.count} Runways · {hoveredDay.minutes} Min Focus
-                </p>
-                {hoveredDay.tasks > 0 && (
-                  <p className="text-zinc-500 text-[9px] mt-0.5">
-                    {hoveredDay.tasks} Tasks Completed
-                  </p>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* Legend / Stats */}
-          <div className="grid grid-cols-3 gap-2 text-center border-t border-white/5 pt-3.5">
-            <div className="rounded-xl bg-black/30 border border-white/5 p-2">
-              <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-500">Missions</span>
-              <span className="text-xs md:text-sm font-black text-cotton">{totalMissions}</span>
-            </div>
-            <div className="rounded-xl bg-black/30 border border-white/5 p-2">
-              <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-500">Focus Hours</span>
-              <span className="text-xs md:text-sm font-black text-cotton">{totalFocusHours}h</span>
-            </div>
-            <div className="rounded-xl bg-black/30 border border-white/5 p-2">
-              <span className="block text-[8px] font-bold uppercase tracking-wider text-zinc-500">Aura Earned</span>
-              <span className="text-xs md:text-sm font-black text-cherryRed">+{totalAura}</span>
-            </div>
+          <div className="pointer-events-none absolute inset-0">
+            <AnimatePresence>
+              {hover && (
+                <motion.div
+                  key={hover.date.toISOString()}
+                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.08 } }}
+                  transition={{ duration: 0.14 }}
+                  className="absolute z-30 w-max -translate-x-1/2 -translate-y-full rounded-lg border border-line bg-overlay px-3 py-2 text-footnote shadow-lift"
+                  style={{ left: Math.max(70, hover.x), top: hover.y - 8 }}
+                >
+                  <p className="font-semibold text-ink">
+                    {hover.date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                  </p>
+                  <p className="text-ink-2">
+                    {hover.count === 0 && hover.minutes === 0
+                      ? "No sessions"
+                      : `${hover.count} mission${hover.count === 1 ? "" : "s"} · ${hover.minutes} min${hover.tasks ? ` · ${hover.tasks} tasks` : ""}`}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       )}
+
+      <dl className="mt-5 grid grid-cols-3 divide-x divide-line border-t border-line pt-4 text-center">
+        {[
+          { label: "Missions", value: totalMissions, pre: "" },
+          { label: "Hours", value: totalFocusHours, pre: "" },
+          { label: POINTS_NAME, value: totalAura, pre: "+" }
+        ].map((s) => (
+          <div key={s.label}>
+            <dt className="t-label">{s.label}</dt>
+            <dd className={`t-display mt-1 text-title-2 ${s.label === POINTS_NAME ? "text-gold" : "text-ink"}`}>
+              {s.pre}
+              <CountUp value={s.value} />
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

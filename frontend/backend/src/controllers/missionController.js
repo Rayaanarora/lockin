@@ -1,392 +1,202 @@
+const crypto = require("crypto");
 const prisma = require("../config/db");
-const memoryStore = require("../data/memoryStore");
 const { isDbUnavailable } = require("../utils/dbFallback");
+const { toId, cleanText, safeImageRef, safeColor, newCheckInCode, rateLimit } = require("../utils/security");
+const { notifyUser } = require("../utils/realtime");
 
-function assertUserId(userId, res) {
-  if (!userId) {
-    res.status(400).json({ error: "userId is required." });
-    return false;
-  }
-  return true;
-}
+// Every handler here runs behind getAuthUser(): req.userId is the verified
+// session user and identity fields in req.body/req.query were overwritten.
 
 async function createMission(req, res) {
-  const { creator_id, title, description, location, datetime, categoryId, focusDuration, missionType, coverColor, coverImage } = req.body;
-  const isSolo = missionType === "solo";
+  const creatorId = req.userId;
+  const b = req.body || {};
+  const isSolo = b.missionType === "solo";
 
-  if (!creator_id || !title || !description || (!isSolo && (!location || !datetime))) {
-    return res.status(400).json({ error: "creator_id, title, description, location, and datetime are required." });
+  const title = cleanText(b.title, 100);
+  const description = cleanText(b.description, 2000);
+  const location = isSolo ? "Solo" : cleanText(b.location, 100);
+  const categoryId = toId(b.categoryId) || 1;
+  const focusDuration = Math.round(Number(b.focusDuration) || 25);
+  const coverColor = safeColor(b.coverColor);
+  const coverImage = safeImageRef(b.coverImage, { allowGradient: true });
+
+  if (!title || !description || (!isSolo && (!location || !b.datetime))) {
+    return res.status(400).json({ error: "Title, description, location and time are required." });
+  }
+  if (focusDuration < 5 || focusDuration > 240) {
+    return res.status(400).json({ error: "Focus duration must be between 5 and 240 minutes." });
+  }
+  if (coverColor === undefined || coverImage === undefined) {
+    return res.status(400).json({ error: "Cover must be an uploaded image or one of the presets." });
   }
 
-  const payload = {
-    creator_id: Number(creator_id),
-    title: title.trim(),
-    description: description.trim(),
-    location: location ? location.trim() : "Solo",
-    datetime: datetime ? new Date(datetime) : null,
-    categoryId: categoryId ? Number(categoryId) : 1,
-    focusDuration: focusDuration ? Number(focusDuration) : 25,
-    missionType: isSolo ? "solo" : "group"
-  };
-
-  try {
-    const creatorUser = await prisma.user.findUnique({
-      where: { id: payload.creator_id },
-      select: { collegeId: true }
-    });
-
-    if (!creatorUser) {
-      return res.status(400).json({ error: "User session is invalid. Please log out and sign in again." });
+  let datetime = new Date();
+  if (!isSolo) {
+    datetime = new Date(b.datetime);
+    const now = Date.now();
+    if (isNaN(datetime.getTime()) || datetime.getTime() < now - 5 * 60e3 || datetime.getTime() > now + 90 * 86400e3) {
+      return res.status(400).json({ error: "Pick a time between now and 90 days from now." });
     }
-
-    const verificationCode = String(Math.floor(1000 + Math.random() * 9000));
-    const mission = await prisma.mission.create({
-      data: {
-        title: payload.title,
-        description: payload.description,
-        datetime: payload.datetime,
-        location: payload.location,
-        categoryId: payload.categoryId,
-        createdBy: payload.creator_id,
-        collegeId: creatorUser ? creatorUser.collegeId : null,
-        focusDuration: payload.focusDuration,
-        verificationCode: verificationCode,
-        missionType: payload.missionType,
-        coverColor: coverColor || null,
-        coverImage: coverImage || null
-      },
-      include: {
-        creator: {
-          select: { name: true, department: true }
-        }
-      }
-    });
-
-    if (payload.missionType === "solo") {
-      // Auto-create participation as Accepted for solo missions
-      await prisma.participation.create({
-        data: {
-          userId: payload.creator_id,
-          missionId: mission.id,
-          status: "Accepted"
-        }
-      });
-    }
-
-    res.status(201).json({
-      id: mission.id,
-      creator_id: mission.createdBy,
-      title: mission.title,
-      description: mission.description,
-      location: mission.location,
-      datetime: mission.datetime ? mission.datetime.toISOString() : null,
-      creator_name: mission.creator?.name || "Unknown",
-      creator_department: mission.creator?.department || "Creator",
-      verification_code: mission.verificationCode,
-      focus_duration: mission.focusDuration,
-      mission_type: mission.missionType,
-      cover_color: mission.coverColor,
-      cover_image: mission.coverImage
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.status(201).json(memoryStore.createMission(payload));
   }
+
+  const category = await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } });
+  if (!category) return res.status(400).json({ error: "Unknown category." });
+
+  const creatorUser = await prisma.user.findUnique({ where: { id: creatorId }, select: { collegeId: true } });
+  if (!creatorUser) return res.status(403).json({ error: "Finish setting up your profile first." });
+
+  const mission = await prisma.mission.create({
+    data: {
+      title,
+      description,
+      datetime,
+      location,
+      categoryId,
+      createdBy: creatorId,
+      collegeId: creatorUser.collegeId,
+      focusDuration,
+      verificationCode: newCheckInCode(),
+      missionType: isSolo ? "solo" : "group",
+      coverColor: coverColor || null,
+      coverImage: coverImage || null
+    },
+    include: { creator: { select: { name: true, department: true } } }
+  });
+
+  if (isSolo) {
+    await prisma.participation.create({ data: { userId: creatorId, missionId: mission.id, status: "Accepted" } });
+  }
+
+  res.status(201).json({
+    id: mission.id,
+    creator_id: mission.createdBy,
+    title: mission.title,
+    description: mission.description,
+    location: mission.location,
+    datetime: mission.datetime ? mission.datetime.toISOString() : null,
+    creator_name: mission.creator?.name || "Unknown",
+    creator_department: mission.creator?.department || "Creator",
+    verification_code: mission.verificationCode,
+    focus_duration: mission.focusDuration,
+    mission_type: mission.missionType,
+    cover_color: mission.coverColor,
+    cover_image: mission.coverImage
+  });
 }
 
 async function getMissionFeed(req, res) {
-  const userId = req.query.userId || (req.user && req.user.id) || (req.supabaseUser && req.supabaseUser.id) || 101;
-  const { categoryId } = req.query;
+  const userId = req.userId;
+  const categoryId = toId(req.query.categoryId);
 
-  try {
-    const twelveHoursAgo = new Date();
-    twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
+  const viewer = await prisma.user.findUnique({ where: { id: userId }, select: { collegeId: true } });
+  const twelveHoursAgo = new Date(Date.now() - 12 * 3600e3);
 
-    const numericUserId = Number(userId) || 101;
+  // Campus-exclusive: your college's missions (and legacy campus-less ones). No cross-campus fallback.
+  const where = {
+    createdBy: { not: userId },
+    datetime: { gte: twelveHoursAgo },
+    missionType: { not: "solo" },
+    OR: viewer && viewer.collegeId ? [{ collegeId: viewer.collegeId }, { collegeId: null }] : [{ collegeId: null }],
+    participations: { none: { userId } }
+  };
+  if (categoryId) where.categoryId = categoryId;
 
-    let activeUser = null;
-    try {
-      activeUser = await prisma.user.findUnique({
-        where: { id: numericUserId },
-        select: { collegeId: true }
-      });
-    } catch (e) {
-      console.warn("[getMissionFeed] User fetch error:", e);
-    }
-
-    const targetCollegeId = activeUser?.collegeId || 1634;
-
-    const whereClause = {
-      createdBy: { not: numericUserId },
-      datetime: { gte: twelveHoursAgo },
-      OR: [
-        { collegeId: targetCollegeId },
-        { collegeId: null }
-      ],
-      missionType: { not: "solo" }, // Exclude solo missions from feed
+  const missions = await prisma.mission.findMany({
+    where,
+    orderBy: { datetime: "asc" },
+    take: 50,
+    include: {
+      category: true,
+      creator: { select: { name: true, department: true, reputationScore: true } },
       participations: {
-        none: {
-          userId: numericUserId
-        }
+        where: { status: { in: ["Accepted", "Executing", "Completed"] } },
+        include: { user: { select: { id: true, name: true, department: true, reputationScore: true } } }
       }
+    }
+  });
+
+  const rows = missions.map((m) => {
+    const attendees = [];
+    if (m.creator) {
+      attendees.push({ id: m.createdBy, name: m.creator.name, department: m.creator.department || "Host", reputation_score: m.creator.reputationScore || 0, is_host: true });
+    }
+    for (const p of m.participations || []) {
+      if (!p.user || p.user.id === m.createdBy) continue;
+      attendees.push({ id: p.user.id, name: p.user.name, department: p.user.department || "Student", reputation_score: p.user.reputationScore || 0, is_host: false });
+    }
+    return {
+      id: m.id,
+      creator_id: m.createdBy,
+      title: m.title,
+      description: m.description,
+      location: m.location,
+      datetime: m.datetime ? m.datetime.toISOString() : null,
+      creator_name: m.creator?.name || "Unknown",
+      creator_department: m.creator?.department || "Creator",
+      category_name: m.category?.categoryName || "Other",
+      category_id: m.categoryId,
+      category_emoji: m.category?.emoji || null,
+      category_color: m.category?.colorHex || null,
+      focus_duration: m.focusDuration,
+      mission_type: m.missionType,
+      cover_color: m.coverColor,
+      cover_image: m.coverImage,
+      locked_in_count: attendees.length,
+      attendees
     };
+  });
 
-    if (categoryId && categoryId !== "all") {
-      whereClause.categoryId = Number(categoryId);
-    }
-
-    let missions = await prisma.mission.findMany({
-      where: whereClause,
-      orderBy: { datetime: "asc" },
-      include: {
-        category: true,
-        creator: true,
-        participations: {
-          where: {
-            status: { in: ["Accepted", "Executing", "Completed"] }
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                department: true,
-                reputationScore: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Fallback 1: If strict filter returns 0 missions, relax the participation and datetime constraint for this campus
-    if (missions.length === 0) {
-      const fallbackWhere = {
-        createdBy: { not: numericUserId },
-        missionType: { not: "solo" },
-        OR: [
-          { collegeId: targetCollegeId },
-          { collegeId: null }
-        ]
-      };
-      if (categoryId && categoryId !== "all") {
-        fallbackWhere.categoryId = Number(categoryId);
-      }
-      missions = await prisma.mission.findMany({
-        where: fallbackWhere,
-        orderBy: { id: "desc" },
-        take: 10,
-        include: {
-          category: true,
-          creator: true,
-          participations: {
-            where: {
-              status: { in: ["Accepted", "Executing", "Completed"] }
-            },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  department: true,
-                  reputationScore: true
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    // Fallback 2: If still 0, return all available non-solo missions
-    if (missions.length === 0) {
-      missions = await prisma.mission.findMany({
-        where: { missionType: { not: "solo" } },
-        orderBy: { id: "desc" },
-        take: 8,
-        include: {
-          category: true,
-          creator: true,
-          participations: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  department: true,
-                  reputationScore: true
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    const rows = missions.map((m) => {
-      const attendees = [];
-      if (m.creator) {
-        attendees.push({
-          id: m.createdBy,
-          name: m.creator.name,
-          department: m.creator.department || "Host",
-          reputation_score: m.creator.reputationScore || 0,
-          is_host: true
-        });
-      }
-
-      const acceptedParticipants = (m.participations || [])
-        .map((p) => {
-          if (!p.user || p.user.id === m.createdBy) return null;
-          return {
-            id: p.user.id,
-            name: p.user.name,
-            department: p.user.department || "Student",
-            reputation_score: p.user.reputationScore || 0,
-            is_host: false
-          };
-        })
-        .filter(Boolean);
-
-      attendees.push(...acceptedParticipants);
-
-      return {
-        id: m.id,
-        creator_id: m.createdBy,
-        title: m.title,
-        description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
-        location: m.location,
-        datetime: m.datetime ? m.datetime.toISOString() : null,
-        creator_name: m.creator?.name || "Unknown",
-        creator_department: m.creator?.department || "Creator",
-        category_name: m.category?.categoryName || "Coding",
-        category_id: m.categoryId,
-        category_emoji: m.category?.emoji || "💻",
-        category_color: m.category?.colorHex || "#3b82f6",
-        focus_duration: m.focusDuration,
-        mission_type: m.missionType,
-        cover_color: m.coverColor,
-        cover_image: m.coverImage,
-        locked_in_count: attendees.length,
-        attendees: attendees
-      };
-    });
-
-    res.json(rows);
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.json(memoryStore.getMissionFeed(userId, categoryId));
-  }
+  res.json(rows);
 }
 
 async function acceptMission(req, res) {
-  const { id } = req.params;
-  const { userId } = req.body;
-  if (!assertUserId(userId, res)) return;
+  const userId = req.userId;
+  const missionId = toId(req.params.id);
+  if (!missionId) return res.status(400).json({ error: "Invalid mission." });
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const userExists = await tx.user.findUnique({
-        where: { id: Number(userId) },
-        select: { id: true }
-      });
+      const [user, mission] = await Promise.all([
+        tx.user.findUnique({ where: { id: userId }, select: { id: true, collegeId: true, name: true } }),
+        tx.mission.findUnique({ where: { id: missionId } })
+      ]);
+      if (!mission) throw new Error("NOT_FOUND");
+      if (mission.createdBy === userId) throw new Error("OWN_MISSION");
+      if (mission.missionType === "solo") throw new Error("NOT_FOUND");
+      if (mission.collegeId && user.collegeId && mission.collegeId !== user.collegeId) throw new Error("NOT_FOUND");
+      if (mission.datetime && mission.datetime.getTime() < Date.now() - 12 * 3600e3) throw new Error("EXPIRED");
 
-      if (!userExists) {
-        throw new Error("USER_NOT_FOUND");
-      }
+      const existing = await tx.participation.findUnique({ where: { unique_user_mission: { userId, missionId } } });
+      if (existing) throw new Error("ALREADY");
 
       const activeCount = await tx.participation.count({
-        where: {
-          userId: Number(userId),
-          status: "Accepted",
-          showedUp: null
-        }
+        where: { userId, status: { in: ["Requested", "Accepted", "Executing"] } }
       });
+      if (activeCount >= 3) throw new Error("LOCKED_OUT");
 
-      if (activeCount >= 3) {
-        throw new Error("LOCKED_OUT");
-      }
-
-      const mission = await tx.mission.findUnique({
-        where: { id: Number(id) }
-      });
-
-      if (!mission) {
-        throw new Error("NOT_FOUND");
-      }
-
-      const participation = await tx.participation.upsert({
-        where: {
-          unique_user_mission: {
-            userId: Number(userId),
-            missionId: Number(id)
-          }
-        },
-        update: { status: "Requested" },
-        create: {
-          userId: Number(userId),
-          missionId: Number(id),
-          status: "Requested"
-        }
-      });
-
-      return participation;
+      const participation = await tx.participation.create({ data: { userId, missionId, status: "Requested" } });
+      return { participation, mission, user };
     });
 
-    // Real-time Push Notification to Host
-    try {
-      const mission = await prisma.mission.findUnique({
-        where: { id: Number(id) },
-        select: { createdBy: true, title: true }
+    if (result.mission.createdBy) {
+      notifyUser(result.mission.createdBy, {
+        title: "New join request",
+        message: `${result.user?.name || "Someone"} wants to join "${result.mission.title}"`,
+        type: "join_request",
+        missionId
       });
-      const applicant = await prisma.user.findUnique({
-        where: { id: Number(userId) },
-        select: { name: true }
-      });
-      if (mission && mission.createdBy) {
-        const supabaseClient = require("../config/supabase");
-        if (supabaseClient) {
-          const channel = supabaseClient.channel(`notifications:${mission.createdBy}`);
-          channel.subscribe((status) => {
-            if (status === "SUBSCRIBED") {
-              channel.send({
-                type: "broadcast",
-                event: "push_notification",
-                payload: {
-                  title: "New Join Request!",
-                  message: `${applicant?.name || "Someone"} requested to join your runway: "${mission.title}"`,
-                  type: "join_request",
-                  missionId: Number(id)
-                }
-              }).catch(err => console.error("Realtime notification broadcast failed:", err));
-            }
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Error sending join request notification:", err);
     }
 
-    res.status(201).json({
-      mission_id: result.missionId,
-      user_id: result.userId,
-      status: result.status
-    });
+    res.status(201).json({ mission_id: result.participation.missionId, user_id: result.participation.userId, status: result.participation.status });
   } catch (error) {
-    if (error.message === "USER_NOT_FOUND") {
-      return res.status(400).json({ error: "User session is invalid. Please log out and sign in again." });
-    }
-    if (error.message === "LOCKED_OUT") {
-      return res.status(423).json({ error: "Runway full. Mark attendance on your active missions before accepting more." });
-    }
-    if (error.message === "NOT_FOUND") {
-      return res.status(404).json({ error: "Mission not found." });
-    }
-    if (isDbUnavailable(error)) {
-      const result = memoryStore.acceptMission(id, userId);
-      if (result.error) return res.status(result.status).json({ error: result.error });
-      return res.status(201).json(result);
-    }
+    const map = {
+      NOT_FOUND: [404, "Mission not found."],
+      OWN_MISSION: [400, "That's your own mission."],
+      EXPIRED: [410, "This mission has already happened."],
+      ALREADY: [409, "You've already locked in to this one."],
+      LOCKED_OUT: [423, "Queue full. Check in or finish one of your 3 active missions first."]
+    };
+    if (map[error.message]) return res.status(map[error.message][0]).json({ error: map[error.message][1] });
     throw error;
   }
 }
@@ -396,8 +206,8 @@ async function passMission(req, res) {
 }
 
 async function getActiveMissions(req, res) {
-  const { userId } = req.params;
-  const numericUserId = Number(userId);
+  const userId = req.userId;
+  const numericUserId = req.userId;
   try {
     // 1. Fetch missions accepted by this user (exclude solo to prevent duplicates)
     const accepted = await prisma.participation.findMany({
@@ -649,213 +459,127 @@ async function getActiveMissions(req, res) {
 
     res.json(rows);
   } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.json(memoryStore.getActiveMissions(userId));
+    throw error;
   }
 }
 
 async function submitAttendance(req, res) {
-  const { id } = req.params;
-  const { userId, showedUp, code } = req.body;
-  if (!assertUserId(userId, res)) return;
-  if (typeof showedUp !== "boolean") {
-    return res.status(400).json({ error: "showedUp must be true or false." });
+  const callerId = req.userId;
+  const missionId = toId(req.params.id);
+  const { showedUp, code } = req.body || {};
+  const participantId = toId(req.body && req.body.participantId) || callerId;
+
+  if (!missionId) return res.status(400).json({ error: "Invalid mission." });
+  if (typeof showedUp !== "boolean") return res.status(400).json({ error: "showedUp must be true or false." });
+
+  const markingSomeoneElse = participantId !== callerId;
+  if (markingSomeoneElse && showedUp) {
+    return res.status(403).json({ error: "Only the participant can check themselves in." });
+  }
+
+  if (showedUp) {
+    // Slow down code guessing: 6 tries per user per mission per 10 minutes.
+    const rl = rateLimit(`checkin:${callerId}:${missionId}`, 6, 10 * 60e3);
+    if (!rl.ok) {
+      res.setHeader("Retry-After", String(rl.retryAfter));
+      return res.status(429).json({ error: "Too many attempts. Ask the host for the code and try again in a few minutes." });
+    }
   }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
       const participant = await tx.participation.findFirst({
-        where: {
-          missionId: Number(id),
-          userId: Number(userId)
-        },
-        include: {
-          mission: true
-        }
+        where: { missionId, userId: participantId },
+        include: { mission: true }
       });
+      if (!participant) throw new Error("NOT_FOUND");
 
-      if (!participant) {
-        throw new Error("NOT_FOUND");
-      }
+      const mission = participant.mission;
+      if (markingSomeoneElse && mission.createdBy !== callerId) throw new Error("FORBIDDEN");
+      if (participant.status !== "Accepted" || participant.showedUp !== null) throw new Error("ALREADY_SUBMITTED");
 
-      if (participant.status === "Executing" || participant.showedUp !== null) {
-        throw new Error("ALREADY_SUBMITTED");
-      }
+      const isSolo = mission.missionType === "solo";
+      const startsAt = mission.datetime ? mission.datetime.getTime() : Date.now();
+      if (!isSolo && Date.now() < startsAt - 15 * 60e3) throw new Error("TOO_EARLY");
 
       if (showedUp) {
-        if (participant.mission.missionType !== "solo") {
-          if (!code || String(code).trim() !== String(participant.mission.verificationCode).trim()) {
+        if (!isSolo) {
+          const expected = Buffer.from(String(mission.verificationCode || ""));
+          const given = Buffer.from(String(code || "").trim().slice(0, 10));
+          if (expected.length === 0 || expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) {
             throw new Error("INVALID_CODE");
           }
         }
-
         const updated = await tx.participation.update({
           where: { id: participant.id },
-          data: {
-            status: "Executing",
-            workStartedAt: new Date(),
-            workDuration: participant.mission.focusDuration,
-            showedUp: true
-          }
+          data: { status: "Executing", workStartedAt: new Date(), workDuration: mission.focusDuration, showedUp: true }
         });
-
-        return {
-          status: "Executing",
-          workStartedAt: updated.workStartedAt
-        };
-      } else {
-        // Creator marking participant as missed
-        await tx.participation.update({
-          where: { id: participant.id },
-          data: {
-            status: "Missed",
-            showedUp: false
-          }
-        });
-
-        // Deduct Aura immediately
-        const updatedUser = await tx.user.update({
-          where: { id: Number(userId) },
-          data: {
-            reputationScore: {
-              decrement: 5
-            }
-          }
-        });
-
-        return {
-          status: "Missed",
-          reputationScore: updatedUser.reputationScore
-        };
+        return { status: "Executing", workStartedAt: updated.workStartedAt, userId: participantId };
       }
+
+      await tx.participation.update({ where: { id: participant.id }, data: { status: "Missed", showedUp: false } });
+      await tx.user.update({ where: { id: participantId }, data: { reputationScore: { decrement: 5 } } });
+      return { status: "Missed", workStartedAt: null, userId: participantId };
     });
 
     res.json({
-      mission_id: Number(id),
-      user_id: Number(userId),
+      mission_id: missionId,
+      user_id: result.userId,
       status: result.status,
       work_started_at: result.workStartedAt ? result.workStartedAt.toISOString() : null
     });
   } catch (error) {
-    if (error.message === "NOT_FOUND") {
-      return res.status(404).json({ error: "Accepted mission not found." });
-    }
-    if (error.message === "ALREADY_SUBMITTED") {
-      return res.status(409).json({ error: "Vibe check session already completed." });
-    }
-    if (error.message === "INVALID_CODE") {
-      return res.status(400).json({ error: "Invalid check-in code. Please try again." });
-    }
-    if (isDbUnavailable(error)) {
-      const result = memoryStore.submitAttendance(id, userId, showedUp, code);
-      if (result.error) return res.status(result.status).json({ error: result.error });
-      return res.json(result);
-    }
+    const map = {
+      NOT_FOUND: [404, "You're not on this mission."],
+      FORBIDDEN: [403, "Only the host can mark someone as a no-show."],
+      ALREADY_SUBMITTED: [409, "Check-in has already been recorded."],
+      TOO_EARLY: [409, "Check-in opens 15 minutes before the start time."],
+      INVALID_CODE: [400, "That code doesn't match. Ask the host again."]
+    };
+    if (map[error.message]) return res.status(map[error.message][0]).json({ error: map[error.message][1] });
     throw error;
   }
 }
 
 async function approveParticipant(req, res) {
-  const { id } = req.params;
-  const { creatorId, participantId } = req.body;
-
-  if (!creatorId || !participantId) {
-    return res.status(400).json({ error: "creatorId and participantId are required." });
-  }
+  const creatorId = req.userId;
+  const missionId = toId(req.params.id);
+  const participantId = toId(req.body && req.body.participantId);
+  if (!missionId || !participantId) return res.status(400).json({ error: "participantId is required." });
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const mission = await tx.mission.findUnique({
-        where: { id: Number(id) }
-      });
+      const mission = await tx.mission.findUnique({ where: { id: missionId } });
+      if (!mission) throw new Error("MISSION_NOT_FOUND");
+      if (mission.createdBy !== creatorId) throw new Error("UNAUTHORIZED");
 
-      if (!mission) {
-        throw new Error("MISSION_NOT_FOUND");
-      }
+      const target = await tx.participation.findFirst({ where: { missionId, userId: participantId, status: "Requested" } });
+      if (!target) throw new Error("REQUEST_NOT_FOUND");
 
-      if (mission.createdBy !== Number(creatorId)) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      const targetParticipation = await tx.participation.findFirst({
-        where: {
-          missionId: Number(id),
-          userId: Number(participantId),
-          status: "Requested"
-        }
-      });
-
-      if (!targetParticipation) {
-        throw new Error("REQUEST_NOT_FOUND");
-      }
-
-      const approved = await tx.participation.update({
-        where: { id: targetParticipation.id },
-        data: { status: "Accepted" }
-      });
-
-      // Reject all other join requests for this mission
+      const approved = await tx.participation.update({ where: { id: target.id }, data: { status: "Accepted" } });
       await tx.participation.updateMany({
-        where: {
-          missionId: Number(id),
-          id: { not: targetParticipation.id },
-          status: "Requested"
-        },
+        where: { missionId, id: { not: target.id }, status: "Requested" },
         data: { status: "Rejected" }
       });
-
-      return approved;
+      return { approved, mission };
     });
 
-    // Real-time Push Notification to Participant
-    try {
-      const mission = await prisma.mission.findUnique({
-        where: { id: Number(id) },
-        select: { title: true }
-      });
-      const host = await prisma.user.findUnique({
-        where: { id: Number(creatorId) },
-        select: { name: true }
-      });
-      if (mission) {
-        const supabaseClient = require("../config/supabase");
-        if (supabaseClient) {
-          const channel = supabaseClient.channel(`notifications:${participantId}`);
-          channel.subscribe((status) => {
-            if (status === "SUBSCRIBED") {
-              channel.send({
-                type: "broadcast",
-                event: "push_notification",
-                payload: {
-                  title: "Request Approved!",
-                  message: `${host?.name || "Host"} approved your request to join: "${mission.title}"`,
-                  type: "request_approved",
-                  missionId: Number(id)
-                }
-              }).catch(err => console.error("Realtime notification broadcast failed:", err));
-            }
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Error sending approval notification:", err);
-    }
-
-    res.json({
-      mission_id: Number(id),
-      participant_id: Number(participantId),
-      status: result.status
+    const host = await prisma.user.findUnique({ where: { id: creatorId }, select: { name: true } });
+    notifyUser(participantId, {
+      title: "Request approved",
+      message: `${host?.name || "The host"} approved you for "${result.mission.title}"`,
+      type: "request_approved",
+      missionId
     });
+
+    res.json({ mission_id: missionId, participant_id: participantId, status: result.approved.status });
   } catch (error) {
-    if (error.message === "MISSION_NOT_FOUND") {
-      return res.status(404).json({ error: "Mission not found." });
-    }
-    if (error.message === "UNAUTHORIZED") {
-      return res.status(403).json({ error: "Only the mission creator can approve requests." });
-    }
-    if (error.message === "REQUEST_NOT_FOUND") {
-      return res.status(404).json({ error: "Join request not found." });
-    }
+    const map = {
+      MISSION_NOT_FOUND: [404, "Mission not found."],
+      UNAUTHORIZED: [403, "Only the mission's host can approve requests."],
+      REQUEST_NOT_FOUND: [404, "Join request not found."]
+    };
+    if (map[error.message]) return res.status(map[error.message][0]).json({ error: map[error.message][1] });
     throw error;
   }
 }
@@ -930,111 +654,65 @@ async function getCampuses(req, res) {
 }
 
 async function submitVibeCheck(req, res) {
-  const { id } = req.params;
-  const { raterId, rating } = req.body;
-
-  if (!raterId || !["W", "L"].includes(rating)) {
-    return res.status(400).json({ error: "raterId and rating ('W' or 'L') are required." });
+  const raterId = req.userId;
+  const missionId = toId(req.params.id);
+  const { rating } = req.body || {};
+  if (!missionId || !["W", "L"].includes(rating)) {
+    return res.status(400).json({ error: "rating must be 'W' or 'L'." });
   }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      const mission = await tx.mission.findUnique({ where: { id: missionId } });
+      if (!mission) throw new Error("NOT_FOUND");
+      const isCreator = mission.createdBy === raterId;
+
+      // The participation being rated: the rater's own (participant) or the
+      // single approved partner's (host). Group missions approve one partner.
       const participation = await tx.participation.findFirst({
-        where: {
-          missionId: Number(id),
-          status: { in: ["Executing", "Completed"] }
-        },
-        include: {
-          mission: true
-        }
+        where: isCreator
+          ? { missionId, userId: { not: raterId }, status: { in: ["Executing", "Completed"] } }
+          : { missionId, userId: raterId, status: { in: ["Executing", "Completed"] } }
       });
+      if (!participation) throw new Error(isCreator ? "NOT_FOUND" : "UNAUTHORIZED");
 
-      if (!participation) {
-        throw new Error("NOT_FOUND");
-      }
-
-      const numericRaterId = Number(raterId);
-      const isCreator = participation.mission.createdBy === numericRaterId;
-      const isParticipant = participation.userId === numericRaterId;
-
-      if (!isCreator && !isParticipant) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      let updatedRatingField = {};
-      let targetUserId = null;
-      let auraDelta = rating === "W" ? 2 : -1;
-      let baseAuraDelta = 0;
-
+      const delta = rating === "W" ? 2 : -1;
+      let field;
+      let targetUserId;
+      let base;
       if (isCreator) {
-        if (participation.creatorVibeRating !== null) {
-          throw new Error("ALREADY_RATED");
-        }
-        updatedRatingField = { creatorVibeRating: rating };
+        if (participation.creatorVibeRating !== null) throw new Error("ALREADY_RATED");
+        field = { creatorVibeRating: rating };
         targetUserId = participation.userId;
-        baseAuraDelta = 10; // Participant base Completion reward
+        base = 10; // participant completion reward
       } else {
-        if (participation.participantVibeRating !== null) {
-          throw new Error("ALREADY_RATED");
-        }
-        updatedRatingField = { participantVibeRating: rating };
-        targetUserId = participation.mission.createdBy;
-        baseAuraDelta = 5; // Creator base Hosting reward
+        if (participation.participantVibeRating !== null) throw new Error("ALREADY_RATED");
+        field = { participantVibeRating: rating };
+        targetUserId = mission.createdBy;
+        base = 5; // host reward
       }
 
-      const updatedParticipation = await tx.participation.update({
-        where: { id: participation.id },
-        data: updatedRatingField
-      });
-
-      const totalDelta = baseAuraDelta + auraDelta;
+      const updated = await tx.participation.update({ where: { id: participation.id }, data: field });
       if (targetUserId) {
-        await tx.user.update({
-          where: { id: targetUserId },
-          data: {
-            reputationScore: {
-              increment: totalDelta
-            }
-          }
-        });
+        await tx.user.update({ where: { id: targetUserId }, data: { reputationScore: { increment: base + delta } } });
       }
 
-      // Mark status as Completed once both ratings are submitted
-      let finalStatus = participation.status;
-      if (
-        (isCreator && updatedParticipation.participantVibeRating !== null) ||
-        (isParticipant && updatedParticipation.creatorVibeRating !== null)
-      ) {
-        finalStatus = "Completed";
-        await tx.participation.update({
-          where: { id: participation.id },
-          data: { status: "Completed" }
-        });
+      let status = participation.status;
+      if (updated.creatorVibeRating !== null && updated.participantVibeRating !== null) {
+        status = "Completed";
+        await tx.participation.update({ where: { id: participation.id }, data: { status } });
       }
-
-      return {
-        status: finalStatus,
-        targetUserId,
-        auraDelta: totalDelta
-      };
+      return { status, targetUserId, auraDelta: base + delta };
     });
 
-    res.json({
-      mission_id: Number(id),
-      status: result.status,
-      rated_user_id: result.targetUserId,
-      aura_delta: result.auraDelta
-    });
+    res.json({ mission_id: missionId, status: result.status, rated_user_id: result.targetUserId, aura_delta: result.auraDelta });
   } catch (error) {
-    if (error.message === "NOT_FOUND") {
-      return res.status(404).json({ error: "Active participation not found." });
-    }
-    if (error.message === "UNAUTHORIZED") {
-      return res.status(403).json({ error: "Unauthorized vibe check." });
-    }
-    if (error.message === "ALREADY_RATED") {
-      return res.status(409).json({ error: "Vibe check already submitted." });
-    }
+    const map = {
+      NOT_FOUND: [404, "Active participation not found."],
+      UNAUTHORIZED: [403, "You weren't on this mission."],
+      ALREADY_RATED: [409, "You've already rated this session."]
+    };
+    if (map[error.message]) return res.status(map[error.message][0]).json({ error: map[error.message][1] });
     throw error;
   }
 }

@@ -1,15 +1,66 @@
 const { fontFamily } = require("tailwindcss/defaultTheme");
 
+// Channels are defined in app/globals.css so every token supports /opacity.
+const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}", "./lib/**/*.{js,jsx,ts,tsx}"],
   theme: {
+    // Brand: flat and near-square. Circles (full) stay for avatars and dots.
+    borderRadius: {
+      none: "0",
+      sm: "2px",
+      DEFAULT: "2px",
+      md: "2px",
+      lg: "2px",
+      xl: "3px",
+      "2xl": "3px",
+      "3xl": "4px",
+      full: "9999px",
+      card: "3px",
+      sheet: "4px"
+    },
     extend: {
       fontFamily: {
-        sans: ["SF Pro Text", "-apple-system", "BlinkMacSystemFont", "var(--font-sans)", ...fontFamily.sans],
-        display: ["SF Pro Display", "-apple-system", "BlinkMacSystemFont", "var(--font-sans)", ...fontFamily.sans],
+        sans: ["var(--font-sans)", ...fontFamily.sans],
+        display: ["var(--font-display)", "var(--font-sans)", ...fontFamily.sans]
+      },
+      fontSize: {
+        // Space Grotesk scale: light headlines, medium UI.
+        "large-title": ["40px", { lineHeight: "42px", letterSpacing: "-0.035em", fontWeight: "300" }],
+        "title-1": ["30px", { lineHeight: "34px", letterSpacing: "-0.03em", fontWeight: "300" }],
+        "title-2": ["22px", { lineHeight: "28px", letterSpacing: "-0.02em", fontWeight: "400" }],
+        "title-3": ["19px", { lineHeight: "25px", letterSpacing: "-0.015em", fontWeight: "500" }],
+        headline: ["16px", { lineHeight: "22px", letterSpacing: "-0.01em", fontWeight: "500" }],
+        body: ["16px", { lineHeight: "24px", letterSpacing: "-0.005em" }],
+        callout: ["16px", { lineHeight: "22px" }],
+        subhead: ["14px", { lineHeight: "20px" }],
+        footnote: ["13px", { lineHeight: "18px" }],
+        caption: ["12px", { lineHeight: "16px" }],
+        micro: ["11px", { lineHeight: "14px", letterSpacing: "0.22em" }]
       },
       colors: {
+        // ── Surfaces ──
+        bg: token("bg"),
+        surface: token("surface"),
+        raised: token("raised"),
+        overlay: token("overlay"),
+        line: token("line"),
+        // ── Text ──
+        ink: token("ink"),
+        "ink-2": token("ink-2"),
+        "ink-3": token("ink-3"),
+        // ── Brand ──
+        signal: token("signal"), // brand Crimson #B11226: lines, fills, strokes
+        crimson: token("crimson-text"), // text-only crimson (#E92A42, 4.5:1+)
+        cherry: token("cherry"), // deeper crimson for pressed/fills
+        maroon: token("maroon"),
+        gold: token("gold"), // retired; resolves to Signal off-white
+        success: token("success"),
+        warn: token("warn"),
+
+        // ── shadcn primitives ──
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: "hsl(var(--card))",
@@ -21,32 +72,40 @@ module.exports = {
         secondaryForeground: "hsl(var(--secondary-foreground))",
         destructive: "hsl(var(--destructive))",
         border: "hsl(var(--border))",
-        void: "hsl(var(--background))",
-        panel: "hsl(var(--card))",
-        acid: "#D2042D",
-        danger: "#D2042D",
-        neonBlue: "#FFFFFF",
-        neonPurple: "#D2042D",
-        noirBlack: "#000000",
-        cotton: "#FFFFFF",
-        cherryRed: "#D2042D",
-        luxuryMaroon: "#4A0002",
-        luxuryGold: "#FFFFFF",
-        boxRed: "#D2042D",
-        boxOrange: "#FFFFFF",
-        boxMaroon: "#4A0002",
-        boxCotton: "#FFFFFF",
-        boxNoir: "#000000",
-        boxGreen: "#FFFFFF",
-        boxTrack: "#000000",
-        boxPit: "#000000",
-        boxLine: "#4A0002"
+
+        // ── Legacy aliases (kept so existing class names resolve to brand values) ──
+        void: token("bg"),
+        panel: token("surface"),
+        noirBlack: token("bg"),
+        cotton: token("ink"),
+        cherryRed: token("signal"),
+        acid: token("signal"),
+        danger: token("signal"),
+        neonPurple: token("signal"),
+        neonBlue: token("ink"),
+        luxuryMaroon: token("maroon"),
+        luxuryGold: token("gold"),
+        boxRed: token("signal"),
+        boxMaroon: token("maroon"),
+        boxOrange: token("warn"),
+        boxGreen: token("success"),
+        boxCotton: token("ink"),
+        boxNoir: token("bg"),
+        boxTrack: token("bg"),
+        boxPit: token("bg"),
+        boxLine: token("maroon")
       },
       boxShadow: {
-        acid: "0 0 30px rgba(69,255,154,.35)",
-        danger: "0 0 30px rgba(129,1,0,.35)",
-        blue: "0 0 34px rgba(237,235,222,.32)",
-        purple: "0 0 38px rgba(99,1,2,.34)"
+        // Flat brand: no button shadows; one soft lift for overlays only.
+        cta: "none",
+        lift: "0 24px 48px -24px rgb(0 0 0 / 0.9)",
+        danger: "0 8px 32px -8px rgb(var(--signal) / 0.45)",
+        acid: "0 8px 32px -8px rgb(var(--signal) / 0.45)",
+        blue: "0 8px 32px -8px rgb(var(--ink) / 0.2)",
+        purple: "0 8px 32px -8px rgb(var(--cherry) / 0.5)"
+      },
+      transitionTimingFunction: {
+        out: "cubic-bezier(0.22, 1, 0.36, 1)"
       }
     }
   },

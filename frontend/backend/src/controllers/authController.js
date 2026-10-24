@@ -99,48 +99,30 @@ async function checkDomain(req, res) {
  * Syncs the verified Supabase user profile in our database.
  * Creates a skeleton profile for first-time signups.
  */
+/**
+ * POST /api/auth/profile
+ * Creates the database profile for a verified Supabase user on first sign-in.
+ * Identity (auth id + email) comes only from the verified session that
+ * getAuthUser() attached; linking by email already happened there, and only
+ * for unlinked rows.
+ */
 async function syncProfile(req, res) {
-  const supabaseUser = req.supabaseUser || req.user;
-  if (!supabaseUser) {
-    return res.status(401).json({ error: "Not authenticated." });
-  }
+  const session = req.supabaseUser;
+  if (!session || !session.email) return res.status(401).json({ error: "Not authenticated." });
 
-  const email = supabaseUser.email;
-  const supabaseId = supabaseUser.id;
-
-  try {
-    // Find existing user by supabaseId or email
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { supabaseId: supabaseId },
-          { email: email }
-        ]
-      }
-    });
-
-    const domain = email.trim().toLowerCase().split("@")[1];
-    let college = await prisma.college.findFirst({
-      where: { emailDomain: domain }
-    });
-
-    if (!college) {
-      const parts = domain.split(".");
-      if (parts.length > 2) {
-        const baseDomain = parts.slice(1).join(".");
-        college = await prisma.college.findFirst({
-          where: { emailDomain: baseDomain }
-        });
-      }
+  let user = req.user;
+  if (!user) {
+    const domain = session.email.split("@")[1] || "";
+    let college = await prisma.college.findFirst({ where: { emailDomain: domain } });
+    if (!college && domain.split(".").length > 2) {
+      college = await prisma.college.findFirst({ where: { emailDomain: domain.split(".").slice(1).join(".") } });
     }
-
-    if (!user) {
-      // Create new skeleton database profile
+    try {
       user = await prisma.user.create({
         data: {
-          supabaseId: supabaseId,
-          name: email.split("@")[0],
-          email: email,
+          supabaseId: session.id,
+          name: session.email.split("@")[0].slice(0, 50),
+          email: session.email,
           emailVerified: true,
           verifiedAt: new Date(),
           college: college ? college.shortName : null,
@@ -148,82 +130,41 @@ async function syncProfile(req, res) {
           reputationScore: 100
         }
       });
-    } else {
-      const updateData = {};
-      if (!user.supabaseId) {
-        updateData.supabaseId = supabaseId;
-        updateData.emailVerified = true;
-        updateData.verifiedAt = new Date();
-      }
-      if (!user.collegeId && college) {
-        updateData.collegeId = college.id;
-        if (!user.college) updateData.college = college.shortName;
-      }
-      if (Object.keys(updateData).length > 0) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: updateData
-        });
-      }
+    } catch (error) {
+      if (error.code === "P2002") return res.status(409).json({ error: "This email is linked to another account." });
+      throw error;
     }
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        email_verified: user.emailVerified,
-        college: user.college,
-        department: user.department,
-        reputation_score: user.reputationScore,
-        bio: user.bio,
-        instagram: user.instagram,
-        github: user.github,
-        interests: user.interests
-      }
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.status(500).json({ error: "Failed to synchronize profile." });
   }
+
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      email_verified: user.emailVerified,
+      college: user.college,
+      department: user.department,
+      reputation_score: user.reputationScore,
+      bio: user.bio,
+      instagram: user.instagram,
+      github: user.github,
+      interests: user.interests
+    }
+  });
 }
 
 /**
  * GET /api/auth/me
- * Returns the currently authenticated user details.
+ * The signed-in user's own profile, or { incomplete: true } before onboarding.
  */
 async function getMe(req, res) {
-  const supabaseUser = req.supabaseUser || req.user;
-  if (!supabaseUser) {
-    return res.status(401).json({ error: "Not authenticated." });
-  }
+  const session = req.supabaseUser;
+  if (!session) return res.status(401).json({ error: "Not authenticated." });
 
-  // If req.user is already a fully loaded DB user with college, use it; otherwise fetch from DB
-  let dbUser = (req.user && req.user.college !== undefined) ? req.user : null;
+  const dbUser = req.user;
   if (!dbUser) {
-    const orConditions = [{ email: supabaseUser.email }];
-    if (supabaseUser.id) {
-      orConditions.push({ supabaseId: String(supabaseUser.id) });
-      const numId = Number(supabaseUser.id);
-      if (!isNaN(numId) && numId > 0) {
-        orConditions.push({ id: numId });
-      }
-    }
-    dbUser = await prisma.user.findFirst({
-      where: {
-        OR: orConditions
-      },
-      include: { collegeRef: true }
-    });
-  }
-
-  if (!dbUser) {
-    return res.json({
-      incomplete: true,
-      email: supabaseUser.email,
-      name: supabaseUser.email.split("@")[0]
-    });
+    return res.json({ incomplete: true, email: session.email, name: (session.email || "").split("@")[0] });
   }
 
   res.json({
@@ -232,23 +173,21 @@ async function getMe(req, res) {
     email: dbUser.email,
     email_verified: dbUser.emailVerified,
     college: dbUser.college,
-    college_id: dbUser.email, // Legacy mapping
+    college_id: dbUser.email, // legacy field name the UI expects
     department: dbUser.department,
     reputation_score: dbUser.reputationScore,
+    location: dbUser.location,
     bio: dbUser.bio,
     instagram: dbUser.instagram,
     github: dbUser.github,
     interests: dbUser.interests,
     campus_id: dbUser.collegeId,
     campus_name: dbUser.collegeRef?.shortName || "",
-    verified_at: dbUser.verifiedAt
+    verified_at: dbUser.verifiedAt,
+    avatar_url: dbUser.avatarUrl || null
   });
 }
 
-/**
- * POST /api/auth/logout
- * Clears session.
- */
 async function logout(req, res) {
   res.json({ success: true, message: "Logged out." });
 }

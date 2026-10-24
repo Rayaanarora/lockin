@@ -14,78 +14,31 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
     })
   : null;
 
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_BYTES = 5 * 1024 * 1024;
+
 /**
- * Uploads an image (File or base64 Data URL) to Supabase Storage if configured.
- * If Supabase is not configured or the upload fails, it falls back to returning
- * the base64 string directly, keeping the application functional.
+ * Upload an image to Supabase Storage (bucket "posts", under the uploader's
+ * auth id) and return its public URL. Throws with a readable message on any
+ * problem; there is deliberately no base64 fallback, because the API rejects
+ * inline images (they bloated database rows).
  */
-export async function uploadImage(fileOrBase64: File | string): Promise<string> {
-  if (!supabase) {
-    console.warn("Supabase client is not configured. Falling back to direct URL / base64.");
-    if (typeof fileOrBase64 === "string") {
-      return fileOrBase64;
-    }
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(fileOrBase64);
-    });
-  }
+export async function uploadImage(file: File): Promise<string> {
+  if (!supabase) throw new Error("Image uploads aren't configured on this server.");
+  if (!ALLOWED_TYPES.includes(file.type)) throw new Error("Use a JPG, PNG, WebP or GIF image.");
+  if (file.size > MAX_BYTES) throw new Error("Images must be 5 MB or smaller.");
 
-  try {
-    let file: Blob | File;
-    let fileName: string;
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("Sign in to upload images.");
 
-    if (typeof fileOrBase64 === "string") {
-      if (fileOrBase64.startsWith("data:")) {
-        const arr = fileOrBase64.split(",");
-        const mimeMatch = arr[0].match(/:(.*?);/);
-        const mime = mimeMatch ? mimeMatch[1] : "image/png";
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        file = new Blob([u8arr], { type: mime });
-        const ext = mime.split("/")[1] || "png";
-        fileName = `post-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
-      } else {
-        return fileOrBase64;
-      }
-    } else {
-      file = fileOrBase64;
-      const ext = (file as File).name?.split(".").pop() || "png";
-      fileName = `post-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
-    }
+  const ext = file.type.split("/")[1].replace("jpeg", "jpg");
+  const name = `${auth.user.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  const { error } = await supabase.storage.from("posts").upload(name, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: file.type
+  });
+  if (error) throw new Error("Upload failed. Try again.");
 
-    const { data, error } = await supabase.storage
-      .from("posts")
-      .upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (error) {
-      throw error;
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from("posts")
-      .getPublicUrl(fileName);
-
-    return publicUrlData.publicUrl;
-  } catch (err) {
-    console.error("Supabase upload failed, falling back to base64:", err);
-    if (typeof fileOrBase64 === "string") {
-      return fileOrBase64;
-    }
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(fileOrBase64);
-    });
-  }
+  return supabase.storage.from("posts").getPublicUrl(name).data.publicUrl;
 }

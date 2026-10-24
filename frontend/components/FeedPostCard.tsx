@@ -1,383 +1,343 @@
 "use client";
 
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { MessageSquare, Globe, Users, UserCheck, Trash2, X } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { MessageCircle, Globe, Users, UserCheck, Trash2, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Flame } from "lucide-react";
 import { Post } from "../app/types";
+import { spring } from "../lib/motion";
+
+type Emoji = "🔥" | "💀" | "❤️" | "🧠";
 
 interface FeedPostCardProps {
   post: Post;
   currentUserId: number;
-  onReactionToggle: (postId: number, emoji: "🔥" | "💀" | "❤️" | "🧠") => void;
+  onReactionToggle: (postId: number, emoji: Emoji) => void;
   onCommentsClick: (post: Post) => void;
   onDeletePost?: (postId: number) => void;
 }
 
-/* ────────────────── Image Grid (LinkedIn-style) ────────────────── */
+const REACTIONS: { emoji: Emoji; label: string }[] = [
+  { emoji: "🔥", label: "Fire" },
+  { emoji: "🧠", label: "Big brain" },
+  { emoji: "❤️", label: "Love" },
+  { emoji: "💀", label: "Dead" }
+];
 
-function ImageGrid({ images }: { images: string[] }) {
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+function timeAgo(iso: string) {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
-  if (!images || images.length === 0) return null;
+/* ───────────── Lightbox ───────────── */
 
+function Lightbox({ images, index, setIndex, onClose }: { images: string[]; index: number; setIndex: (i: number) => void; onClose: () => void }) {
+  const [dir, setDir] = useState(0);
+  const go = useCallback(
+    (d: number) => {
+      const n = index + d;
+      if (n < 0 || n >= images.length) return;
+      setDir(d);
+      setIndex(n);
+    },
+    [index, images.length, setIndex]
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") go(-1);
+      if (e.key === "ArrowRight") go(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go, onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/95 p-4 backdrop-blur-md"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image viewer"
+    >
+      <button type="button" onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface/80 text-ink">
+        <X className="h-5 w-5" />
+      </button>
+
+      <AnimatePresence initial={false} custom={dir} mode="popLayout">
+        <motion.img
+          key={index}
+          src={images[index]}
+          alt={`Image ${index + 1} of ${images.length}`}
+          custom={dir}
+          initial={{ opacity: 0, x: dir * 80, scale: 0.96 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: dir * -80, scale: 0.96 }}
+          transition={spring.glide}
+          drag={images.length > 1 ? "x" : false}
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.x < -60) go(1);
+            if (info.offset.x > 60) go(-1);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[85vh] max-w-full cursor-grab rounded-xl object-contain active:cursor-grabbing"
+        />
+      </AnimatePresence>
+
+      {images.length > 1 && (
+        <>
+          {index > 0 && (
+            <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Previous" className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-surface/80 text-ink">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
+          {index < images.length - 1 && (
+            <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Next" className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-surface/80 text-ink">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          )}
+          <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2">
+            {images.map((_, i) => (
+              <motion.span key={i} animate={{ width: i === index ? 20 : 6, opacity: i === index ? 1 : 0.4 }} className="h-1.5 rounded-full bg-ink" />
+            ))}
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+/* ───────────── Image grid ───────────── */
+
+function ImageGrid({ images, onDoubleTap }: { images: string[]; onDoubleTap: () => void }) {
+  const [lightbox, setLightbox] = useState<number | null>(null);
+  const [heart, setHeart] = useState(0);
+  const lastTap = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  if (!images.length) return null;
   const count = images.length;
 
-  const openLightbox = (idx: number) => setLightboxIdx(idx);
-  const closeLightbox = () => setLightboxIdx(null);
+  const tap = (i: number) => {
+    const now = Date.now();
+    if (now - lastTap.current < 280) {
+      if (timer.current) clearTimeout(timer.current);
+      lastTap.current = 0;
+      setHeart((h) => h + 1);
+      onDoubleTap();
+      return;
+    }
+    lastTap.current = now;
+    timer.current = setTimeout(() => setLightbox(i), 280);
+  };
+
+  const Tile = ({ i, className = "" }: { i: number; className?: string }) => (
+    <button type="button" onClick={() => tap(i)} aria-label={`Open image ${i + 1}`} className={`relative block overflow-hidden bg-raised ${className}`}>
+      <img src={images[i]} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.03]" />
+      {i === 3 && count > 4 && (
+        <span className="t-display absolute inset-0 flex items-center justify-center bg-black/60 text-title-1 text-ink">+{count - 4}</span>
+      )}
+    </button>
+  );
 
   return (
     <>
-      <div className="w-full border-b border-white/[0.06] overflow-hidden aspect-[4/5]">
-        {count === 1 && (
-          <button onClick={() => openLightbox(0)} className="w-full h-full block cursor-pointer overflow-hidden">
-            <img
-              src={images[0]}
-              alt="Post image"
-              className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-            />
-          </button>
-        )}
-
+      <div className="relative aspect-[4/5] w-full overflow-hidden">
+        {count === 1 && <Tile i={0} className="h-full w-full" />}
         {count === 2 && (
-          <div className="grid grid-cols-2 gap-[2px] h-full">
-            {images.map((img, i) => (
-              <button key={i} onClick={() => openLightbox(i)} className="block cursor-pointer overflow-hidden h-full">
-                <img
-                  src={img}
-                  alt={`Post image ${i + 1}`}
-                  className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-                />
-              </button>
-            ))}
+          <div className="grid h-full grid-cols-2 gap-0.5">
+            <Tile i={0} className="h-full" />
+            <Tile i={1} className="h-full" />
           </div>
         )}
-
         {count === 3 && (
-          <div className="grid gap-[2px] h-full" style={{ gridTemplateColumns: "2fr 1fr", gridTemplateRows: "1fr 1fr" }}>
-            <button onClick={() => openLightbox(0)} className="row-span-2 block cursor-pointer overflow-hidden">
-              <img
-                src={images[0]}
-                alt="Post image 1"
-                className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-              />
-            </button>
-            <button onClick={() => openLightbox(1)} className="block cursor-pointer overflow-hidden">
-              <img
-                src={images[1]}
-                alt="Post image 2"
-                className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-              />
-            </button>
-            <button onClick={() => openLightbox(2)} className="block cursor-pointer overflow-hidden">
-              <img
-                src={images[2]}
-                alt="Post image 3"
-                className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-              />
-            </button>
+          <div className="grid h-full gap-0.5" style={{ gridTemplateColumns: "2fr 1fr", gridTemplateRows: "1fr 1fr" }}>
+            <Tile i={0} className="row-span-2 h-full" />
+            <Tile i={1} className="h-full" />
+            <Tile i={2} className="h-full" />
           </div>
         )}
-
         {count >= 4 && (
-          <div className="grid grid-cols-2 gap-[2px] h-full">
-            {images.slice(0, 4).map((img, i) => (
-              <button
-                key={i}
-                onClick={() => openLightbox(i)}
-                className="relative block cursor-pointer overflow-hidden"
-              >
-                <img
-                  src={img}
-                  alt={`Post image ${i + 1}`}
-                  className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-                />
-                {i === 3 && count > 4 && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="text-2xl font-black text-white">+{count - 4}</span>
-                  </div>
-                )}
-              </button>
+          <div className="grid h-full grid-cols-2 gap-0.5">
+            {[0, 1, 2, 3].map((i) => (
+              <Tile key={i} i={i} className="h-full" />
             ))}
           </div>
         )}
+
+        {/* Double-tap burst */}
+        <AnimatePresence>
+          {heart > 0 && (
+            <motion.span
+              key={heart}
+              className="pointer-events-none absolute inset-0 flex items-center justify-center text-[88px]"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [0, 1.25, 1], opacity: [0, 1, 1] }}
+              exit={{ scale: 1.4, opacity: 0, y: -40, transition: { duration: 0.35 } }}
+              transition={{ duration: 0.45 }}
+              onAnimationComplete={() => setTimeout(() => setHeart(0), 250)}
+              aria-hidden="true"
+            >
+              🔥
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Lightbox Overlay */}
-      {lightboxIdx !== null && (
-        <div
-          className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-md flex items-center justify-center p-4"
-          onClick={closeLightbox}
-        >
-          <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 p-2.5 rounded-full border border-white/10 bg-zinc-900/80 text-zinc-400 hover:text-white transition z-10"
-          >
-            <X size={18} />
-          </button>
-
-          {/* Navigation dots */}
-          {count > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-              {images.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={(e) => { e.stopPropagation(); setLightboxIdx(i); }}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i === lightboxIdx ? "bg-white scale-125" : "bg-zinc-600 hover:bg-zinc-400"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-
-          <img
-            src={images[lightboxIdx]}
-            alt="Full size"
-            className="max-w-full max-h-[85vh] object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          {/* Prev / Next arrows */}
-          {lightboxIdx > 0 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx - 1); }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-zinc-900/80 border border-white/10 text-zinc-400 hover:text-white transition"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-          )}
-          {lightboxIdx < count - 1 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx + 1); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-zinc-900/80 border border-white/10 text-zinc-400 hover:text-white transition"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-          )}
-        </div>
-      )}
+      <AnimatePresence>{lightbox !== null && <Lightbox images={images} index={lightbox} setIndex={setLightbox} onClose={() => setLightbox(null)} />}</AnimatePresence>
     </>
   );
 }
 
-/* ────────────────── Feed Post Card ────────────────── */
+/* ───────────── Reaction ───────────── */
 
-export default function FeedPostCard({
-  post,
-  currentUserId,
-  onReactionToggle,
-  onCommentsClick,
-  onDeletePost
-}: FeedPostCardProps) {
-  const {
-    id,
-    userId,
-    imageUrl,
-    imageUrls,
-    caption,
-    visibility,
-    createdAt,
-    user,
-    recap,
-    commentCount,
-    reactionCounts,
-    userReactions
-  } = post;
+function ReactionButton({ emoji, label, count, active, onClick }: { emoji: Emoji; label: string; count: number; active: boolean; onClick: () => void }) {
+  const [bursts, setBursts] = useState<number[]>([]);
+  return (
+    <motion.button
+      type="button"
+      onClick={() => {
+        if (!active) setBursts((b) => [...b, Date.now()]);
+        onClick();
+      }}
+      whileTap={{ scale: 0.85 }}
+      transition={spring.snap}
+      aria-pressed={active}
+      aria-label={`${label}, ${count}`}
+      className={`relative flex h-9 items-center gap-1 rounded-sm border px-2.5 transition-colors after:absolute after:-inset-1 after:content-[''] ${
+        active ? "border-signal/60 bg-surface text-ink" : "border-line bg-raised text-ink-2 hover:border-ink-3/40 hover:text-ink"
+      }`}
+    >
+      <motion.span animate={active ? { scale: [1, 1.35, 1], rotate: [0, -12, 0] } : { scale: 1 }} transition={{ duration: 0.35 }} className="text-subhead leading-none">
+        {emoji}
+      </motion.span>
+      <span className="relative h-4 min-w-[1ch] overflow-hidden text-footnote font-semibold leading-4">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span key={count} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }} transition={{ duration: 0.18 }} className="tabular block">
+            {count}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      {bursts.map((b) => (
+        <motion.span
+          key={b}
+          className="pointer-events-none absolute left-2.5 top-0 text-title-3"
+          initial={{ y: 0, opacity: 1, scale: 0.8 }}
+          animate={{ y: -42, opacity: 0, scale: 1.4, x: [0, 6, -4, 2] }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          onAnimationComplete={() => setBursts((all) => all.filter((x) => x !== b))}
+          aria-hidden="true"
+        >
+          {emoji}
+        </motion.span>
+      ))}
+    </motion.button>
+  );
+}
 
+/* ───────────── Card ───────────── */
+
+export default function FeedPostCard({ post, currentUserId, onReactionToggle, onCommentsClick, onDeletePost }: FeedPostCardProps) {
+  const { id, userId, imageUrl, imageUrls, caption, visibility, createdAt, user, recap, commentCount, reactionCounts, userReactions } = post;
   const isOwner = userId === currentUserId;
-
-  // Resolve images: prefer imageUrls array, fallback to single imageUrl
-  const images: string[] = (() => {
-    if (imageUrls && imageUrls.length > 0) return imageUrls;
-    if (imageUrl) return [imageUrl];
-    return [];
-  })();
-
-  const initials = user?.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
-    : "??";
-
-  const formattedDate = new Date(createdAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  }) + ", " + new Date(createdAt).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-  const displayDate = formattedDate.toUpperCase();
-
-  const getVisibilityIcon = () => {
-    switch (visibility) {
-      case "everyone":
-        return <Globe size={11} className="text-zinc-600" />;
-      case "followers":
-        return <Users size={11} className="text-zinc-600" />;
-      case "college":
-        return <UserCheck size={11} className="text-zinc-600" />;
-      default:
-        return <Globe size={11} className="text-zinc-600" />;
-    }
-  };
-
-  // Stat Card fields
-  const missionTitle = recap?.missionTitle || "Focus Session";
-  const duration = recap?.sessionDuration || 25;
-  const category = recap?.categorySnapshot || "Development";
-  const tasksCompleted = recap?.tasksCompleted || 0;
-  const streak = recap?.streak || 0;
-
-  // List of reactions
-  const reactionList = [
-    { emoji: "🔥" as const, label: "Fire" },
-    { emoji: "💀" as const, label: "Skull" },
-    { emoji: "❤️" as const, label: "Heart" },
-    { emoji: "🧠" as const, label: "Brain" }
-  ];
+  const images: string[] = imageUrls && imageUrls.length > 0 ? imageUrls : imageUrl ? [imageUrl] : [];
+  const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const VisIcon = visibility === "followers" ? Users : visibility === "college" ? UserCheck : Globe;
+  const visLabel = visibility === "followers" ? "Followers" : visibility === "college" ? "Campus" : "Everyone";
 
   return (
-    <div className="relative bg-zinc-950 border border-white/[0.08] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-colors duration-200 text-left w-full flex flex-col">
-      {/* Section 1 — Header */}
-      <div className="flex items-center px-4 pt-4 pb-3">
-        {/* Left side */}
-        <div className="flex items-center gap-3 min-w-0">
-          {user?.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt={user.name || "User"}
-              className="w-9 h-9 rounded-full object-cover border border-[#8B0000]/50 shrink-0"
-            />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-zinc-900 border border-[#8B0000]/50 text-[11px] font-black text-[#8B0000] flex items-center justify-center shrink-0">
-              {initials}
-            </div>
-          )}
-          <div className="min-w-0">
-            <h4 className="text-sm font-black text-white uppercase tracking-wide truncate">
-              {user?.name || "Unknown"}
-            </h4>
-            <p className="text-[10px] text-zinc-500 font-bold truncate leading-none mt-0.5">
-              {user?.department || "Student"} &middot; {user?.college || "Campus"}
-            </p>
-          </div>
+    <article className="overflow-hidden rounded-card border border-line bg-surface transition-colors hover:border-ink-3/30">
+      {/* Header */}
+      <header className="flex items-center gap-3 px-4 py-3.5 md:px-6 md:py-5">
+        {user?.avatarUrl ? (
+          <img src={user.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />
+        ) : (
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-raised font-display text-title-3 font-bold text-ink">{initials}</span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-subhead font-semibold leading-tight text-ink">{user?.name || "Unknown"}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 truncate text-footnote text-ink-3">
+            <span className="truncate">{user?.department || "Student"}</span>
+            <span aria-hidden="true">·</span>
+            <time dateTime={createdAt} title={new Date(createdAt).toLocaleString()}>{timeAgo(createdAt)}</time>
+            <VisIcon className="h-3.5 w-3.5 shrink-0" aria-label={visLabel} />
+          </p>
         </div>
+        {isOwner && onDeletePost && (
+          <button type="button" onClick={() => onDeletePost(id)} aria-label="Delete post" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-raised hover:text-crimson">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </header>
 
-        {/* Right side */}
-        <div className="ml-auto flex flex-col items-end gap-1 shrink-0">
-          <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-            {displayDate}
-          </span>
-          <div className="flex items-center gap-1.5">
-            {getVisibilityIcon()}
-            {isOwner && onDeletePost && (
-              <button
-                onClick={() => onDeletePost(id)}
-                className="text-zinc-600 hover:text-[#8B0000] transition-colors"
-                title="Delete post"
-              >
-                <Trash2 size={11} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <ImageGrid images={images} onDoubleTap={() => !userReactions?.["🔥"] && onReactionToggle(id, "🔥")} />
 
-      {/* Section 2 — Image Grid (LinkedIn-style) */}
-      <ImageGrid images={images} />
-
-      {/* Section 3 — Stat mini-card */}
+      {/* Recap */}
       {recap && (
-        <div className="relative bg-black border border-white/[0.08] rounded-xl p-4 mx-4 mt-4 overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#8B0000] rounded-l-xl" />
-          <div className="pl-2 flex justify-between items-center w-full">
-            <div className="min-w-0">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8B0000]">
-                FOCUS RECAP VERIFIED
+        <div className="relative mx-4 mt-4 overflow-hidden rounded-xl border border-line bg-bg p-4 md:mx-6 md:p-6">
+          <p className="t-label relative flex items-center gap-1.5 text-crimson">
+            <Flame className="h-3.5 w-3.5" /> Session recap
+          </p>
+          <p className="t-display relative mt-1.5 line-clamp-2 text-title-2 text-ink md:text-[30px]">{recap.missionTitle || "Focus session"}</p>
+          <div className="relative mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-subhead text-ink-2">
+            {recap.sessionDuration != null && (
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-ink-3" />
+                {recap.sessionDuration} min
               </span>
-              <h4 className="text-sm font-black text-white uppercase tracking-wide truncate max-w-[180px] mt-1.5">
-                {missionTitle}
-              </h4>
-              <p className="text-[11px] font-bold text-zinc-500 uppercase mt-1">
-                {duration} MINUTES &middot; {category}
-              </p>
-            </div>
-            <div className="flex gap-4 shrink-0 text-right">
-              <div>
-                <span className="block text-[8px] font-black text-zinc-600 uppercase tracking-wider">TASKS</span>
-                <span className="text-[12px] font-black text-white">{tasksCompleted} Done</span>
-              </div>
-              <div>
-                <span className="block text-[8px] font-black text-zinc-600 uppercase tracking-wider">STREAK</span>
-                <span className="text-[12px] font-black text-white">{streak} days</span>
-              </div>
-            </div>
+            )}
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-ink-3" />
+              {recap.tasksCompleted ?? 0} {(recap.tasksCompleted ?? 0) === 1 ? "task" : "tasks"}
+            </span>
+            {!!recap.streak && (
+              <span className="flex items-center gap-1.5 text-crimson">
+                <Flame className="h-4 w-4" />
+                {recap.streak}-day streak
+              </span>
+            )}
+            {recap.categorySnapshot && <span className="text-ink-3">{recap.categorySnapshot}</span>}
           </div>
         </div>
       )}
 
-      {/* Section 4 — Caption */}
-      {caption && (
-        <p className="px-4 mt-3 text-sm font-bold text-zinc-300 leading-relaxed">
-          {caption}
-        </p>
-      )}
+      {caption && <p className="px-4 pt-3 text-subhead leading-relaxed text-ink md:px-6 md:pt-4 md:text-[17px]">{caption}</p>}
 
-      {/* Section 5 — Reactions + Comments row */}
-      <div className="px-4 mt-3 pb-4 flex items-center justify-between">
-        {/* Reactions left side */}
-        <div className="flex flex-wrap gap-2">
-          {reactionList.map(({ emoji, label }) => {
-            const count = reactionCounts?.[emoji] ?? 0;
-            const hasReacted = userReactions?.[emoji] ?? false;
-            const isFaded = count === 0 && !hasReacted;
-
-            return (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => onReactionToggle(id, emoji)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-black border transition-all duration-150 outline-none select-none
-                  ${isFaded ? "opacity-40" : ""}
-                  ${
-                    hasReacted
-                      ? "bg-[#8B0000]/20 border-[#8B0000]/50 text-white"
-                      : "bg-zinc-900 border-white/[0.08] text-zinc-400 hover:border-white/20 hover:text-white"
-                  }
-                `}
-                title={`${label} reaction`}
-              >
-                <span className="text-xs leading-none">{emoji}</span>
-                <motion.span
-                  key={`${emoji}-${count}`}
-                  animate={{ scale: [1, 1.4, 1] }}
-                  transition={{ duration: 0.15 }}
-                  className="text-[10px] font-black tracking-wider leading-none"
-                >
-                  {count}
-                </motion.span>
-              </button>
-            );
-          })}
+      {/* Actions */}
+      <footer className="flex items-center gap-2 px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
+        <div className="flex gap-1">
+          {REACTIONS.map(({ emoji, label }) => (
+            <ReactionButton
+              key={emoji}
+              emoji={emoji}
+              label={label}
+              count={reactionCounts?.[emoji] ?? 0}
+              active={userReactions?.[emoji] ?? false}
+              onClick={() => onReactionToggle(id, emoji)}
+            />
+          ))}
         </div>
-
-        {/* Comments right side */}
-        <div
+        <button
+          type="button"
           onClick={() => onCommentsClick(post)}
-          className="ml-auto flex items-center gap-1.5 cursor-pointer group"
+          className="relative ml-auto flex h-11 shrink-0 items-center gap-1.5 rounded-sm px-2 text-subhead text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+          aria-label={`${commentCount} comments`}
         >
-          <MessageSquare size={13} className="text-zinc-600 group-hover:text-white transition" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-600 group-hover:text-white transition">
-            {commentCount} COMMENTS
-          </span>
-          {commentCount > 0 && (
-            <span className="w-1.5 h-1.5 rounded-full bg-[#8B0000] ml-0.5" />
-          )}
-        </div>
-      </div>
-    </div>
+          <MessageCircle className="h-[18px] w-[18px]" />
+          <span className="tabular">{commentCount}</span>
+        </button>
+      </footer>
+    </article>
   );
 }

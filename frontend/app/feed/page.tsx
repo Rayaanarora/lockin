@@ -11,60 +11,7 @@ import LoadingScreen from "../../components/LoadingScreen";
 import { User } from "../types";
 import { Flame } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-
-const API =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
-        ? process.env.NEXT_PUBLIC_API_URL
-        : "/api")
-    : (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes("localhost:4000")
-        ? process.env.NEXT_PUBLIC_API_URL
-        : "/api");
-
-async function api(path: string, options: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-  let authHeaders: Record<string, string> = {};
-  if (supabase) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      authHeaders["Authorization"] = `Bearer ${session.access_token}`;
-    }
-  }
-
-  try {
-    const response = await fetch(`${API}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        "bypass-tunnel-reminder": "true",
-        ...authHeaders,
-        ...(options.headers || {})
-      },
-      signal: controller.signal,
-      ...options
-    });
-    clearTimeout(timeoutId);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (
-        (response.status === 401 && data.error === "Invalid or expired session token.") ||
-        (response.status === 404 && data.error === "User not found.")
-      ) {
-        if (typeof window !== "undefined") {
-          if (supabase) await supabase.auth.signOut().catch(() => {});
-          localStorage.removeItem("lockin_user_id");
-          window.location.reload();
-        }
-      }
-      throw new Error(data.error || "Request failed");
-    }
-    return data;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
+import { api } from "../../lib/api";
 
 export default function FeedPage() {
   const router = useRouter();

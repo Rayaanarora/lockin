@@ -2,7 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Reveal, Skeleton } from "./ui/motion";
+import { spring } from "../lib/motion";
+import { POINTS_NAME } from "../lib/brand";
 
 interface FollowListModalProps {
   isOpen: boolean;
@@ -13,160 +17,105 @@ interface FollowListModalProps {
   api: (path: string, options?: RequestInit) => Promise<any>;
 }
 
-export default function FollowListModal({
-  isOpen,
-  onClose,
-  userId,
-  initialTab,
-  onViewProfile,
-  api,
-}: FollowListModalProps) {
+export default function FollowListModal({ isOpen, onClose, userId, initialTab, onViewProfile, api }: FollowListModalProps) {
   const [activeTab, setActiveTab] = useState<"followers" | "following">(initialTab);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Sync tab with initialTab prop when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setActiveTab(initialTab);
-    }
+    if (isOpen) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
-  // Fetch users when userId, activeTab or isOpen changes
   useEffect(() => {
     if (!isOpen || !userId) return;
-
-    async function fetchUsers() {
-      setLoading(true);
-      setUsers([]);
-      try {
-        const endpoint = `/follow/${userId}/${activeTab}`;
-        const data = await api(endpoint);
-        setUsers(data || []);
-      } catch (err) {
+    let cancelled = false;
+    setLoading(true);
+    setUsers([]);
+    api(`/follow/${userId}/${activeTab}`)
+      .then((data) => !cancelled && setUsers(data || []))
+      .catch((err) => {
         console.error(`Failed to load ${activeTab}:`, err);
-        setUsers([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchUsers();
+        if (!cancelled) setUsers([]);
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
   }, [userId, activeTab, isOpen, api]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col justify-end">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Connections</DialogTitle>
+        </DialogHeader>
 
-      {/* Modal Panel */}
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-        className="relative w-full max-w-md mx-auto bg-zinc-950 border-t border-white/[0.08] rounded-t-3xl px-4 pt-5 pb-8 max-h-[75vh] flex flex-col z-[1001] shadow-2xl"
-      >
-        {/* Drag handle */}
-        <div className="w-10 h-1 bg-zinc-800 rounded-full mx-auto mb-4 shrink-0" />
-
-        <div className="flex items-center justify-between mb-4 shrink-0">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-            Connections
-          </span>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-white transition"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Tab Selection */}
-        <div className="flex gap-2 justify-center mb-2 shrink-0">
-          {(["followers", "following"] as const).map((tabType) => {
-            const isActive = activeTab === tabType;
+        <div className="flex rounded-xl border border-line bg-raised p-1" role="tablist">
+          {(["followers", "following"] as const).map((t) => {
+            const on = activeTab === t;
             return (
               <button
-                key={tabType}
-                onClick={() => setActiveTab(tabType)}
-                className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all ${
-                  isActive
-                    ? "bg-[#8B0000] text-white"
-                    : "bg-zinc-900 text-zinc-500 border border-white/[0.08] hover:text-zinc-300"
-                }`}
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setActiveTab(t)}
+                className={`relative h-10 flex-1 rounded-sm text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
               >
-                {tabType}
+                {on && <motion.span layoutId="follow-tab" className="absolute inset-0 rounded-lg bg-overlay shadow-[inset_0_-2px_0_rgb(var(--signal))]" transition={spring.glide} />}
+                <span className="relative">{t}</span>
               </button>
             );
           })}
         </div>
 
-        {/* User list area */}
-        <div className="flex-1 overflow-y-auto mt-4 space-y-2 scrollbar-none">
+        <div className="max-h-[52vh] min-h-[200px] overflow-y-auto">
           {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="animate-pulse bg-zinc-900 rounded-xl h-14 w-full border border-white/[0.04]"
-                />
-              ))}
-            </div>
+            <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : users.length === 0 ? (
-            <div className="text-center py-8 text-xs text-zinc-600 font-bold uppercase tracking-widest">
-              No users yet.
+            <div className="flex flex-col items-center py-12 text-center">
+              <Users className="h-8 w-8 text-ink-3" />
+              <p className="mt-3 text-subhead text-ink-2">{activeTab === "followers" ? "No followers yet." : "Not following anyone yet."}</p>
             </div>
           ) : (
-            users.map((rowUser) => {
-              const initials = rowUser.name
-                ? rowUser.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
-                : "??";
-
-              return (
-                <div
-                  key={rowUser.id}
-                  onClick={() => {
-                    onViewProfile(rowUser.id);
-                    onClose();
-                  }}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl bg-zinc-900 border border-white/[0.06] hover:border-white/[0.12] cursor-pointer transition"
-                >
-                  {rowUser.avatar_url ? (
-                    <img
-                      src={rowUser.avatar_url}
-                      alt={rowUser.name}
-                      className="w-9 h-9 rounded-full object-cover border border-[#8B0000]/40 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-zinc-900 border border-[#8B0000]/40 text-[11px] font-black text-[#8B0000] flex items-center justify-center shrink-0">
-                      {initials}
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-black text-white uppercase tracking-wide truncate">
-                      {rowUser.name}
-                    </p>
-                    <p className="text-[10px] text-zinc-500 font-bold truncate">
-                      {rowUser.department} · {rowUser.college}
-                    </p>
-                  </div>
-
-                  <div className="text-[10px] font-black text-[#8B0000] uppercase tracking-wider shrink-0">
-                    {rowUser.reputationScore} AURA
-                  </div>
-                </div>
-              );
-            })
+            <Reveal key={activeTab} className="space-y-1.5" each={0.03}>
+              {users.map((row) => {
+                const initials = row.name ? row.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+                return (
+                  <Reveal.Item key={row.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onViewProfile(row.id);
+                        onClose();
+                      }}
+                      className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:border-line hover:bg-raised"
+                    >
+                      {row.avatar_url ? (
+                        <img src={row.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full border border-line object-cover" />
+                      ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-raised font-display text-title-3 font-bold text-ink">{initials}</span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-subhead font-medium text-ink">{row.name}</span>
+                        <span className="block truncate text-footnote text-ink-3">
+                          {row.department}
+                          {row.college ? ` · ${row.college}` : ""}
+                        </span>
+                      </span>
+                      <span className="tabular shrink-0 text-subhead font-semibold text-ink">
+                        {row.reputationScore ?? 0}
+                        <span className="ml-1 text-caption font-normal text-gold">{POINTS_NAME}</span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </Reveal.Item>
+                );
+              })}
+            </Reveal>
           )}
         </div>
-      </motion.div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
