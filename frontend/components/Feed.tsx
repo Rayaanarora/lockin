@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input, fieldClass } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { spring } from "../lib/motion";
+import { STARTER_QUESTS, StarterQuest, getStarterQuestsByPillar } from "../lib/starterQuests";
 
 const SWIPE_THRESHOLD = 120;
 
@@ -65,6 +66,24 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const [showCustomizeCover, setShowCustomizeCover] = useState(false);
   const [coverColor, setCoverColor] = useState("");
   const [coverImage, setCoverImage] = useState("");
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
+  const [selectedPillar, setSelectedPillar] = useState<string>("All");
+
+  const applyStarterQuest = useCallback((quest: StarterQuest) => {
+    setSelectedQuestId(quest.id);
+    const isSolo = quest.missionType === "solo";
+    setForm({
+      title: quest.title,
+      description: quest.description,
+      location: isSolo ? "Solo" : (user.location || quest.defaultLocation),
+      datetime: isSolo ? new Date().toISOString().slice(0, 16) : getDefaultDatetime(),
+      categoryId: String(quest.categoryId),
+      missionType: quest.missionType
+    });
+    setTasks([...quest.tasks]);
+    if (quest.coverColor) setCoverColor(quest.coverColor);
+    if (quest.coverImage) setCoverImage(quest.coverImage);
+  }, [user.location]);
 
   const addTask = () => {
     if (newTaskTitle.trim()) {
@@ -195,6 +214,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       setCoverColor("");
       setCoverImage("");
       setShowCustomizeCover(false);
+      setSelectedQuestId(null);
       await load(activeCategory);
     } catch (err: any) {
       setCreateError(err.message || "Could not launch mission.");
@@ -253,6 +273,29 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         })}
       </div>
 
+      {/* Quick Side Quests Rail */}
+      <div className="-mx-5 flex items-center gap-2 overflow-x-auto border-b border-line/60 bg-raised/20 px-5 py-2.5 scrollbar-none md:mx-0 md:justify-center md:px-0">
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
+          Side Quests
+        </span>
+        <span className="h-3 w-px bg-line shrink-0" />
+        {STARTER_QUESTS.slice(0, 10).map((q) => (
+          <button
+            key={q.id}
+            type="button"
+            onClick={() => {
+              applyStarterQuest(q);
+              setShowCreate(true);
+            }}
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-footnote text-ink-2 transition hover:border-ink hover:text-ink active:scale-95"
+          >
+            <span className="text-[10px] text-crimson">⚡</span>
+            <span>{q.shortTitle}</span>
+            <span className="text-[10px] text-ink-3 group-hover:text-ink-2">· {q.badge}</span>
+          </button>
+        ))}
+      </div>
+
       {/* The deck: one card, centred, the whole point of the page */}
       <div className="mx-auto mt-4 w-full max-w-[640px] md:mt-10">
         <AnimatePresence>
@@ -300,15 +343,43 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                   <LockinMark size={56} className="text-ink/15 md:hidden" />
                   <LockinMark size={96} className="hidden text-ink/15 md:block" />
                 </div>
-                <div className="mt-auto pt-10">
-                  <h2 className="t-display text-[36px] leading-[1.02] text-ink sm:text-[40px] md:text-[56px]">Nothing new on campus right now.</h2>
-                  <p className="mt-3 max-w-sm text-subhead text-ink-2 md:text-body">Start one. Others can lock in with you.</p>
-                  <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:gap-3">
-                    <button type="button" onClick={() => setShowCreate(true)} className="btn-primary h-14 sm:flex-1">
-                      <Plus className="h-4 w-4" strokeWidth={1.75} /> Launch a mission
+                <div className="mt-auto pt-6">
+                  <h2 className="t-display text-[26px] leading-[1.04] text-ink sm:text-[34px] md:text-[44px]">
+                    Deck cleared. Pick a side quest to start:
+                  </h2>
+                  <p className="mt-1 text-subhead text-ink-3">
+                    Instant 1-tap template you can launch immediately or customize.
+                  </p>
+
+                  <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {STARTER_QUESTS.slice(0, 4).map((q) => (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => {
+                          applyStarterQuest(q);
+                          setShowCreate(true);
+                        }}
+                        className="group flex items-start justify-between rounded-xl border border-line bg-raised p-3 text-left transition hover:border-ink hover:bg-overlay"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <span className="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-crimson bg-crimson/10 mb-1">
+                            {q.badge} · {q.pillar}
+                          </span>
+                          <p className="text-subhead font-semibold text-ink line-clamp-1 group-hover:text-ink">{q.title}</p>
+                          <p className="text-footnote text-ink-3 line-clamp-1 mt-0.5">{q.description}</p>
+                        </div>
+                        <Plus className="h-4 w-4 text-ink-3 shrink-0 mt-1 group-hover:text-ink transition" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:gap-3">
+                    <button type="button" onClick={() => setShowCreate(true)} className="btn-primary h-12 sm:h-14 sm:flex-1">
+                      <Plus className="h-4 w-4" strokeWidth={1.75} /> Custom mission
                     </button>
                     <button type="button" onClick={() => { setActiveCategory("all"); load("all"); }} className="btn-ghost h-12 sm:h-14 sm:px-6">
-                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refresh
+                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refresh deck
                     </button>
                   </div>
                 </div>
@@ -384,6 +455,86 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             <DialogDescription>Say what you're doing, when and where. People on your campus can lock in with you.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateMission} className="space-y-5">
+            {/* Starter Quest Templates Selector */}
+            <div className="rounded-xl border border-line bg-raised/70 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="t-label text-[11px] font-semibold text-ink">Side Quest Templates (1-Tap Fill)</span>
+                {selectedQuestId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedQuestId(null);
+                      setForm({
+                        title: "",
+                        description: "",
+                        location: user.location || "SRM KTR Library",
+                        datetime: getDefaultDatetime(),
+                        categoryId: categories[0]?.id ? String(categories[0].id) : "1",
+                        missionType: "group"
+                      });
+                      setTasks([]);
+                      setCoverColor("");
+                      setCoverImage("");
+                    }}
+                    className="text-caption font-medium uppercase tracking-wider text-ink-3 hover:text-ink"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Pillar filters */}
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+                {["All", "Physical", "Grind", "Discipline", "Social"].map((pillar) => (
+                  <button
+                    key={pillar}
+                    type="button"
+                    onClick={() => setSelectedPillar(pillar)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                      selectedPillar === pillar
+                        ? "bg-ink text-bg font-semibold"
+                        : "bg-surface text-ink-3 hover:text-ink hover:bg-overlay"
+                    }`}
+                  >
+                    {pillar}
+                  </button>
+                ))}
+              </div>
+
+              {/* Templates scroller */}
+              <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+                {getStarterQuestsByPillar(selectedPillar).map((q) => {
+                  const isSelected = selectedQuestId === q.id;
+                  return (
+                    <button
+                      key={q.id}
+                      type="button"
+                      onClick={() => applyStarterQuest(q)}
+                      className={`flex w-44 shrink-0 flex-col justify-between rounded-lg border p-2.5 text-left transition ${
+                        isSelected
+                          ? "border-crimson bg-surface ring-1 ring-crimson shadow-[0_0_12px_rgba(210,4,45,0.15)]"
+                          : "border-line bg-surface hover:border-ink/50 hover:bg-overlay"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-bold text-crimson">{q.badge}</span>
+                        <span className="text-[9px] uppercase tracking-wider text-ink-3">{q.pillar}</span>
+                      </div>
+                      <p className="text-subhead font-medium text-ink line-clamp-1">{q.title}</p>
+                      <p className="text-[11px] text-ink-3 mt-1">{q.focusDuration} min · {q.missionType}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedQuestId && (
+                <div className="flex items-center gap-2 rounded-lg bg-surface px-2.5 py-1.5 text-footnote text-ink-2 border border-line">
+                  <span className="text-crimson font-bold text-xs">✓</span>
+                  <span>Template loaded · You can customize any title, tasks, time, or location below.</span>
+                </div>
+              )}
+            </div>
+
             {createError && (
               <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-signal/70 bg-surface p-3 text-subhead text-ink">
                 <AlertCircle className="h-5 w-5 shrink-0 text-crimson" />
