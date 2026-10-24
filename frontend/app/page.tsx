@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import { User } from "./types";
-import { screen as screenVariants, spring } from "../lib/motion";
+import { spring } from "../lib/motion";
 
 // Import custom modular components
 import Shell from "../components/Shell";
@@ -244,18 +244,14 @@ export default function Home() {
   return (
     <Shell tab={tab} setTab={setTab} user={user}>
       <Header user={user} />
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={tab}
-          variants={screenVariants}
-          initial="initial"
-          animate="enter"
-          exit="exit"
-          className="flex flex-1 flex-col pb-32 md:pb-8"
-        >
-          {screen}
-        </motion.div>
-      </AnimatePresence>
+      {/*
+        Tab change: the new screen mounts immediately and fades in with CSS.
+        (It used to wait for the old screen's exit animation; when that exit
+        never finished, the main area stayed blank until a reload.)
+      */}
+      <div key={tab} className="screen-enter flex flex-1 flex-col pb-32 md:pb-8">
+        {screen}
+      </div>
       <Nav tab={tab} setTab={setTab} />
 
       {/* Realtime toast */}

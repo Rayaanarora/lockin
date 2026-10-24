@@ -301,6 +301,13 @@
 ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.2); }
 * { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.1) transparent; }
 
+/* ── Tab / screen entrance (app/page.tsx) ── */
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.screen-enter { animation: screen-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+
 /* ── Global request progress bar (components/TopLoader.tsx) ── */
 @keyframes top-loader-slide {
   0% { transform: translateX(-100%); }
@@ -318,6 +325,7 @@
   .animate-pulse { animation: none !important; }
   /* Keep the loader visible but still: a full-width pulse-free bar. */
   .top-loader-bar { animation: none; width: 100%; opacity: 0.7; }
+  .screen-enter { animation: none; }
   [data-slot="dialog-content"] {
     transition-property: opacity !important;
     transform: none !important;
