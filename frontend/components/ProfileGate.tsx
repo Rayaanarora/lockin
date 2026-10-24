@@ -170,6 +170,15 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       });
   }, []);
 
+  // Arriving from an expired reset link (/?forgot=1): open straight on "Forgot it?".
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("forgot") !== "1") return;
+    setMode("forgot");
+    setStep(1);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
+
   // Detect email-verification redirect: Supabase fires SIGNED_IN after the
   // user clicks the confirmation link, which reloads the page and loses
   // React state (tempUserId). Recover by calling /api/auth/profile here.
@@ -1130,9 +1139,9 @@ function OtpStep({ form, onNext, mode, setMode }: any) {
         </div>
         <h2 className="t-display text-large-title text-ink">{mode === "forgot" ? "Link sent" : "Verify your email"}</h2>
         <p className="mx-auto mt-3 max-w-[300px] text-subhead leading-relaxed text-ink-2">
-          {mode === "forgot" ? "We sent a reset link to " : "We sent a confirmation link to "}
-          <span className="font-semibold text-ink">{form.email}</span>.{" "}
-          {mode === "forgot" ? "Open it to set a new password." : "Open it, then come back and log in."}
+          {mode === "forgot" ? "If an account exists for " : "We sent a confirmation link to "}
+          <span className="font-semibold text-ink">{form.email}</span>
+          {mode === "forgot" ? ", a reset link is on its way. It expires in an hour." : ". Open it, then come back and log in."}
         </p>
       </div>
 

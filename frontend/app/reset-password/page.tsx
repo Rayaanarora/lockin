@@ -1,25 +1,72 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { Input } from "../../components/ui/input";
-import { KeyRound, AlertTriangle, Check, Eye, EyeOff, Loader2 } from "lucide-react";
+import { KeyRound, AlertTriangle, Check, Eye, EyeOff, Loader2, Link2Off } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LockinLogo } from "../../components/ui/LockinLogo";
 
+type Stage = "checking" | "ready" | "invalid" | "done";
+
+// Supabase reports a bad or expired link in the URL hash (implicit flow) or query (PKCE flow).
+function linkErrorFromUrl(): string {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search.slice(1));
+  const code = params.get("error_code");
+  if (code === "otp_expired") return "This reset link has expired or was already used.";
+  return params.get("error_description")?.replace(/\+/g, " ") || "";
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const [stage, setStage] = useState<Stage>("checking");
+  const [linkError, setLinkError] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [show, setShow] = useState(false);
+
+  // The form only works with a session from the recovery link, so confirm one exists first.
+  useEffect(() => {
+    const urlError = linkErrorFromUrl();
+    if (!supabase) {
+      setLinkError("Password reset isn't configured on this server.");
+      setStage("invalid");
+      return;
+    }
+    let settled = false;
+    const ready = () => {
+      if (settled) return;
+      settled = true;
+      setStage("ready");
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) ready();
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) return ready();
+      if (settled) return;
+      settled = true;
+      setLinkError(urlError || "This reset link is invalid or has expired.");
+      setStage("invalid");
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
-    if (!password || password.length < 6) {
+    if (password.length < 6) {
       setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords don't match.");
       return;
     }
 
@@ -27,19 +74,22 @@ export default function ResetPasswordPage() {
     setError("");
 
     try {
-      if (!supabase) throw new Error("Supabase client is not initialized.");
-      const { error: updateErr } = await supabase.auth.updateUser({
-        password: password
-      });
-
+      if (!supabase) throw new Error("Password reset isn't configured on this server.");
+      const { error: updateErr } = await supabase.auth.updateUser({ password });
       if (updateErr) throw updateErr;
 
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
+      // End every other session, in case the reset was prompted by someone else having access.
+      await supabase.auth.signOut({ scope: "others" });
+
+      setStage("done");
+      setTimeout(() => router.push("/"), 2000);
     } catch (err: any) {
-      setError(err.message || "Failed to update password.");
+      const msg = String(err?.message || "");
+      if (/different from the old/i.test(msg)) setError("Choose a password you haven't used before.");
+      else if (/session/i.test(msg)) {
+        setLinkError("Your reset session ended. Request a new link.");
+        setStage("invalid");
+      } else setError(msg || "Couldn't update your password. Try again.");
     } finally {
       setBusy(false);
     }
@@ -54,7 +104,26 @@ export default function ResetPasswordPage() {
         <LockinLogo size="sm" />
 
         <AnimatePresence mode="wait" initial={false}>
-          {success ? (
+          {stage === "checking" && (
+            <motion.div key="checking" exit={{ opacity: 0 }} className="mt-12 flex items-center gap-3 text-subhead text-ink-2" role="status">
+              <Loader2 className="h-5 w-5 animate-spin" /> Checking your reset link…
+            </motion.div>
+          )}
+
+          {stage === "invalid" && (
+            <motion.div key="invalid" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-12">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-signal/70 bg-surface">
+                <Link2Off className="h-6 w-6 text-crimson" />
+              </div>
+              <h1 className="t-display mt-6 text-large-title text-ink">Link not valid</h1>
+              <p className="mt-2 text-subhead text-ink-2">{linkError} Reset links work once and expire after an hour.</p>
+              <button type="button" onClick={() => router.push("/?forgot=1")} className="mt-8 flex h-14 w-full items-center justify-center btn-primary">
+                Send a new link
+              </button>
+            </motion.div>
+          )}
+
+          {stage === "done" && (
             <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-12 flex flex-col items-center text-center">
               <motion.div
                 initial={{ scale: 0, rotate: -30 }}
@@ -65,10 +134,12 @@ export default function ResetPasswordPage() {
                 <Check className="h-9 w-9 text-success" strokeWidth={2.5} />
               </motion.div>
               <h1 className="t-display mt-6 text-large-title text-ink">Password updated</h1>
-              <p className="mt-2 text-subhead text-ink-2">Taking you back in…</p>
+              <p className="mt-2 text-subhead text-ink-2">Other devices were signed out. Taking you back in…</p>
             </motion.div>
-          ) : (
-            <motion.form key="form" onSubmit={handleReset} exit={{ opacity: 0, y: -8 }} className="mt-12 space-y-7">
+          )}
+
+          {stage === "ready" && (
+            <motion.form key="form" onSubmit={handleReset} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-12 space-y-7">
               <div>
                 <h1 className="t-display text-large-title text-ink">Set a new one</h1>
                 <p className="mt-2 text-subhead text-ink-2">At least 6 characters.</p>
@@ -102,6 +173,7 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="New password"
                     className="pr-12"
+                    autoFocus
                   />
                   <button
                     type="button"
@@ -122,9 +194,21 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <label htmlFor="confirm-pw" className="t-label">Confirm password</label>
+                <Input
+                  id="confirm-pw"
+                  type={show ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="Type it again"
+                />
+              </div>
+
               <motion.button
                 type="submit"
-                disabled={busy}
+                disabled={busy || !password || !confirm}
                 whileTap={{ scale: 0.97 }}
                 className="flex h-14 w-full items-center justify-center gap-2 disabled:opacity-50 btn-primary"
               >
