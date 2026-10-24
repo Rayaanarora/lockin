@@ -244,16 +244,19 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       const matchedCollege = checkRes.college;
       const matchedCampuses = checkRes.campuses;
       if (matchedCampuses && matchedCampuses.length > 0) {
+        // /auth/check-domain returns { id, name (short), full_name, city }.
         setCampuses(matchedCampuses.map((c: any) => ({
           id: c.id,
-          name: c.shortName ? `${c.shortName} (${c.collegeName})` : c.collegeName,
-          location: c.city ? `${c.city}, ${c.state}` : undefined
+          name: c.name && c.full_name ? `${c.name} (${c.full_name})` : c.full_name || c.name || "Campus",
+          location: c.city || undefined
         })));
       }
 
       const defaultCampusId = matchedCollege ? matchedCollege.id : "";
       const defaultCampusName = matchedCollege
-        ? (matchedCollege.shortName ? `${matchedCollege.shortName} (${matchedCollege.collegeName})` : matchedCollege.collegeName)
+        ? (matchedCollege.name && matchedCollege.full_name
+            ? `${matchedCollege.name} (${matchedCollege.full_name})`
+            : matchedCollege.full_name || matchedCollege.name || "")
         : "";
 
       if (!supabase) throw new Error("Supabase is not initialized.");
@@ -262,6 +265,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
         const { data, error: signUpErr } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
+          options: { emailRedirectTo: window.location.origin },
         });
 
         if (signUpErr) throw signUpErr;
