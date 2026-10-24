@@ -144,7 +144,18 @@ async function getMissionFeed(req, res) {
     };
 
     if (categoryId && categoryId !== "all") {
-      whereClause.categoryId = Number(categoryId);
+      const catId = Number(categoryId);
+      if (catId === 1) {
+        whereClause.categoryId = { in: [1, 2, 4, 5, 12, 16] };
+      } else if (catId === 8) {
+        whereClause.categoryId = 8;
+      } else if (catId === 9) {
+        whereClause.categoryId = { in: [9, 10, 11, 13] };
+      } else if (catId === 19) {
+        whereClause.categoryId = { in: [19, 3, 6, 7, 14, 15, 17, 18] };
+      } else {
+        whereClause.categoryId = catId;
+      }
     }
 
     let missions = await prisma.mission.findMany({
@@ -189,7 +200,18 @@ async function getMissionFeed(req, res) {
         ]
       };
       if (categoryId && categoryId !== "all") {
-        fallbackWhere.categoryId = Number(categoryId);
+        const catId = Number(categoryId);
+        if (catId === 1) {
+          fallbackWhere.categoryId = { in: [1, 2, 4, 5, 12, 16] };
+        } else if (catId === 8) {
+          fallbackWhere.categoryId = 8;
+        } else if (catId === 9) {
+          fallbackWhere.categoryId = { in: [9, 10, 11, 13] };
+        } else if (catId === 19) {
+          fallbackWhere.categoryId = { in: [19, 3, 6, 7, 14, 15, 17, 18] };
+        } else {
+          fallbackWhere.categoryId = catId;
+        }
       }
       missions = await prisma.mission.findMany({
         where: fallbackWhere,

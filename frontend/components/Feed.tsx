@@ -36,6 +36,14 @@ const formatDate = (value?: string | null) => {
   }
 };
 
+const CORE_CATEGORIES = [
+  { id: "all", name: "All" },
+  { id: "1", name: "Coding" },
+  { id: "8", name: "Fitness" },
+  { id: "9", name: "Study" },
+  { id: "19", name: "Discipline" }
+];
+
 interface FeedProps {
   user: User;
   refreshUser: () => Promise<void>;
@@ -112,11 +120,69 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       if (typeof window !== "undefined") {
         localStorage.removeItem(`lockin_passed_${user.id}`);
       }
-      setMissions(Array.isArray(feed) ? feed : []);
+      let missionList: Mission[] = Array.isArray(feed) ? feed : [];
+
+      if (missionList.length === 0) {
+        // Guarantee that side quests are always available in card swipe format
+        const filteredQuests =
+          catId === "all"
+            ? STARTER_QUESTS
+            : catId === "1"
+            ? STARTER_QUESTS.filter((q) => q.pillar === "Grind")
+            : catId === "8"
+            ? STARTER_QUESTS.filter((q) => q.pillar === "Physical")
+            : catId === "9"
+            ? STARTER_QUESTS.filter((q) => q.pillar === "Grind" || q.pillar === "Social")
+            : STARTER_QUESTS.filter((q) => q.pillar === "Discipline");
+
+        missionList = filteredQuests.map((q, idx) => ({
+          id: 9000 + idx,
+          creator_id: null,
+          title: q.title,
+          description: q.description,
+          location: q.defaultLocation,
+          datetime: null,
+          creator_name: null,
+          creator_department: "LOCKIN Protocol",
+          is_system: true,
+          category_name: q.categoryName,
+          category_id: q.categoryId,
+          mission_type: "side_quest",
+          focus_duration: q.focusDuration,
+          cover_color: q.coverColor,
+          cover_image: q.coverImage,
+          locked_in_count: 0,
+          attendees: []
+        }));
+      }
+
+      setMissions(missionList);
       setIndex(0);
     } catch (err: any) {
       console.error("Feed load error:", err);
-      setError(err.message || "Failed to load feed.");
+      // Guarantee swipe cards even on network error
+      setMissions(
+        STARTER_QUESTS.map((q, idx) => ({
+          id: 9000 + idx,
+          creator_id: null,
+          title: q.title,
+          description: q.description,
+          location: q.defaultLocation,
+          datetime: null,
+          creator_name: null,
+          creator_department: "LOCKIN Protocol",
+          is_system: true,
+          category_name: q.categoryName,
+          category_id: q.categoryId,
+          mission_type: "side_quest",
+          focus_duration: q.focusDuration,
+          cover_color: q.coverColor,
+          cover_image: q.coverImage,
+          locked_in_count: 0,
+          attendees: []
+        }))
+      );
+      setIndex(0);
     } finally {
       setLoaded(true);
     }
@@ -144,7 +210,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     setMissions((ms) => ms.filter((m) => m.id !== mission.id));
 
     if (action === "pass") {
-      api(`/missions/${mission.id}/pass`, { method: "POST" }).catch(() => {});
+      if (mission.id < 9000) {
+        api(`/missions/${mission.id}/pass`, { method: "POST" }).catch(() => {});
+      }
       return;
     }
 
@@ -152,11 +220,30 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     setLockedFlash(true);
     const minFlash = new Promise((r) => setTimeout(r, 900));
     try {
-      try {
-        await api(`/missions/${mission.id}/accept`, { method: "POST", body: JSON.stringify({}) });
-      } catch (err: any) {
-        // A retry after a lost response: the first attempt already joined.
-        if (err?.status !== 409) throw err;
+      if (mission.id >= 9000) {
+        // Direct launch into active solo mission
+        await api("/missions", {
+          method: "POST",
+          body: JSON.stringify({
+            title: mission.title,
+            description: mission.description,
+            creator_id: user.id,
+            location: mission.location || "Solo",
+            datetime: new Date().toISOString(),
+            categoryId: mission.category_id || 1,
+            focusDuration: mission.focus_duration || 25,
+            missionType: "solo",
+            coverColor: mission.cover_color || null,
+            coverImage: mission.cover_image || null
+          })
+        });
+      } else {
+        try {
+          await api(`/missions/${mission.id}/accept`, { method: "POST", body: JSON.stringify({}) });
+        } catch (err: any) {
+          // A retry after a lost response: the first attempt already joined.
+          if (err?.status !== 409) throw err;
+        }
       }
       refreshUser().catch(() => {});
       await minFlash;
@@ -260,48 +347,24 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         </motion.button>
       </div>
 
-      {/* Categories */}
-      <div className="-mx-5 flex gap-1 overflow-x-auto border-b border-line px-5 py-2 scrollbar-none md:mx-0 md:justify-center md:px-0" role="tablist" aria-label="Mission categories">
-        {[{ id: "all", categoryName: "All" }, ...categories].map((c) => {
-          const key = String(c.id);
-          const selected = activeCategory === key;
+      {/* Categories: 5 Clean Pillars */}
+      <div className="-mx-5 flex gap-1.5 overflow-x-auto border-b border-line px-5 py-2.5 scrollbar-none md:mx-0 md:justify-center md:px-0" role="tablist" aria-label="Mission categories">
+        {CORE_CATEGORIES.map((c) => {
+          const selected = activeCategory === c.id;
           return (
             <button
-              key={key}
+              key={c.id}
               type="button"
               role="tab"
               aria-selected={selected}
-              onClick={() => { setActiveCategory(key); setError(""); }}
-              className={`relative flex h-11 shrink-0 items-center px-3 text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${selected ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
+              onClick={() => { setActiveCategory(c.id); setError(""); }}
+              className={`relative flex h-10 shrink-0 items-center px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors rounded-sm ${selected ? "text-ink bg-raised" : "text-ink-3 hover:text-ink-2 hover:bg-raised/40"}`}
             >
-              {c.categoryName}
-              {selected && <motion.span layoutId="cat-active" className="absolute inset-x-3 bottom-1.5 h-px bg-signal" transition={spring.glide} />}
+              {c.name}
+              {selected && <motion.span layoutId="cat-active" className="absolute inset-x-3 bottom-0 h-0.5 bg-signal" transition={spring.glide} />}
             </button>
           );
         })}
-      </div>
-
-      {/* Quick Side Quests Rail */}
-      <div className="-mx-5 flex items-center gap-2 overflow-x-auto border-b border-line/60 bg-raised/20 px-5 py-2.5 scrollbar-none md:mx-0 md:justify-center md:px-0">
-        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
-          Side Quests
-        </span>
-        <span className="h-3 w-px bg-line shrink-0" />
-        {STARTER_QUESTS.slice(0, 10).map((q) => (
-          <button
-            key={q.id}
-            type="button"
-            onClick={() => {
-              applyStarterQuest(q);
-              setShowCreate(true);
-            }}
-            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-footnote text-ink-2 transition hover:border-ink hover:text-ink active:scale-95"
-          >
-            <span className="text-[10px] text-crimson">⚡</span>
-            <span>{q.shortTitle}</span>
-            <span className="text-[10px] text-ink-3 group-hover:text-ink-2">· {q.badge}</span>
-          </button>
-        ))}
       </div>
 
       {/* The deck: one card, centred, the whole point of the page */}
@@ -343,53 +406,48 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={spring.glide}
-                className="relative flex min-h-[360px] w-full flex-col overflow-hidden rounded-sm border border-line bg-surface p-6 md:min-h-[560px] md:p-10"
+                className="relative flex min-h-[460px] w-full flex-col justify-between overflow-hidden rounded-sm border border-line bg-surface p-6 md:min-h-[560px] md:p-10"
               >
                 <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-signal" />
+                
                 <div className="flex items-start justify-between">
-                  <p className="t-section">Deck cleared</p>
-                  <LockinMark size={56} className="text-ink/15 md:hidden" />
-                  <LockinMark size={96} className="hidden text-ink/15 md:block" />
+                  <p className="t-section text-ink-3">Deck cleared</p>
+                  <LockinMark size={48} className="text-ink/15 md:size-[72px]" />
                 </div>
-                <div className="mt-auto pt-6">
-                  <h2 className="t-display text-[26px] leading-[1.04] text-ink sm:text-[34px] md:text-[44px]">
-                    Deck cleared. Pick a side quest to start:
+                
+                <div className="my-auto py-8 text-center">
+                  <span className="inline-block rounded-full border border-signal/40 bg-signal/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-crimson">
+                    All caught up
+                  </span>
+                  <h2 className="t-display mt-4 text-[28px] leading-[1.05] text-ink sm:text-[36px] md:text-[44px]">
+                    Deck cleared.
                   </h2>
-                  <p className="mt-1 text-subhead text-ink-3">
-                    Instant 1-tap template you can launch immediately or customize.
+                  <p className="mx-auto mt-2 max-w-xs text-subhead text-ink-2 md:text-body">
+                    Ready to keep moving? Reset the deck to swipe through side quests again.
                   </p>
+                </div>
 
-                  <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    {STARTER_QUESTS.slice(0, 4).map((q) => (
-                      <button
-                        key={q.id}
-                        type="button"
-                        onClick={() => {
-                          applyStarterQuest(q);
-                          setShowCreate(true);
-                        }}
-                        className="group flex items-start justify-between rounded-xl border border-line bg-raised p-3 text-left transition hover:border-ink hover:bg-overlay"
-                      >
-                        <div className="min-w-0 pr-2">
-                          <span className="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-crimson bg-crimson/10 mb-1">
-                            {q.badge} · {q.pillar}
-                          </span>
-                          <p className="text-subhead font-semibold text-ink line-clamp-1 group-hover:text-ink">{q.title}</p>
-                          <p className="text-footnote text-ink-3 line-clamp-1 mt-0.5">{q.description}</p>
-                        </div>
-                        <Plus className="h-4 w-4 text-ink-3 shrink-0 mt-1 group-hover:text-ink transition" />
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:gap-3">
-                    <button type="button" onClick={() => setShowCreate(true)} className="btn-primary h-12 sm:h-14 sm:flex-1">
-                      <Plus className="h-4 w-4" strokeWidth={1.75} /> Custom mission
-                    </button>
-                    <button type="button" onClick={() => { setActiveCategory("all"); load("all"); }} className="btn-ghost h-12 sm:h-14 sm:px-6">
-                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refresh deck
-                    </button>
-                  </div>
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        localStorage.removeItem(`lockin_passed_${user.id}`);
+                      }
+                      load(activeCategory);
+                    }}
+                    className="btn-primary h-14 sm:flex-1"
+                  >
+                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                    Reset &amp; swipe side quests
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreate(true)}
+                    className="btn-ghost h-14 sm:px-6"
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={1.75} /> Launch custom
+                  </button>
                 </div>
               </motion.div>
             ) : (
