@@ -27,22 +27,24 @@ export default function FeedPage() {
       return;
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+      // Defer: calling Supabase inside this callback can deadlock the auth lock.
+      setTimeout(async () => {
         try {
           const nextUser = await api("/auth/me");
-          if (nextUser.incomplete) {
-            setUser(null);
-          } else {
-            setUser(nextUser);
-          }
-        } catch {
-          setUser(null);
+          setUser(nextUser.incomplete ? null : nextUser);
+        } catch (err: any) {
+          if (err?.status === 403) setUser(null);
+        } finally {
+          setLoading(false);
         }
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+      }, 0);
     });
 
     return () => {

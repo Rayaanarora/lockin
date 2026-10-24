@@ -345,10 +345,10 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         method: "POST",
         body: JSON.stringify({ rating })
       });
+      setErrors((prev) => ({ ...prev, [missionId]: "" }));
       await Promise.all([load(), refreshUser()]);
-      alert("Vibe check submitted successfully!");
     } catch (err: any) {
-      alert(err.message || "Failed to submit vibe check.");
+      setErrors((prev) => ({ ...prev, [missionId]: err.message || "Couldn't save your rating." }));
     }
   }
 
@@ -508,6 +508,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     return new Date(datetime).getTime() <= Date.now();
   };
 
+  // Matches the server: check-in opens 15 minutes before the start time.
+  const checkInOpen = (datetime: string) => new Date(datetime).getTime() - 15 * 60e3 <= Date.now();
+
   const timeLeft = (datetime: string) => {
     const diff = new Date(datetime).getTime() - Date.now();
     if (diff <= 0) return "Ready";
@@ -581,6 +584,11 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             const active = mission.status === "Accepted";
             const executing = mission.status === "Executing";
             const needsReview = mission.showed_up === null && due && active && !isSolo;
+            const canCheckIn = isSolo || checkInOpen(mission.datetime);
+            // A group host runs no session of their own: their partner checks in and finishes.
+            const hostOfGroup = isCreator && !isSolo;
+            const myRating = hostOfGroup ? mission.creator_vibe_rating : mission.participant_vibe_rating;
+            const canRate = !isSolo && (executing || mission.status === "Completed") && !myRating;
             const tasks = missionTasks[mission.id] || [];
             const doneTasks = tasks.filter((t) => t.completed).length;
 
@@ -596,10 +604,14 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       ? { label: "Missed", cls: "border-line bg-raised text-ink-3 line-through" }
                       : { label: mission.status || "Pending", cls: "border-line bg-raised text-ink-2" };
 
-            const roleLabel = isSolo ? "Solo" : isCreator ? `Hosting · with ${mission.participant_name}` : `With ${mission.creator_name}`;
+            const roleLabel = isSolo
+              ? "Solo"
+              : isCreator
+                ? mission.status === "Pending" ? "Hosting" : `Hosting · with ${mission.participant_name}`
+                : `With ${mission.creator_name}`;
 
             return (
-              <Reveal.Item key={`${mission.id}-${mission.role}`}>
+              <Reveal.Item key={`${mission.id}-${mission.role}-${mission.participant_id ?? "self"}`}>
                 <motion.article
                   layout
                   className={`relative overflow-hidden rounded-card border bg-surface ${
@@ -695,6 +707,13 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       </div>
                     )}
 
+                    {/* Host: nobody yet */}
+                    {mission.status === "Pending" && (
+                      <Panel tone="muted">
+                        <p className="text-subhead text-ink-2">Live on the deck. You'll see join requests here.</p>
+                      </Panel>
+                    )}
+
                     {/* Host: approve request */}
                     {isCreator && isRequest && !isSolo && (
                       <Panel>
@@ -777,7 +796,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           </Panel>
                         ) : (
                           <>
-                            {isCreator && due && (
+                            {isCreator && canCheckIn && (
                               <Panel>
                                 <p className="t-label">Check-in code</p>
                                 <p className="mt-1 text-subhead text-ink-2">Give this to {mission.participant_name} when they arrive.</p>
@@ -797,7 +816,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                               </Panel>
                             )}
 
-                            {!isCreator && due && (
+                            {!isCreator && canCheckIn && (
                               <Panel>
                                 <p className="t-label">Enter check-in code</p>
                                 <p className="mt-1 text-subhead text-ink-2">Get the 4 digits from {mission.creator_name}.</p>
@@ -828,7 +847,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                               )}
                             </AnimatePresence>
 
-                            {due && (
+                            {!canCheckIn && (
+                              <Panel tone="muted">
+                                <p className="text-subhead text-ink-2">
+                                  {isCreator ? "Your check-in code appears" : "Check-in opens"} 15 minutes before the start.
+                                </p>
+                              </Panel>
+                            )}
+
+                            {canCheckIn && (
                               <button
                                 type="button"
                                 onClick={() => (isCreator ? handleAttendance(mission.id, false, mission.participant_id) : handleAttendance(mission.id, false))}
@@ -843,8 +870,8 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       </div>
                     )}
 
-                    {/* Executing */}
-                    {executing && (
+                    {/* Executing: the participant (or solo) runs the session */}
+                    {executing && !hostOfGroup && (
                       <div className="space-y-4">
                         <motion.button
                           type="button"
@@ -906,20 +933,56 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           <Check className="h-5 w-5" strokeWidth={2.75} /> Finish{tasks.length > 0 ? ` · ${doneTasks}/${tasks.length}` : ""}
                         </ActionButton>
 
-                        {!isSolo && (!!mission.participant_name || !!mission.creator_name) && (
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-line p-3">
-                            <span className="pl-1 text-subhead text-ink-2">Rate the session</span>
-                            <div className="flex gap-2">
-                              <VibeButton onClick={() => handleVibeCheck(mission.id, "W")} label="W" sub="+2" good />
-                              <VibeButton onClick={() => handleVibeCheck(mission.id, "L")} label="L" sub="−1" />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
 
+                    {/* Executing: the host follows along and keeps the shared checklist */}
+                    {executing && hostOfGroup && (
+                      <div className="space-y-4">
+                        <Panel>
+                          <div className="flex items-center gap-3">
+                            <span className="relative flex h-2 w-2 shrink-0">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
+                            </span>
+                            <p className="text-subhead text-ink-2">
+                              <span className="text-ink">{mission.participant_name}</span> checked in and is locked in.
+                            </p>
+                          </div>
+                        </Panel>
+                        <TaskList
+                          tasks={tasks}
+                          loading={loadingTasks[mission.id]}
+                          newTitle={newTaskTitles[mission.id] || ""}
+                          setNewTitle={(v) => setNewTaskTitles((prev) => ({ ...prev, [mission.id]: v }))}
+                          onAdd={() => handleAddTask(mission.id)}
+                          onToggle={(id) => handleToggleTask(mission.id, id)}
+                          onDelete={(id) => handleDeleteTask(mission.id, id)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Rate the other person: during the session or after it ends */}
+                    {canRate && (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-line p-3">
+                        <span className="pl-1 text-subhead text-ink-2">
+                          Rate {hostOfGroup ? mission.participant_name : mission.creator_name}
+                        </span>
+                        <div className="flex gap-2">
+                          <VibeButton onClick={() => handleVibeCheck(mission.id, "W")} label="W" sub="+2" good />
+                          <VibeButton onClick={() => handleVibeCheck(mission.id, "L")} label="L" sub="−1" />
+                        </div>
+                      </div>
+                    )}
+
+                    {!active && errors[mission.id] && (
+                      <p role="alert" className="text-center text-subhead font-medium text-crimson">
+                        {errors[mission.id]}
+                      </p>
+                    )}
+
                     {/* Footer */}
-                    {!isRequest && ((!isSolo && mission.status !== "Pending") || mission.status === "Completed") && (
+                    {!isRequest && ((!isSolo && mission.status !== "Pending") || (mission.status === "Completed" && !hostOfGroup)) && (
                       <div className="flex gap-2 border-t border-line pt-4">
                         {!isSolo && mission.status !== "Pending" && (
                           <button
@@ -930,7 +993,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             <MessageSquare className="h-4 w-4 text-ink-3" /> Chat
                           </button>
                         )}
-                        {mission.status === "Completed" && (
+                        {mission.status === "Completed" && !hostOfGroup && (
                           <button
                             type="button"
                             onClick={() => handleViewMissionRecap(mission.id)}

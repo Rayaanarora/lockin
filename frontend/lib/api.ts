@@ -20,23 +20,34 @@ export function clearDemoSession() {
   DEMO_KEYS.forEach((k) => localStorage.removeItem(k));
 }
 
-/**
- * Authenticated JSON request to the LOCKIN API. Identity travels only as the
- * Supabase access token; the server derives who you are from it.
- */
-export async function api(path: string, options: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-  const demo = isDemoSession();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (demo) {
-    headers.Authorization = "Bearer demo-token";
-  } else if (supabase) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+/** Error from the API, carrying the HTTP status (0 = network failure or timeout). */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
   }
+}
 
+const RETRYABLE = new Set([0, 502, 503, 504]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function accessToken(forceRefresh = false): Promise<string | null> {
+  if (!supabase) return null;
+  if (forceRefresh) {
+    const { data } = await supabase.auth.refreshSession();
+    return data.session?.access_token ?? null;
+  }
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+async function send(path: string, options: RequestInit, token: string | null) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
   try {
     const response = await fetch(`${API}${path}`, {
       ...options,
@@ -44,19 +55,51 @@ export async function api(path: string, options: RequestInit = {}) {
       signal: controller.signal
     });
     const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      if (typeof window !== "undefined" && response.status === 401) {
-        // Expired or refused session: drop it and return to sign-in.
-        if (demo) clearDemoSession();
-        else if (supabase) await supabase.auth.signOut().catch(() => {});
-        localStorage.removeItem("lockin_user_id");
-        window.location.reload();
-      }
-      throw new Error(data.error || "Request failed");
-    }
-    return data;
+    return { status: response.status, ok: response.ok, data };
+  } catch {
+    return { status: 0, ok: false, data: { error: "Can't reach LOCKIN. Check your connection." } };
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+let signingOut = false;
+
+/**
+ * Authenticated JSON request to the LOCKIN API. Identity travels only as the
+ * Supabase access token; the server derives who you are from it.
+ *
+ * - A 401 first refreshes the session and retries once; only a second 401
+ *   signs the user out (a stale token after the tab slept is not a logout).
+ * - Reads (GET) retry once on network failure or a 502/503/504.
+ */
+export async function api(path: string, options: RequestInit = {}) {
+  const demo = isDemoSession();
+  const method = (options.method || "GET").toUpperCase();
+  let token = demo ? "demo-token" : await accessToken();
+
+  let res = await send(path, options, token);
+
+  if (res.status === 401 && !demo && supabase) {
+    token = await accessToken(true);
+    if (token) res = await send(path, options, token);
+  }
+
+  if (!res.ok && method === "GET" && RETRYABLE.has(res.status)) {
+    await sleep(700);
+    res = await send(path, options, token);
+  }
+
+  if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined" && !signingOut) {
+      // Session is really gone: drop it and return to sign-in.
+      signingOut = true;
+      if (demo) clearDemoSession();
+      else if (supabase) await supabase.auth.signOut().catch(() => {});
+      localStorage.removeItem("lockin_user_id");
+      window.location.reload();
+    }
+    throw new ApiError(res.data?.error || "Something went wrong. Please try again.", res.status);
+  }
+  return res.data;
 }

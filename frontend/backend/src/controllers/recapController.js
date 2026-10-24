@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { runTx } = require("../utils/tx");
 const crypto = require("crypto");
 const { toId, cleanText, safeImageRef } = require("../utils/security");
 const { checkAchievements } = require("../utils/achievements");
@@ -71,7 +72,7 @@ async function finishSession(req, res) {
   const isPublic = reflection.isPublic !== false;
 
   try {
-    const outcome = await prisma.$transaction(async (tx) => {
+    const outcome = await runTx(async (tx) => {
       const mission = await tx.mission.findUnique({ where: { id: missionId }, include: { category: true } });
       if (!mission) throw new Error("NOT_FOUND");
 

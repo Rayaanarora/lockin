@@ -32,6 +32,8 @@ export interface Mission {
   role?: "creator" | "participant";
   participant_name?: string;
   participant_id?: number;
+  creator_vibe_rating?: "W" | "L" | null;
+  participant_vibe_rating?: "W" | "L" | null;
   participant_department?: string;
   participant_reputation?: number;
   verification_code?: string;

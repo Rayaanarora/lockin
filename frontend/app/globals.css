@@ -300,6 +300,29 @@
 ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.2); }
 * { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.1) transparent; }
 
+/* ── Landing atmosphere ── */
+.film-grain {
+  background-size: 160px 160px;
+  animation: grain 0.9s steps(6) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-30px, 20px); }
+  40% { transform: translate(25px, -35px); }
+  60% { transform: translate(-15px, 40px); }
+  80% { transform: translate(35px, 10px); }
+  100% { transform: translate(0, 0); }
+}
+.scanlines {
+  opacity: 0.025;
+  background-image: repeating-linear-gradient(0deg, transparent 0 2px, rgb(244 242 238) 2px 3px);
+  background-size: 100% 4px;
+}
+.marquee { animation: marquee 38s linear infinite; }
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+
 /* ── Reduced motion ──
    Framer Motion (MotionConfig reducedMotion="user") already drops transform
    animation and keeps opacity. Here: stop decorative CSS loops and turn
@@ -307,7 +330,9 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-ping,
-  .animate-pulse { animation: none !important; }
+  .animate-pulse,
+  .film-grain,
+  .marquee { animation: none !important; }
   [data-slot="dialog-content"] {
     transition-property: opacity !important;
     transform: none !important;

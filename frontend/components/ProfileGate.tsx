@@ -28,6 +28,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { User, InterestCategory } from "../app/types";
 import { LockinLogo, LockinMark } from "./ui/LockinLogo";
+import Landing from "./Landing";
 import { spring, stagger, rise } from "../lib/motion";
 
 import { supabase } from "../lib/supabase";
@@ -184,10 +185,10 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   // React state (tempUserId). Recover by calling /api/auth/profile here.
   useEffect(() => {
     if (!supabase) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        // If there is already a tempUserId (in-memory session), nothing to do.
-        if (tempUserId) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event !== "SIGNED_IN" || !session || tempUserId) return;
+      // Deferred: calling Supabase inside this callback can deadlock the auth lock.
+      setTimeout(async () => {
         // Also skip if the user is already fully onboarded — page.tsx handles that.
         try {
           const syncRes = await api("/auth/profile", { method: "POST" });
@@ -209,7 +210,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
         } catch (e) {
           console.warn("[ProfileGate] Could not sync profile on SIGNED_IN:", e);
         }
-      }
+      }, 0);
     });
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -486,6 +487,17 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
   const STEP_KEYS = ["splash", "email", "otp", "campus", "profile", "socials", "tutorial"];
 
+  if (step === 0) {
+    return (
+      <Landing
+        onLogin={() => { setMode("login"); goNext(); }}
+        onSignup={() => { setMode("signup"); goNext(); }}
+        onDemoLogin={DEMO_LOGIN_ENABLED ? handleDemoLogin : undefined}
+        busy={busy}
+      />
+    );
+  }
+
   return (
     <div className="relative flex min-h-[100dvh] w-full flex-col items-center overflow-y-auto bg-bg px-5 py-8 md:justify-center">
       <div className="grid-noise pointer-events-none fixed inset-0" />
@@ -555,14 +567,6 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             exit="exit"
             transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
           >
-            {step === 0 && (
-              <SplashStep
-                onLogin={() => { setMode("login"); goNext(); }}
-                onSignup={() => { setMode("signup"); goNext(); }}
-                onDemoLogin={DEMO_LOGIN_ENABLED ? handleDemoLogin : undefined}
-                busy={busy}
-              />
-            )}
             {step === 1 && (
               <EmailStep form={form} setForm={setForm} validation={validation} onNext={goNext} busy={busy} mode={mode} setMode={setMode} onDemoLogin={DEMO_LOGIN_ENABLED ? handleDemoLogin : undefined} />
             )}
@@ -594,90 +598,6 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   );
 }
 
-/* ─── SPLASH ─────────────────────────────────────────────────────── */
-function SplashStep({
-  onLogin,
-  onSignup,
-  onDemoLogin,
-  busy
-}: {
-  onLogin: () => void;
-  onSignup: () => void;
-  onDemoLogin?: () => void;
-  busy?: boolean;
-}) {
-  const loop = [
-    { n: "01", title: "Discover", desc: "See what people on your campus are about to do." },
-    { n: "02", title: "Lock in", desc: "Commit to a mission, solo or with others." },
-    { n: "03", title: "Show up", desc: `Check in, do the work, build your ${POINTS_NAME}.` }
-  ];
-
-  return (
-    <div className="flex flex-col items-center pt-6 text-center">
-      <LockinLogo layout="stacked" size="lg" animate />
-
-      <motion.h1
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.6, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="t-display mt-10 text-large-title text-ink"
-      >
-        Stop chatting.
-        <br />
-        <span className="text-crimson">Start showing up.</span>
-      </motion.h1>
-
-      <motion.ol
-        variants={stagger(0.09, 1.85)}
-        initial="hidden"
-        animate="show"
-        className="mt-10 w-full space-y-px overflow-hidden rounded-2xl border border-line text-left"
-      >
-        {loop.map((item) => (
-          <motion.li key={item.n} variants={rise} className="flex items-center gap-4 bg-surface px-4 py-4">
-            <span className="t-display tabular text-title-2 text-crimson">{item.n}</span>
-            <div className="min-w-0">
-              <p className="text-headline text-ink">{item.title}</p>
-              <p className="text-subhead leading-snug text-ink-2">{item.desc}</p>
-            </div>
-          </motion.li>
-        ))}
-      </motion.ol>
-
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 2.25, ...spring.glide }}
-        className="mt-8 w-full space-y-3"
-      >
-        <PrimaryButton onClick={onSignup}>
-          Get started <ChevronRight className="h-5 w-5" />
-        </PrimaryButton>
-        <button
-          type="button"
-          onClick={onLogin}
-          className="flex h-14 w-full items-center justify-center btn-ghost"
-        >
-          I have an account
-        </button>
-        {onDemoLogin && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onDemoLogin}
-            className="h-11 w-full text-subhead text-ink-3 underline-offset-4 transition-colors hover:text-ink-2 hover:underline disabled:opacity-50"
-          >
-            Try the demo account
-          </button>
-        )}
-      </motion.div>
-
-      <p className="mt-4 text-footnote text-ink-3">College email required.</p>
-    </div>
-  );
-}
-
-/* ─── CAMPUS ─────────────────────────────────────────────────────── */
 function CampusStep({ form, setForm, validation, campuses, campusSearch, setCampusSearch, showCampusList, setShowCampusList, onNext }: any) {
   return (
     <div className="space-y-7">

@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const prisma = require("../config/db");
+const { runTx } = require("../utils/tx");
 const { isDbUnavailable } = require("../utils/dbFallback");
 const { toId, cleanText, safeImageRef, safeColor, newCheckInCode, rateLimit } = require("../utils/security");
 const { notifyUser } = require("../utils/realtime");
@@ -155,11 +156,10 @@ async function acceptMission(req, res) {
   if (!missionId) return res.status(400).json({ error: "Invalid mission." });
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const [user, mission] = await Promise.all([
-        tx.user.findUnique({ where: { id: userId }, select: { id: true, collegeId: true, name: true } }),
-        tx.mission.findUnique({ where: { id: missionId } })
-      ]);
+    const result = await runTx(async (tx) => {
+      // Sequential on purpose: one transaction is one connection.
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true, collegeId: true, name: true } });
+      const mission = await tx.mission.findUnique({ where: { id: missionId } });
       if (!mission) throw new Error("NOT_FOUND");
       if (mission.createdBy === userId) throw new Error("OWN_MISSION");
       if (mission.missionType === "solo") throw new Error("NOT_FOUND");
@@ -487,7 +487,7 @@ async function submitAttendance(req, res) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runTx(async (tx) => {
       const participant = await tx.participation.findFirst({
         where: { missionId, userId: participantId },
         include: { mission: true }
@@ -548,7 +548,7 @@ async function approveParticipant(req, res) {
   if (!missionId || !participantId) return res.status(400).json({ error: "participantId is required." });
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runTx(async (tx) => {
       const mission = await tx.mission.findUnique({ where: { id: missionId } });
       if (!mission) throw new Error("MISSION_NOT_FOUND");
       if (mission.createdBy !== creatorId) throw new Error("UNAUTHORIZED");
@@ -662,7 +662,7 @@ async function submitVibeCheck(req, res) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runTx(async (tx) => {
       const mission = await tx.mission.findUnique({ where: { id: missionId } });
       if (!mission) throw new Error("NOT_FOUND");
       const isCreator = mission.createdBy === raterId;

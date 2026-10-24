@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Flame } from "lucide-react";
 import { User } from "./types";
@@ -27,6 +27,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("missions");
   const [locked, setLocked] = useState(false);
+  const [bootError, setBootError] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
 
   // Synchronize active tab from URL query params if present
@@ -43,13 +44,11 @@ export default function Home() {
 
   // Request Notification permission & Subscribe to Supabase Realtime Notifications
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        Notification.requestPermission();
-      }
-    }
-
     if (!user || !supabase) return;
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
 
     // Private channel: Supabase RLS lets only this user receive (supabase/security.sql).
     const channel = supabase.channel(`notifications:${user.id}`, { config: { private: true } });
@@ -83,6 +82,32 @@ export default function Home() {
     };
   }, [user?.id]);
 
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
+
+  /**
+   * Load the signed-in user's profile. A failed request never signs anyone out:
+   * 401 is handled inside api(), 403 means there is no profile yet (onboarding),
+   * and anything else keeps the current user (or offers a retry on first load).
+   */
+  async function loadUser() {
+    try {
+      const nextUser = await api("/auth/me");
+      if (nextUser.incomplete) {
+        setUser(null);
+        return;
+      }
+      setUser(nextUser);
+      setBootError(false);
+      api(`/users/${nextUser.id}/lock`)
+        .then((lock) => typeof lock?.locked === "boolean" && setLocked(lock.locked))
+        .catch(() => {});
+    } catch (err: any) {
+      if (err?.status === 403) setUser(null);
+      else if (!userRef.current) setBootError(true);
+    }
+  }
+
   async function refreshUser() {
     if (isDemoSession()) {
       try {
@@ -98,25 +123,13 @@ export default function Home() {
       }
       return;
     }
-
     if (!supabase) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setUser(null);
-        return;
-      }
-      const nextUser = await api("/auth/me");
-      if (nextUser.incomplete) {
-        setUser(null);
-        return;
-      }
-      const lock = await api(`/users/${nextUser.id}/lock`);
-      setUser(nextUser);
-      setLocked(lock.locked);
-    } catch {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       setUser(null);
+      return;
     }
+    await loadUser();
   }
 
   useEffect(() => {
@@ -144,30 +157,24 @@ export default function Home() {
       return;
     }
 
-    // Set up auth state change listener to sync login sessions
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // If demo mode is active, don't overwrite user with null
       if (isDemoSession()) {
         setLoading(false);
         return;
       }
-      if (session) {
-        try {
-          const nextUser = await api("/auth/me");
-          if (nextUser.incomplete) {
-            setUser(null);
-          } else {
-            setUser(nextUser);
-            const lock = await api(`/users/${nextUser.id}/lock`);
-            setLocked(lock.locked);
-          }
-        } catch {
-          setUser(null);
-        }
-      } else {
+      if (!session) {
         setUser(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      // Same person, new token: nothing to reload.
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+      // Never call Supabase from inside this callback: it holds the auth lock,
+      // and api() reading the session would deadlock. Defer instead.
+      setTimeout(() => {
+        loadUser().finally(() => setLoading(false));
+      }, 0);
     });
 
     return () => {
@@ -207,6 +214,27 @@ export default function Home() {
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  if (!user && bootError) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-6 text-center">
+        <p className="t-section">Connection</p>
+        <h1 className="t-display mt-4 text-title-1 text-ink">Couldn&apos;t reach LOCKIN</h1>
+        <p className="mt-2 max-w-xs text-subhead text-ink-2">Your session is fine. The server didn&apos;t answer in time.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setBootError(false);
+            setLoading(true);
+            loadUser().finally(() => setLoading(false));
+          }}
+          className="btn-primary mt-8 h-12 px-8"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (!user) {

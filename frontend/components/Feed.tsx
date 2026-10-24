@@ -117,33 +117,42 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       setError("Mission queue full. Finish an active mission first.");
       return;
     }
+    const mission = currentMission;
     setError("");
-    setBusy(true);
     setExitDir(action === "accept" ? "right" : "left");
+    // Optimistic: the card leaves immediately; the server catches up behind it.
+    setMissions((ms) => ms.filter((m) => m.id !== mission.id));
+
+    if (action === "pass") {
+      api(`/missions/${mission.id}/pass`, { method: "POST" }).catch(() => {});
+      return;
+    }
+
+    setBusy(true);
+    setLockedFlash(true);
+    const minFlash = new Promise((r) => setTimeout(r, 900));
     try {
-      if (action === "accept") {
-        await api(`/missions/${currentMission.id}/accept`, {
-          method: "POST",
-          body: JSON.stringify({ userId: user.id })
-        });
-        setLockedFlash(true);
-        setMissions((ms) => ms.filter((m) => m.id !== currentMission.id));
-        await refreshUser();
-        setTimeout(() => {
-          setLockedFlash(false);
-          setTab?.("active");
-        }, 900);
-      } else {
-        await api(`/missions/${currentMission.id}/pass`, { method: "POST" });
-        setMissions((ms) => ms.filter((m) => m.id !== currentMission.id));
+      try {
+        await api(`/missions/${mission.id}/accept`, { method: "POST", body: JSON.stringify({}) });
+      } catch (err: any) {
+        // A retry after a lost response: the first attempt already joined.
+        if (err?.status !== 409) throw err;
       }
+      refreshUser().catch(() => {});
+      await minFlash;
+      setLockedFlash(false);
+      setTab?.("active");
     } catch (err: any) {
-      if (err.message && err.message.includes("limit")) setLocked(true);
-      setError(err.message || "Operation failed.");
+      setLockedFlash(false);
+      const status = err?.status;
+      // Gone or already happened: leave it off the deck.
+      if (status !== 404 && status !== 410) setMissions((ms) => (ms.some((m) => m.id === mission.id) ? ms : [mission, ...ms]));
+      if (status === 423) setLocked(true);
+      setError(err?.message || "Couldn't lock in. Try again.");
     } finally {
       setBusy(false);
     }
-  }, [currentMission, busy, locked, api, user.id, refreshUser, setTab, setLocked]);
+  }, [currentMission, busy, locked, api, refreshUser, setTab, setLocked]);
 
   // Keyboard: ← pass, → lock in
   useEffect(() => {
@@ -176,10 +185,12 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       };
       const newMission = await api("/missions", { method: "POST", body: JSON.stringify(payload) });
       if (tasks.length > 0 && newMission?.id) {
+        // The mission exists now. A task hiccup must not leave the form open,
+        // or a retry would launch the mission twice.
         await api("/tasks/batch", {
           method: "POST",
           body: JSON.stringify({ missionId: newMission.id, tasks: tasks.map((t, idx) => ({ title: t, position: idx })) })
-        });
+        }).catch(() => setError("Mission launched, but its tasks didn't save. Add them from your queue."));
       }
       setShowCreate(false);
       setTab?.("active");
@@ -288,21 +299,25 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={spring.glide}
-                className="relative flex min-h-[360px] w-full flex-col justify-end overflow-hidden rounded-sm border border-line bg-surface p-6 md:min-h-[560px] md:p-10"
+                className="relative flex min-h-[360px] w-full flex-col overflow-hidden rounded-sm border border-line bg-surface p-6 md:min-h-[560px] md:p-10"
               >
-                <div className="pointer-events-none absolute -right-14 -top-4 opacity-[0.06]" aria-hidden="true">
-                  <LockinMark size={360} color="rgb(var(--ink))" showTriangle={false} />
+                <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-signal" />
+                <div className="flex items-start justify-between">
+                  <p className="t-section">Deck cleared</p>
+                  <LockinMark size={56} className="text-ink/15 md:hidden" />
+                  <LockinMark size={96} className="hidden text-ink/15 md:block" />
                 </div>
-                <p className="t-section relative">Deck cleared</p>
-                <h2 className="t-display relative mt-4 text-[40px] leading-[1] text-ink md:text-[56px]">Nothing new on campus right now.</h2>
-                <p className="relative mt-3 max-w-sm text-subhead text-ink-2 md:text-body">Start one. Others can lock in with you.</p>
-                <div className="relative mt-8 grid grid-cols-[2fr_1fr] gap-3">
-                  <button type="button" onClick={() => setShowCreate(true)} className="btn-primary h-14">
-                    <Plus className="h-4 w-4" strokeWidth={1.75} /> Launch
-                  </button>
-                  <button type="button" onClick={() => { setActiveCategory("all"); load("all"); }} className="btn-ghost h-14">
-                    <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refresh
-                  </button>
+                <div className="mt-auto pt-10">
+                  <h2 className="t-display text-[36px] leading-[1.02] text-ink sm:text-[40px] md:text-[56px]">Nothing new on campus right now.</h2>
+                  <p className="mt-3 max-w-sm text-subhead text-ink-2 md:text-body">Start one. Others can lock in with you.</p>
+                  <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:gap-3">
+                    <button type="button" onClick={() => setShowCreate(true)} className="btn-primary h-14 sm:flex-1">
+                      <Plus className="h-4 w-4" strokeWidth={1.75} /> Launch a mission
+                    </button>
+                    <button type="button" onClick={() => { setActiveCategory("all"); load("all"); }} className="btn-ghost h-12 sm:h-14 sm:px-6">
+                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refresh
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ) : (
@@ -685,11 +700,6 @@ function CardBody({ mission, now }: { mission: Mission; now: number }) {
 
   return (
     <div className="relative flex min-h-[360px] flex-1 flex-col p-5 md:min-h-[560px] md:p-10">
-      {/* the stag, quietly, behind the type */}
-      <div className="pointer-events-none absolute -bottom-10 -right-16 opacity-[0.05]" aria-hidden="true">
-        <LockinMark size={340} color="rgb(var(--ink))" showTriangle={false} />
-      </div>
-
       <div className="relative flex items-start justify-between gap-3">
         <p className="t-section">
           Mission #{pad(mission.id).padStart(4, "0")} · {mission.category_name || (mission.mission_type === "solo" ? "Solo" : "Group")}
