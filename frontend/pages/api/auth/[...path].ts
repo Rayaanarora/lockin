@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { DEMO_LOGIN_ENABLED, getAuthUser } from "../../../lib/requireAuth";
+import { DEMO_LOGIN_ENABLED, forgetToken, getAuthUser } from "../../../lib/requireAuth";
 import { fail, limitByIp, notFound, segmentsOf } from "../../../lib/apiRoute";
 
 const { checkDomain, syncProfile, getMe, logout } = require("../../../backend/src/controllers/authController");
@@ -36,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === "POST" && route === "logout") {
+      forgetToken(req.headers.authorization);
       return await logout(req, res);
     }
 
