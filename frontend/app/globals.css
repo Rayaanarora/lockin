@@ -27,6 +27,7 @@
 
   --signal: 177 18 38;    /* Crimson #B11226: lines, fills, strokes, the red O */
   --crimson-text: 233 42 66; /* same hue lifted to 4.5:1 for small text only */
+  --crimson-display: 200 22 46; /* closest to brand Crimson that holds 3:1 for display text (24px+) */
   --cherry: 120 12 26;
   --maroon: 60 6 13;
   --gold: 244 242 238;    /* retired: Grit renders in Signal */
@@ -300,25 +301,6 @@
 ::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.2); }
 * { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.1) transparent; }
 
-/* ── Landing atmosphere ── */
-.film-grain {
-  background-size: 160px 160px;
-  animation: grain 0.9s steps(6) infinite;
-}
-@keyframes grain {
-  0% { transform: translate(0, 0); }
-  20% { transform: translate(-30px, 20px); }
-  40% { transform: translate(25px, -35px); }
-  60% { transform: translate(-15px, 40px); }
-  80% { transform: translate(35px, 10px); }
-  100% { transform: translate(0, 0); }
-}
-.scanlines {
-  opacity: 0.025;
-  background-image: repeating-linear-gradient(0deg, transparent 0 2px, rgb(244 242 238) 2px 3px);
-  background-size: 100% 4px;
-}
-
 /* ── Reduced motion ──
    Framer Motion (MotionConfig reducedMotion="user") already drops transform
    animation and keeps opacity. Here: stop decorative CSS loops and turn
@@ -326,8 +308,7 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-ping,
-  .animate-pulse,
-  .film-grain { animation: none !important; }
+  .animate-pulse { animation: none !important; }
   [data-slot="dialog-content"] {
     transition-property: opacity !important;
     transform: none !important;

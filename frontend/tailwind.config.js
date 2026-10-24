@@ -54,6 +54,7 @@ module.exports = {
         // ── Brand ──
         signal: token("signal"), // brand Crimson #B11226: lines, fills, strokes
         crimson: token("crimson-text"), // text-only crimson (#E92A42, 4.5:1+)
+        "crimson-display": token("crimson-display"), // display-size crimson (#C8162E, 3.5:1)
         cherry: token("cherry"), // deeper crimson for pressed/fills
         maroon: token("maroon"),
         gold: token("gold"), // retired; resolves to Signal off-white
