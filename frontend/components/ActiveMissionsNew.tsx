@@ -377,11 +377,13 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
     }
   }
 
-  const isDue = (datetime: string) => {
+  const isDue = (datetime?: string | null) => {
+    if (!datetime) return true;
     return new Date(datetime).getTime() <= Date.now();
   };
 
-  const timeLeft = (datetime: string) => {
+  const timeLeft = (datetime?: string | null) => {
+    if (!datetime) return "Ready";
     const diff = new Date(datetime).getTime() - Date.now();
     if (diff <= 0) return "Ready";
     const hours = Math.floor(diff / 3600000);

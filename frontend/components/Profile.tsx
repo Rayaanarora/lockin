@@ -636,7 +636,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-subhead font-medium text-ink">{m.title}</p>
                               <p className="text-footnote text-ink-3">
-                                {m.role === "creator" ? "Hosted" : `With ${m.creator_name}`} · {new Date(m.datetime).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                {m.role === "creator" ? "Hosted" : (m.creator_name ? `With ${m.creator_name}` : "Side Quest")} · {m.datetime ? new Date(m.datetime).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "On-demand"}
                               </p>
                             </div>
                             {done ? (

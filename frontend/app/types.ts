@@ -20,13 +20,14 @@ export interface User {
 
 export interface Mission {
   id: number;
-  creator_id: number;
+  creator_id?: number | null;
   title: string;
   description: string;
   location: string;
-  datetime: string;
-  creator_name?: string;
-  creator_department?: string;
+  datetime?: string | null;
+  creator_name?: string | null;
+  creator_department?: string | null;
+  is_system?: boolean;
   status?: string;
   showed_up?: boolean | null;
   role?: "creator" | "participant";

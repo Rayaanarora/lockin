@@ -117,8 +117,20 @@ async function getMissionFeed(req, res) {
     const targetCollegeId = activeUser?.collegeId || 1634;
 
     const whereClause = {
-      createdBy: { not: numericUserId },
-      datetime: { gte: twelveHoursAgo },
+      AND: [
+        {
+          OR: [
+            { createdBy: null },
+            { createdBy: { not: numericUserId } }
+          ]
+        },
+        {
+          OR: [
+            { datetime: null },
+            { datetime: { gte: twelveHoursAgo } }
+          ]
+        }
+      ],
       OR: [
         { collegeId: targetCollegeId },
         { collegeId: null }
@@ -137,7 +149,7 @@ async function getMissionFeed(req, res) {
 
     let missions = await prisma.mission.findMany({
       where: whereClause,
-      orderBy: { datetime: "asc" },
+      orderBy: { id: "desc" },
       include: {
         category: true,
         creator: true,
@@ -162,7 +174,14 @@ async function getMissionFeed(req, res) {
     // Fallback 1: If strict filter returns 0 missions, relax the participation and datetime constraint for this campus
     if (missions.length === 0) {
       const fallbackWhere = {
-        createdBy: { not: numericUserId },
+        AND: [
+          {
+            OR: [
+              { createdBy: null },
+              { createdBy: { not: numericUserId } }
+            ]
+          }
+        ],
         missionType: { not: "solo" },
         OR: [
           { collegeId: targetCollegeId },
@@ -224,8 +243,9 @@ async function getMissionFeed(req, res) {
     }
 
     const rows = missions.map((m) => {
+      const isSystem = !m.createdBy || m.missionType === "side_quest";
       const attendees = [];
-      if (m.creator) {
+      if (!isSystem && m.creator) {
         attendees.push({
           id: m.createdBy,
           name: m.creator.name,
@@ -237,7 +257,7 @@ async function getMissionFeed(req, res) {
 
       const acceptedParticipants = (m.participations || [])
         .map((p) => {
-          if (!p.user || p.user.id === m.createdBy) return null;
+          if (!p.user || (!isSystem && p.user.id === m.createdBy)) return null;
           return {
             id: p.user.id,
             name: p.user.name,
@@ -252,23 +272,24 @@ async function getMissionFeed(req, res) {
 
       return {
         id: m.id,
-        creator_id: m.createdBy,
+        creator_id: isSystem ? null : m.createdBy,
         title: m.title,
-        description: m.description || `Category: ${m.category?.categoryName || "Coding"}. Meet at ${m.location} and execute the mission.`,
-        location: m.location,
+        description: m.description || `Category: ${m.category?.categoryName || "Coding"}.`,
+        location: m.location || (isSystem ? "Anywhere" : "Campus"),
         datetime: m.datetime ? m.datetime.toISOString() : null,
-        creator_name: m.creator?.name || "Unknown",
-        creator_department: m.creator?.department || "Creator",
-        category_name: m.category?.categoryName || "Coding",
+        creator_name: isSystem ? null : (m.creator?.name || "Campus peer"),
+        creator_department: isSystem ? "LOCKIN Protocol" : (m.creator?.department || "Student"),
+        is_system: isSystem,
+        category_name: m.category?.categoryName || "General",
         category_id: m.categoryId,
-        category_emoji: m.category?.emoji || "💻",
+        category_emoji: m.category?.emoji || "⚡",
         category_color: m.category?.colorHex || "#3b82f6",
-        focus_duration: m.focusDuration,
-        mission_type: m.missionType,
+        focus_duration: m.focusDuration || 25,
+        mission_type: isSystem ? "side_quest" : m.missionType,
         cover_color: m.coverColor,
         cover_image: m.coverImage,
-        locked_in_count: attendees.length,
-        attendees: attendees
+        locked_in_count: isSystem ? 0 : attendees.length,
+        attendees: isSystem ? [] : attendees
       };
     });
 
@@ -315,6 +336,9 @@ async function acceptMission(req, res) {
         throw new Error("NOT_FOUND");
       }
 
+      const isSystem = !mission.createdBy || mission.missionType === "side_quest";
+      const initialStatus = isSystem ? "Accepted" : "Requested";
+
       const participation = await tx.participation.upsert({
         where: {
           unique_user_mission: {
@@ -322,28 +346,28 @@ async function acceptMission(req, res) {
             missionId: Number(id)
           }
         },
-        update: { status: "Requested" },
+        update: { status: initialStatus },
         create: {
           userId: Number(userId),
           missionId: Number(id),
-          status: "Requested"
+          status: initialStatus
         }
       });
 
       return participation;
     });
 
-    // Real-time Push Notification to Host
+    // Real-time Push Notification to Host (skip for system quests)
     try {
       const mission = await prisma.mission.findUnique({
         where: { id: Number(id) },
-        select: { createdBy: true, title: true }
+        select: { createdBy: true, title: true, missionType: true }
       });
       const applicant = await prisma.user.findUnique({
         where: { id: Number(userId) },
         select: { name: true }
       });
-      if (mission && mission.createdBy) {
+      if (mission && mission.createdBy && mission.missionType !== "side_quest") {
         const supabaseClient = require("../config/supabase");
         if (supabaseClient) {
           const channel = supabaseClient.channel(`notifications:${mission.createdBy}`);

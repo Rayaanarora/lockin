@@ -170,8 +170,8 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
     }
   }
 
-  const initials = (name = "?") => {
-    return name
+  const initials = (name?: string | null) => {
+    return (name || "?")
       .split(" ")
       .map((part) => part[0])
       .join("")
@@ -179,14 +179,21 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
       .toUpperCase();
   };
 
-  const formatDate = (value: string) => {
-    return new Intl.DateTimeFormat("en", {
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-      month: "short",
-      day: "numeric"
-    }).format(new Date(value));
+  const formatDate = (value?: string | null) => {
+    if (!value) return "Anytime";
+    try {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return "Anytime";
+      return new Intl.DateTimeFormat("en", {
+        weekday: "short",
+        hour: "numeric",
+        minute: "2-digit",
+        month: "short",
+        day: "numeric"
+      }).format(d);
+    } catch {
+      return "Anytime";
+    }
   };
 
   const handleCategoryChange = (catId: string) => {
@@ -352,7 +359,7 @@ export default function FeedNew({ user, refreshUser, locked, setLocked, api, set
                     </div>
                     <div className="text-left">
                       <h3 className="text-xs md:text-sm font-black text-white leading-tight">
-                        {currentMission.creator_name}
+                        {currentMission.creator_name || "LOCKIN Protocol"}
                       </h3>
                       <p className="text-[9px] md:text-xs font-black text-zinc-500 uppercase tracking-widest mt-0.5">
                         {currentMission.creator_department || "Department"}

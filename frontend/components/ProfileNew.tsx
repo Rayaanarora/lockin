@@ -661,12 +661,12 @@ export default function ProfileNew({ user, refreshUser, api }: ProfileProps) {
                               <div className="text-left min-w-0">
                                 <p className="text-xs font-black text-cotton truncate tracking-wide">{m.title}</p>
                                 <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">
-                                  {m.role === "creator" ? "Hosted Runway" : `Partner: ${m.creator_name}`}
+                                  {m.role === "creator" ? "Hosted Runway" : (m.creator_name ? `Partner: ${m.creator_name}` : "Side Quest")}
                                   {" · "}
-                                  {new Date(m.datetime).toLocaleDateString("en-IN", {
+                                  {m.datetime ? new Date(m.datetime).toLocaleDateString("en-IN", {
                                     day: "numeric",
                                     month: "short",
-                                  })}
+                                  }) : "On-demand"}
                                 </p>
                               </div>
                             </div>

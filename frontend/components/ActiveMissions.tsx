@@ -504,14 +504,19 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     URL.revokeObjectURL(url);
   };
 
-  const isDue = (datetime: string) => {
+  const isDue = (datetime?: string | null) => {
+    if (!datetime) return true;
     return new Date(datetime).getTime() <= Date.now();
   };
 
   // Matches the server: check-in opens 15 minutes before the start time.
-  const checkInOpen = (datetime: string) => new Date(datetime).getTime() - 15 * 60e3 <= Date.now();
+  const checkInOpen = (datetime?: string | null) => {
+    if (!datetime) return true;
+    return new Date(datetime).getTime() - 15 * 60e3 <= Date.now();
+  };
 
-  const timeLeft = (datetime: string) => {
+  const timeLeft = (datetime?: string | null) => {
+    if (!datetime) return "Ready";
     const diff = new Date(datetime).getTime() - Date.now();
     if (diff <= 0) return "Ready";
     const hours = Math.floor(diff / 3600000);

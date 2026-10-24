@@ -23,10 +23,18 @@ const getDefaultDatetime = () => {
 const initials = (name = "?") =>
   name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("en", {
-    weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric"
-  }).format(new Date(value));
+const formatDate = (value?: string | null) => {
+  if (!value) return "Anytime";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "Anytime";
+    return new Intl.DateTimeFormat("en", {
+      weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric"
+    }).format(d);
+  } catch {
+    return "Anytime";
+  }
+};
 
 interface FeedProps {
   user: User;
@@ -788,9 +796,10 @@ function clock(now: number) {
 }
 
 /** "02:41:09", "2D 04H", or "NOW". */
-function countdown(target: string, now: number) {
+function countdown(target?: string | null, now: number = Date.now()) {
+  if (!target) return { text: "NOW", soon: false, live: true };
   const ms = new Date(target).getTime() - now;
-  if (ms <= 0) return { text: "NOW", soon: true, live: true };
+  if (isNaN(ms) || ms <= 0) return { text: "NOW", soon: true, live: true };
   const s = Math.floor(ms / 1000);
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
@@ -850,8 +859,9 @@ function useNow(intervalMs = 1000) {
 
 function CardBody({ mission }: { mission: Mission }) {
   const now = useNow();
+  const isSystem = Boolean(mission.is_system || mission.mission_type === "side_quest" || !mission.creator_id || !mission.creator_name);
   const t = countdown(mission.datetime, now);
-  const hoursUntil = (new Date(mission.datetime).getTime() - now) / 3600e3;
+  const hoursUntil = mission.datetime ? (new Date(mission.datetime).getTime() - now) / 3600e3 : 0;
   const soon = Math.min(1, Math.max(0.04, 1 - hoursUntil / 48));
   const photo = mission.cover_image && !mission.cover_image.includes("gradient") ? mission.cover_image : null;
   const crew = mission.locked_in_count ?? 0;
@@ -859,16 +869,30 @@ function CardBody({ mission }: { mission: Mission }) {
   return (
     <div className="relative flex min-h-[360px] flex-1 flex-col p-5 md:min-h-[560px] md:p-10">
       <div className="relative flex items-start justify-between gap-3">
-        <p className="t-section">
-          Mission #{pad(mission.id).padStart(4, "0")} · {mission.category_name || (mission.mission_type === "solo" ? "Solo" : "Group")}
-        </p>
+        {isSystem ? (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-signal/60 bg-signal/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-crimson">
+              <span className="h-1.5 w-1.5 rounded-full bg-crimson animate-pulse" />
+              Side Quest Protocol
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-3">
+              · {mission.category_name || "Protocol"}
+            </span>
+          </div>
+        ) : (
+          <p className="t-section">
+            Mission #{pad(mission.id).padStart(4, "0")} · {mission.category_name || (mission.mission_type === "solo" ? "Solo" : "Group")}
+          </p>
+        )}
         <button
           type="button"
           onPointerDownCapture={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             const origin = typeof window !== "undefined" ? window.location.origin : "https://lockin.top";
-            const text = `*${mission.title}* on LOCKIN\n${mission.description}\n\nWhere: ${mission.location || "Campus"}\nWhen: ${formatDate(mission.datetime)}\nHost: ${mission.creator_name || "Campus peer"}\n\nLock in: ${origin}`;
+            const text = isSystem
+              ? `*Side Quest: ${mission.title}* on LOCKIN\n${mission.description}\n\nDuration: ${mission.focus_duration || 25} min focus\nLocation: ${mission.location || "Anywhere"}\n\nLock in: ${origin}`
+              : `*${mission.title}* on LOCKIN\n${mission.description}\n\nWhere: ${mission.location || "Campus"}\nWhen: ${mission.datetime ? formatDate(mission.datetime) : "Anytime"}\nHost: ${mission.creator_name || "Campus peer"}\n\nLock in: ${origin}`;
             window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
           }}
           aria-label="Share mission on WhatsApp"
@@ -892,25 +916,55 @@ function CardBody({ mission }: { mission: Mission }) {
 
       <div className="relative mt-auto pt-6 md:pt-8">
         <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="t-label">{t.live ? "Started" : "Leaves in"}</p>
-            <p className={`t-display mt-2 text-[34px] leading-none md:text-[56px] ${t.soon ? "text-crimson" : "text-ink"}`}>
-              {t.live ? "Now" : <Flap text={t.text} />}
-            </p>
-          </div>
+          {isSystem ? (
+            <div>
+              <p className="t-label text-crimson">Focus session</p>
+              <p className="t-display mt-2 text-[34px] leading-none text-ink md:text-[56px]">
+                {mission.focus_duration || 25} <span className="text-[20px] md:text-[28px] font-light text-ink-3">MIN</span>
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="t-label">{t.live ? "Started" : "Leaves in"}</p>
+              <p className={`t-display mt-2 text-[34px] leading-none md:text-[56px] ${t.soon ? "text-crimson" : "text-ink"}`}>
+                {t.live ? "Now" : <Flap text={t.text} />}
+              </p>
+            </div>
+          )}
           <p className="t-label shrink-0 pb-1 text-right">
-            <span className="block text-callout normal-case tracking-normal text-ink">{crew}</span>
-            locked in
+            {isSystem ? (
+              <>
+                <span className="block text-callout normal-case tracking-normal text-crimson font-semibold">Start anytime</span>
+                On demand
+              </>
+            ) : (
+              <>
+                <span className="block text-callout normal-case tracking-normal text-ink">{crew}</span>
+                locked in
+              </>
+            )}
           </p>
         </div>
+
         <div className="relative mt-4 h-px bg-line">
-          <motion.div className="absolute inset-y-0 left-0 bg-signal" initial={{ width: 0 }} animate={{ width: `${soon * 100}%` }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} />
+          {isSystem ? (
+            <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-crimson via-signal to-transparent opacity-80" />
+          ) : (
+            <motion.div className="absolute inset-y-0 left-0 bg-signal" initial={{ width: 0 }} animate={{ width: `${soon * 100}%` }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} />
+          )}
         </div>
+
         <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
           <p className="t-label truncate">
-            {formatDate(mission.datetime)} · {mission.location}
+            {isSystem ? `Anytime · ${mission.location || "Anywhere"}` : `${mission.datetime ? formatDate(mission.datetime) : "Anytime"} · ${mission.location || "Campus"}`}
           </p>
-          <p className="t-label truncate">@{handleOf(mission.creator_name)}</p>
+          <p className="t-label truncate">
+            {isSystem ? (
+              <span className="text-crimson font-semibold tracking-[0.16em]">LOCKIN PROTOCOL</span>
+            ) : (
+              `@${handleOf(mission.creator_name || undefined)}`
+            )}
+          </p>
         </div>
       </div>
     </div>

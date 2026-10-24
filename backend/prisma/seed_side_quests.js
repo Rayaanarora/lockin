@@ -222,11 +222,10 @@ async function seedSideQuests() {
     }
   ];
 
-  console.log(`Processing ${quests.length} master side quests...`);
+  console.log(`Processing ${quests.length} master side quests as SYSTEM SIDE QUESTS (no fake user, no expiry datetime)...`);
 
   for (let i = 0; i < quests.length; i++) {
     const q = quests[i];
-    const hostUser = hosts[i % hosts.length] || defaultHost;
 
     // Check if mission already exists by title
     const existing = await prisma.mission.findFirst({
@@ -237,26 +236,27 @@ async function seedSideQuests() {
       await prisma.mission.update({
         where: { id: existing.id },
         data: {
-          datetime: q.datetime,
+          datetime: null,
           description: q.description,
           location: q.location,
           focusDuration: q.focusDuration,
+          missionType: "side_quest",
+          creator: { disconnect: true },
           collegeRef: { disconnect: true },
           category: { connect: { id: q.categoryId } }
         }
       });
-      console.log(`[UPDATED] ${q.title} (ID: ${existing.id})`);
+      console.log(`[UPDATED AS SYSTEM SIDE QUEST] ${q.title} (ID: ${existing.id})`);
     } else {
       const created = await prisma.mission.create({
         data: {
           title: q.title,
           description: q.description,
           location: q.location,
-          datetime: q.datetime,
-          missionType: "group",
+          datetime: null,
+          missionType: "side_quest",
           focusDuration: q.focusDuration,
-          category: { connect: { id: q.categoryId } },
-          creator: { connect: { id: hostUser.id } }
+          category: { connect: { id: q.categoryId } }
         }
       });
 
@@ -269,7 +269,7 @@ async function seedSideQuests() {
           }))
         });
       }
-      console.log(`[CREATED] ${q.title} (ID: ${created.id})`);
+      console.log(`[CREATED AS SYSTEM SIDE QUEST] ${q.title} (ID: ${created.id})`);
     }
   }
 
