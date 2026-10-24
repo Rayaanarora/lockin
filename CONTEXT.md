@@ -152,9 +152,9 @@ NEXT_PUBLIC_API_URL=/api
 NEXT_PUBLIC_SUPABASE_URL=https://npzbdjkgyzvyzrlorxmo.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_wajGr0Dwqeq9RlpPRUPgrg_7uRKVJ8B
 
-# PostgreSQL Database (Supabase AWS Pooler)
-DATABASE_URL="postgresql://postgres.npzbdjkgyzvyzrlorxmo:myUIUXnotsea93%2A%2A@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.npzbdjkgyzvyzrlorxmo:myUIUXnotsea93%2A%2A@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+# PostgreSQL Database (Supabase AWS Pooler). Never commit real passwords: set these in Vercel / .env.local only.
+DATABASE_URL="postgresql://postgres.npzbdjkgyzvyzrlorxmo:[YOUR-DB-PASSWORD]@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.npzbdjkgyzvyzrlorxmo:[YOUR-DB-PASSWORD]@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
 
 # Production Frontend Origin
 FRONTEND_URL=https://lockin.top
