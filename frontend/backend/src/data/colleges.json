@@ -432,7 +432,7 @@
   {
     "college_name": "Amrita Vishwa Vidyapeetham, Bengaluru Campus",
     "short_name": "Amrita Bengaluru",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Bengaluru",
     "state": "Karnataka",
     "country": "India",
@@ -442,7 +442,7 @@
   {
     "college_name": "Amrita Vishwa Vidyapeetham, Chennai Campus",
     "short_name": "Amrita Chennai",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -472,7 +472,7 @@
   {
     "college_name": "Bharath Institute of Higher Education and Research",
     "short_name": "BIHER",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -712,7 +712,7 @@
   {
     "college_name": "Sathyabama Institute of Science and Technology",
     "short_name": "Sathyabama",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -722,7 +722,7 @@
   {
     "college_name": "Saveetha Institute of Medical and Technical Sciences",
     "short_name": "SIMATS",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -812,7 +812,7 @@
   {
     "college_name": "Vel Tech Rangarajan Dr. Sagunthala R&D Institute of Science and Technology",
     "short_name": "Vel Tech",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -862,7 +862,7 @@
   {
     "college_name": "Vellore Institute of Technology, Chennai",
     "short_name": "VIT Chennai",
-    "college_type": "Deemed University",
+    "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -1112,7 +1112,7 @@
   {
     "college_name": "International Institute of Information Technology, Bangalore",
     "short_name": "IIIT Bangalore",
-    "college_type": "IIIT",
+    "college_type": "Institute of National Importance",
     "city": "Bengaluru",
     "state": "Karnataka",
     "country": "India",
@@ -1140,9 +1140,9 @@
     "email_domain": "iiitdmj.ac.in"
   },
   {
-    "college_name": "IIITDM Kancheepuram",
+    "college_name": "Indian Institute of Information Technology, Design and Manufacturing, Kancheepuram",
     "short_name": "IIITDM Kancheepuram",
-    "college_type": "IIIT",
+    "college_type": "Institute of National Importance",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
@@ -1981,7 +1981,7 @@
   },
   {
     "college_name": "National Institute of Technology Andhra Pradesh",
-    "short_name": "NIT AP",
+    "short_name": "NIT Andhra Pradesh",
     "college_type": "NIT",
     "city": "Tadepalligudem",
     "state": "Andhra Pradesh",
@@ -1991,7 +1991,7 @@
   },
   {
     "college_name": "National Institute of Technology Arunachal Pradesh",
-    "short_name": "NIT AP",
+    "short_name": "NIT Arunachal Pradesh",
     "college_type": "NIT",
     "city": "Yupia",
     "state": "Arunachal Pradesh",
@@ -2050,7 +2050,7 @@
     "email_domain": "nith.ac.in"
   },
   {
-    "college_name": "National Institute of Technology Jalandhar",
+    "college_name": "Dr. B. R. Ambedkar National Institute of Technology Jalandhar",
     "short_name": "NIT Jalandhar",
     "college_type": "NIT",
     "city": "Jalandhar",
@@ -2073,7 +2073,7 @@
     "college_name": "National Institute of Technology Karnataka, Surathkal",
     "short_name": "NITK Surathkal",
     "college_type": "NIT",
-    "city": "Surathkal",
+    "city": "Mangalore",
     "state": "Karnataka",
     "country": "India",
     "official_domain": "nitk.ac.in",
@@ -2213,7 +2213,7 @@
     "college_name": "National Institute of Technology Uttarakhand",
     "short_name": "NIT Uttarakhand",
     "college_type": "NIT",
-    "city": "Srinagar",
+    "city": "Srinagar (Garhwal)",
     "state": "Uttarakhand",
     "country": "India",
     "official_domain": "nituk.ac.in",
@@ -2380,8 +2380,8 @@
     "email_domain": "cuchd.in"
   },
   {
-    "college_name": "Christ University",
-    "short_name": "Christ",
+    "college_name": "Christ University - Faculty of Engineering",
+    "short_name": "Christ University",
     "college_type": "Private Engineering",
     "city": "Bengaluru",
     "state": "Karnataka",
@@ -2530,8 +2530,8 @@
     "email_domain": "jadavpuruniversity.in"
   },
   {
-    "college_name": "Jain University",
-    "short_name": "Jain",
+    "college_name": "Jain University - Faculty of Engineering and Technology",
+    "short_name": "Jain University",
     "college_type": "Private Engineering",
     "city": "Bengaluru",
     "state": "Karnataka",
@@ -2690,9 +2690,9 @@
     "email_domain": "mec.ac.in"
   },
   {
-    "college_name": "Motilal Nehru National Institute of Technology, Prayagraj",
+    "college_name": "Motilal Nehru National Institute of Technology Allahabad",
     "short_name": "MNNIT Prayagraj",
-    "college_type": "Private Engineering",
+    "college_type": "NIT",
     "city": "Prayagraj",
     "state": "Uttar Pradesh",
     "country": "India",
@@ -2750,7 +2750,7 @@
     "email_domain": "nirmauni.ac.in"
   },
   {
-    "college_name": "PES University",
+    "college_name": "PES University, Ring Road Campus",
     "short_name": "PESU",
     "college_type": "Private Engineering",
     "city": "Bengaluru",
@@ -2790,7 +2790,7 @@
     "email_domain": "rvce.edu.in"
   },
   {
-    "college_name": "Ramaiah University of Applied Sciences",
+    "college_name": "M.S. Ramaiah University of Applied Sciences",
     "short_name": "RUAS",
     "college_type": "Private Engineering",
     "city": "Bengaluru",
@@ -2806,7 +2806,7 @@
     "city": "Bengaluru",
     "state": "Karnataka",
     "country": "India",
-    "official_domain": "rfreva.edu.in",
+    "official_domain": "reva.edu.in",
     "email_domain": "reva.edu.in"
   },
   {
@@ -2951,7 +2951,7 @@
   },
   {
     "college_name": "St. Joseph's College of Engineering",
-    "short_name": "SJCE Chennai",
+    "short_name": "St. Joseph's Engineering",
     "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
@@ -3080,11 +3080,11 @@
     "email_domain": "gla.ac.in"
   },
   {
-    "college_name": "GITAM University",
-    "short_name": "GITAM",
+    "college_name": "GITAM University, Bengaluru Campus",
+    "short_name": "GITAM Bengaluru",
     "college_type": "Private Engineering",
-    "city": "Visakhapatnam",
-    "state": "Andhra Pradesh",
+    "city": "Bengaluru",
+    "state": "Karnataka",
     "country": "India",
     "official_domain": "gitam.edu",
     "email_domain": "gitam.in"
@@ -3250,8 +3250,8 @@
     "email_domain": "rajagiritech.ac.in"
   },
   {
-    "college_name": "Rajalakshmi Engineering College",
-    "short_name": "REC Chennai",
+    "college_name": "Rajalakshmi Engineering College (Org Domain)",
+    "short_name": "REC Chennai Org",
     "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
@@ -3290,8 +3290,8 @@
     "email_domain": "sonatech.ac.in"
   },
   {
-    "college_name": "Sri Sivasubramaniya Nadar College of Engineering",
-    "short_name": "SSN",
+    "college_name": "SSN College of Engineering",
+    "short_name": "SSNCE",
     "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
@@ -3351,7 +3351,7 @@
   },
   {
     "college_name": "Vel Tech High Tech Dr. Rangarajan Dr. Sakunthala Engineering College",
-    "short_name": "Vel Tech HT",
+    "short_name": "Vel Tech High Tech",
     "college_type": "Private Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
@@ -3380,13 +3380,13 @@
     "email_domain": "vskub.ac.in"
   },
   {
-    "college_name": "Anna University",
-    "short_name": "Anna Univ",
-    "college_type": "State University",
+    "college_name": "College of Engineering, Guindy (Anna University)",
+    "short_name": "CEG Guindy",
+    "college_type": "Government Engineering",
     "city": "Chennai",
     "state": "Tamil Nadu",
     "country": "India",
-    "official_domain": "annauniv.edu",
+    "official_domain": "ceg.annauniv.edu",
     "email_domain": "annauniv.edu"
   },
   {
@@ -4130,9 +4130,9 @@
     "email_domain": "am.students.amrita.edu"
   },
   {
-    "college_name": "Amrita Vishwa Vidyapeetham, Bengaluru",
-    "short_name": "Amrita Bengaluru",
-    "college_type": "Deemed University",
+    "college_name": "Amrita Vishwa Vidyapeetham, Bengaluru (Student Mail)",
+    "short_name": "Amrita Bengaluru Students",
+    "college_type": "Private Engineering",
     "city": "Bengaluru",
     "state": "Karnataka",
     "country": "India",
@@ -4318,5 +4318,675 @@
     "country": "India",
     "official_domain": "nift.ac.in",
     "email_domain": "nift.ac.in"
+  },
+  {
+    "college_name": "Indian Institute of Technology Bombay (Student Mail)",
+    "short_name": "IIT Bombay Students",
+    "college_type": "IIT",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "country": "India",
+    "official_domain": "iitb.ac.in",
+    "email_domain": "student.iitb.ac.in"
+  },
+  {
+    "college_name": "Indian Institute of Technology Delhi (Student Mail)",
+    "short_name": "IIT Delhi Students",
+    "college_type": "IIT",
+    "city": "New Delhi",
+    "state": "Delhi",
+    "country": "India",
+    "official_domain": "iitd.ac.in",
+    "email_domain": "student.iitd.ac.in"
+  },
+  {
+    "college_name": "Indian Institute of Technology Madras (Student Mail)",
+    "short_name": "IIT Madras Smail",
+    "college_type": "IIT",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "iitm.ac.in",
+    "email_domain": "smail.iitm.ac.in"
+  },
+  {
+    "college_name": "Indian Institute of Technology Kharagpur (Student Mail)",
+    "short_name": "IIT Kharagpur Students",
+    "college_type": "IIT",
+    "city": "Kharagpur",
+    "state": "West Bengal",
+    "country": "India",
+    "official_domain": "iitkgp.ac.in",
+    "email_domain": "kgpian.iitkgp.ac.in"
+  },
+  {
+    "college_name": "National Institute of Technology Tiruchirappalli (Student Mail)",
+    "short_name": "NIT Trichy Students",
+    "college_type": "NIT",
+    "city": "Tiruchirappalli",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "nitt.edu",
+    "email_domain": "students.nitt.edu"
+  },
+  {
+    "college_name": "National Institute of Technology Karnataka, Surathkal (Edu Domain)",
+    "short_name": "NITK Edu",
+    "college_type": "NIT",
+    "city": "Mangalore",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "nitk.edu.in",
+    "email_domain": "nitk.edu.in"
+  },
+  {
+    "college_name": "Maulana Azad National Institute of Technology Bhopal",
+    "short_name": "MANIT Bhopal",
+    "college_type": "NIT",
+    "city": "Bhopal",
+    "state": "Madhya Pradesh",
+    "country": "India",
+    "official_domain": "manit.ac.in",
+    "email_domain": "manit.ac.in"
+  },
+  {
+    "college_name": "Indian Institute of Engineering Science and Technology, Shibpur",
+    "short_name": "IIEST Shibpur",
+    "college_type": "NIT",
+    "city": "Howrah",
+    "state": "West Bengal",
+    "country": "India",
+    "official_domain": "iiests.ac.in",
+    "email_domain": "iiests.ac.in"
+  },
+  {
+    "college_name": "Indian Institute of Science, Bangalore",
+    "short_name": "IISc Bangalore",
+    "college_type": "Institute of National Importance",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "iisc.ac.in",
+    "email_domain": "iisc.ac.in"
+  },
+  {
+    "college_name": "PES University, Electronic City Campus",
+    "short_name": "PESU EC Campus",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "pes.edu",
+    "email_domain": "pesu.pes.edu"
+  },
+  {
+    "college_name": "Dayananda Sagar College of Engineering (Alternate Domain)",
+    "short_name": "DSCE Edu",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "dsce.edu.in",
+    "email_domain": "dsce.edu.in"
+  },
+  {
+    "college_name": "Dayananda Sagar Academy of Technology and Management",
+    "short_name": "DSATM",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "dsatm.edu.in",
+    "email_domain": "dsatm.edu.in"
+  },
+  {
+    "college_name": "Dayananda Sagar University - School of Engineering",
+    "short_name": "DSU Bengaluru",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "dsu.edu.in",
+    "email_domain": "dsu.edu.in"
+  },
+  {
+    "college_name": "Bangalore Institute of Technology",
+    "short_name": "BIT Bangalore",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "bit-bangalore.edu.in",
+    "email_domain": "bit-bangalore.edu.in"
+  },
+  {
+    "college_name": "CMR University - School of Engineering and Technology",
+    "short_name": "CMRU Bengaluru",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "cmr.edu.in",
+    "email_domain": "cmr.edu.in"
+  },
+  {
+    "college_name": "B.M.S. Institute of Technology and Management",
+    "short_name": "BMSIT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "bmsit.in",
+    "email_domain": "bmsit.in"
+  },
+  {
+    "college_name": "B.M.S. Institute of Technology and Management (AC Domain)",
+    "short_name": "BMSIT AC",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "bmsit.ac.in",
+    "email_domain": "bmsit.ac.in"
+  },
+  {
+    "college_name": "R.V. Institute of Technology and Management",
+    "short_name": "RVITM",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "rvitm.edu.in",
+    "email_domain": "rvitm.edu.in"
+  },
+  {
+    "college_name": "The Oxford College of Engineering",
+    "short_name": "Oxford College of Engineering",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "theoxford.edu",
+    "email_domain": "theoxford.edu"
+  },
+  {
+    "college_name": "Cambridge Institute of Technology",
+    "short_name": "CIT Bengaluru",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "cambridge.edu.in",
+    "email_domain": "cambridge.edu.in"
+  },
+  {
+    "college_name": "Alliance University - College of Engineering and Design",
+    "short_name": "Alliance CED",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "alliance.edu.in",
+    "email_domain": "alliance.edu.in"
+  },
+  {
+    "college_name": "Don Bosco Institute of Technology, Bengaluru",
+    "short_name": "DBIT Bengaluru",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "dbit.co.in",
+    "email_domain": "dbit.co.in"
+  },
+  {
+    "college_name": "Global Academy of Technology",
+    "short_name": "GAT Bengaluru",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "gat.ac.in",
+    "email_domain": "gat.ac.in"
+  },
+  {
+    "college_name": "East West Institute of Technology",
+    "short_name": "EWIT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "ewit.edu",
+    "email_domain": "ewit.edu"
+  },
+  {
+    "college_name": "MVJ College of Engineering",
+    "short_name": "MVJCE",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "mvjce.edu.in",
+    "email_domain": "mvjce.edu.in"
+  },
+  {
+    "college_name": "RNS Institute of Technology",
+    "short_name": "RNSIT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "rnsit.ac.in",
+    "email_domain": "rnsit.ac.in"
+  },
+  {
+    "college_name": "K.S. Institute of Technology",
+    "short_name": "KSIT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "ksit.ac.in",
+    "email_domain": "ksit.ac.in"
+  },
+  {
+    "college_name": "Gopalan College of Engineering and Management",
+    "short_name": "GCEM",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "gopalancolleges.com",
+    "email_domain": "gopalancolleges.com"
+  },
+  {
+    "college_name": "Atria Institute of Technology",
+    "short_name": "Atria IT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "atria.edu",
+    "email_domain": "atria.edu"
+  },
+  {
+    "college_name": "B.N.M. Institute of Technology",
+    "short_name": "BNMIT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "bnmit.org",
+    "email_domain": "bnmit.org"
+  },
+  {
+    "college_name": "Dr. Ambedkar Institute of Technology",
+    "short_name": "Dr. AIT",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "drait.edu.in",
+    "email_domain": "drait.edu.in"
+  },
+  {
+    "college_name": "AMC Engineering College",
+    "short_name": "AMC Engineering College",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "amcgroup.edu.in",
+    "email_domain": "amcgroup.edu.in"
+  },
+  {
+    "college_name": "JSS Academy of Technical Education, Bengaluru",
+    "short_name": "JSSATE Bengaluru",
+    "college_type": "Private Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "jssateb.ac.in",
+    "email_domain": "jssateb.ac.in"
+  },
+  {
+    "college_name": "University Visvesvaraya College of Engineering",
+    "short_name": "UVCE",
+    "college_type": "Government Engineering",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "country": "India",
+    "official_domain": "uvce.ac.in",
+    "email_domain": "uvce.ac.in"
+  },
+  {
+    "college_name": "Madras Institute of Technology, Chromepet (Anna University)",
+    "short_name": "MIT Chromepet",
+    "college_type": "Government Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "mitindia.edu",
+    "email_domain": "mitindia.edu"
+  },
+  {
+    "college_name": "Alagappa Chettiar College of Technology (Anna University)",
+    "short_name": "AC Tech Guindy",
+    "college_type": "Government Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "act.annauniv.edu",
+    "email_domain": "act.annauniv.edu"
+  },
+  {
+    "college_name": "Shiv Nadar University Chennai",
+    "short_name": "SNU Chennai",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "snuchennai.edu.in",
+    "email_domain": "snuchennai.edu.in"
+  },
+  {
+    "college_name": "Chennai Institute of Technology",
+    "short_name": "CIT Chennai",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "citchennai.edu.in",
+    "email_domain": "citchennai.net"
+  },
+  {
+    "college_name": "Chennai Institute of Technology (Edu Domain)",
+    "short_name": "CIT Chennai Edu",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "citchennai.edu.in",
+    "email_domain": "citchennai.edu.in"
+  },
+  {
+    "college_name": "Rajalakshmi Engineering College",
+    "short_name": "REC Chennai",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "rajalakshmi.edu.in",
+    "email_domain": "rajalakshmi.edu.in"
+  },
+  {
+    "college_name": "Rajalakshmi Institute of Technology",
+    "short_name": "RIT Chennai",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "ritchennai.org",
+    "email_domain": "ritchennai.edu.in"
+  },
+  {
+    "college_name": "Sri Venkateswara College of Engineering",
+    "short_name": "SVCE Sriperumbudur",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "svce.ac.in",
+    "email_domain": "svce.ac.in"
+  },
+  {
+    "college_name": "St. Joseph's Institute of Technology",
+    "short_name": "St. Joseph's IT",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "stjosephstechnology.ac.in",
+    "email_domain": "stjosephstechnology.ac.in"
+  },
+  {
+    "college_name": "B.S. Abdur Rahman Crescent Institute of Science and Technology",
+    "short_name": "Crescent University",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "crescent.education",
+    "email_domain": "crescent.education"
+  },
+  {
+    "college_name": "Saveetha Engineering College",
+    "short_name": "Saveetha Engineering College",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "saveetha.ac.in",
+    "email_domain": "saveetha.ac.in"
+  },
+  {
+    "college_name": "Meenakshi Sundararajan Engineering College",
+    "short_name": "MSEC Chennai",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "msec.edu.in",
+    "email_domain": "msec.edu.in"
+  },
+  {
+    "college_name": "Panimalar Engineering College",
+    "short_name": "Panimalar Engineering",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "panimalar.ac.in",
+    "email_domain": "panimalar.ac.in"
+  },
+  {
+    "college_name": "Easwari Engineering College (SRM Group)",
+    "short_name": "Easwari Engineering College",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "srmeaswari.ac.in",
+    "email_domain": "srmeaswari.ac.in"
+  },
+  {
+    "college_name": "Loyola-ICAM College of Engineering and Technology",
+    "short_name": "LICET",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "licet.ac.in",
+    "email_domain": "licet.ac.in"
+  },
+  {
+    "college_name": "Sri Sairam Engineering College",
+    "short_name": "Sri Sairam Engineering",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "sairam.edu.in",
+    "email_domain": "sairam.edu.in"
+  },
+  {
+    "college_name": "Sri Sairam Engineering College (SEC Domain)",
+    "short_name": "Sri Sairam SEC",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "sairam.edu.in",
+    "email_domain": "sec.sairam.edu.in"
+  },
+  {
+    "college_name": "Sri Sairam Institute of Technology",
+    "short_name": "Sri Sairam IT",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "sairamit.edu.in",
+    "email_domain": "sairamit.edu.in"
+  },
+  {
+    "college_name": "RMK Engineering College",
+    "short_name": "RMK Engineering College",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "rmkec.ac.in",
+    "email_domain": "rmkec.ac.in"
+  },
+  {
+    "college_name": "R.M.D. Engineering College",
+    "short_name": "RMD Engineering College",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "rmd.ac.in",
+    "email_domain": "rmd.ac.in"
+  },
+  {
+    "college_name": "RMK College of Engineering and Technology",
+    "short_name": "RMKCET",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "rmkcet.ac.in",
+    "email_domain": "rmkcet.ac.in"
+  },
+  {
+    "college_name": "Vel Tech Multi Tech Dr. Rangarajan Dr. Sakunthala Engineering College",
+    "short_name": "Vel Tech Multi Tech",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "velmultitech.com",
+    "email_domain": "velmultitech.com"
+  },
+  {
+    "college_name": "KCG College of Technology",
+    "short_name": "KCG College of Technology",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "kcgcollege.ac.in",
+    "email_domain": "kcgcollege.ac.in"
+  },
+  {
+    "college_name": "Jerusalem College of Engineering",
+    "short_name": "Jerusalem Engineering College",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "jerusalemengg.ac.in",
+    "email_domain": "jerusalemengg.ac.in"
+  },
+  {
+    "college_name": "Dhanalakshmi College of Engineering",
+    "short_name": "Dhanalakshmi Engineering",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "dce.edu.in",
+    "email_domain": "dce.edu.in"
+  },
+  {
+    "college_name": "Agni College of Technology",
+    "short_name": "Agni College of Technology",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "act.edu.in",
+    "email_domain": "act.edu.in"
+  },
+  {
+    "college_name": "Anand Institute of Higher Technology",
+    "short_name": "AIHT Chennai",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "aiht.ac.in",
+    "email_domain": "aiht.ac.in"
+  },
+  {
+    "college_name": "Jeppiaar Engineering College",
+    "short_name": "Jeppiaar Engineering",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "jeppiaarcollege.org",
+    "email_domain": "jeppiaarcollege.org"
+  },
+  {
+    "college_name": "Jeppiaar Institute of Technology",
+    "short_name": "Jeppiaar Institute of Technology",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "jeppiaartech.org",
+    "email_domain": "jeppiaartech.org"
+  },
+  {
+    "college_name": "Velammal Engineering College",
+    "short_name": "Velammal Engineering",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "velammal.edu.in",
+    "email_domain": "velammal.edu.in"
+  },
+  {
+    "college_name": "Velammal Institute of Technology",
+    "short_name": "Velammal Institute of Technology",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "velammalitech.edu.in",
+    "email_domain": "velammalitech.edu.in"
+  },
+  {
+    "college_name": "Prathyusha Engineering College",
+    "short_name": "Prathyusha Engineering",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "prathyusha.edu.in",
+    "email_domain": "prathyusha.edu.in"
+  },
+  {
+    "college_name": "Vels Institute of Science, Technology & Advanced Studies",
+    "short_name": "Vels University",
+    "college_type": "Private Engineering",
+    "city": "Chennai",
+    "state": "Tamil Nadu",
+    "country": "India",
+    "official_domain": "velsuniv.ac.in",
+    "email_domain": "velsuniv.ac.in"
   }
 ]
