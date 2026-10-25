@@ -115,10 +115,10 @@ export default function ResetPasswordPage() {
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-signal/70 bg-surface">
                 <Link2Off className="h-6 w-6 text-crimson" />
               </div>
-              <h1 className="t-display mt-6 text-large-title text-ink">Link not valid</h1>
-              <p className="mt-2 text-subhead text-ink-2">{linkError} Reset links work once and expire after an hour.</p>
+              <h1 className="t-display mt-6 text-large-title text-ink">Reset password</h1>
+              <p className="mt-2 text-subhead text-ink-2">{linkError} Use your student email and a 6-digit recovery code to set a new password.</p>
               <button type="button" onClick={() => router.push("/?forgot=1")} className="mt-8 flex h-14 w-full items-center justify-center btn-primary">
-                Send a new link
+                Reset with 6-digit code
               </button>
             </motion.div>
           )}

@@ -90,6 +90,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [detectedCampusName, setDetectedCampusName] = useState("");
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
+  const [verifiedResetCode, setVerifiedResetCode] = useState("");
 
   const [form, setForm] = useState({
     email: "",
@@ -315,12 +316,14 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
           }
         }
       } else if (mode === "forgot") {
-        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(form.email, {
-          redirectTo: `${window.location.origin}/reset-password`,
+        const otpRes = await api("/auth/send-otp", {
+          method: "POST",
+          body: JSON.stringify({ email: form.email, purpose: "reset" })
         });
-
-        if (resetErr) throw resetErr;
-
+        if (otpRes.devCode) {
+          setDevOtp(otpRes.devCode);
+        }
+        setDirection(1);
         setStep(2);
       }
     } catch (err: any) {
@@ -340,6 +343,13 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       });
       if (!verifyRes.success) {
         throw new Error(verifyRes.error || "Invalid verification code.");
+      }
+
+      if (mode === "forgot") {
+        setVerifiedResetCode(code);
+        setDirection(1);
+        setStep(7);
+        return;
       }
 
       if (!supabase) throw new Error("Supabase is not initialized.");
@@ -374,13 +384,60 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     }
   }
 
+  async function handleResetPassword(newPassword: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          code: verifiedResetCode,
+          newPassword
+        })
+      });
+      if (!res.success) throw new Error(res.error || "Failed to update password.");
+
+      if (!supabase) throw new Error("Supabase is not initialized.");
+      const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: newPassword
+      });
+      if (signInErr) throw signInErr;
+
+      if (data.session) {
+        const syncRes = await api("/auth/profile", { method: "POST" });
+        const isIncomplete = !syncRes.user.department || !syncRes.user.college;
+        if (isIncomplete) {
+          setTempUserId(syncRes.user.id);
+          setForm((f) => ({
+            ...f,
+            campusId: detectedCampusId || syncRes.user.collegeId || "",
+            campusName: detectedCampusName || syncRes.user.college || "",
+            college_id: String(detectedCampusId || syncRes.user.collegeId || ""),
+            name: syncRes.user.name || f.name
+          }));
+          setDirection(1);
+          setStep(3);
+        } else {
+          localStorage.setItem("lockin_user_id", String(syncRes.user.id));
+          onReady(syncRes.user);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Could not update password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleResendOtp() {
     setBusy(true);
     setError("");
     try {
       const otpRes = await api("/auth/send-otp", {
         method: "POST",
-        body: JSON.stringify({ email: form.email })
+        body: JSON.stringify({ email: form.email, purpose: mode === "forgot" ? "reset" : undefined })
       });
       if (otpRes.devCode) {
         setDevOtp(otpRes.devCode);
@@ -410,6 +467,14 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
 
   function goBack() {
     setDirection(-1);
+    if (step === 7) {
+      setStep(2);
+      return;
+    }
+    if (step === 2 && mode === "forgot") {
+      setStep(1);
+      return;
+    }
     setStep((s) => s - 1);
     setError("");
     setValidation({});
@@ -528,7 +593,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   }
 
 
-  const STEP_KEYS = ["splash", "email", "otp", "campus", "profile", "socials", "tutorial"];
+  const STEP_KEYS = ["splash", "email", "otp", "campus", "profile", "socials", "tutorial", "reset-password"];
 
   if (step === 0) {
     return (
@@ -572,7 +637,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
           </div>
         )}
 
-        {(step === 1 || step === 2) && (
+        {(step === 1 || step === 2 || step === 7) && (
           <div className="mb-8 flex items-center gap-3">
             <BackButton onClick={goBack} />
             <LockinLogo size="sm" />
@@ -644,6 +709,17 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             )}
             {step === 6 && (
               <TutorialStep tutorialSlide={tutorialSlide} setTutorialSlide={setTutorialSlide} onBack={goBack} onSubmit={submit} busy={busy} error={error} />
+            )}
+            {step === 7 && (
+              <ResetPasswordStep
+                form={form}
+                busy={busy}
+                onResetPassword={handleResetPassword}
+                onBack={() => {
+                  setMode("login");
+                  setStep(1);
+                }}
+              />
             )}
           </motion.div>
         </AnimatePresence>
@@ -1000,7 +1076,7 @@ function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode, onD
   const copy = {
     login: { eyebrow: "Log in", title: "Welcome back", sub: "Use the email and password you signed up with.", cta: "Log in" },
     signup: { eyebrow: "Create account", title: "Join your campus", sub: "Use your college email so we can put you in the right feed.", cta: "Create account" },
-    forgot: { eyebrow: "Reset password", title: "Forgot it?", sub: "We'll email you a link to set a new one.", cta: "Send reset link" }
+    forgot: { eyebrow: "Reset password", title: "Forgot password?", sub: "Enter your college email. We will send a 6-digit recovery code.", cta: "Send recovery code" }
   }[mode as "login" | "signup" | "forgot"];
 
   return (
@@ -1103,54 +1179,16 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  if (mode === "forgot") {
-    return (
-      <div className="space-y-8 text-center">
-        <div className="flex flex-col items-center">
-          <div className="relative mb-6 flex h-20 w-20 items-center justify-center">
-            {[0, 1].map((i) => (
-              <motion.span
-                key={i}
-                className="absolute inset-0 rounded-full border border-signal/70"
-                animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
-                transition={{ duration: 2, delay: i, repeat: Infinity, ease: "easeOut" }}
-              />
-            ))}
-            <motion.div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={spring.pop}
-              className="relative flex h-20 w-20 items-center justify-center rounded-full border border-signal/70 bg-surface"
-            >
-              <Mail className="h-8 w-8 text-crimson" />
-            </motion.div>
-          </div>
-          <h2 className="t-display text-large-title text-ink">Link sent</h2>
-          <p className="mx-auto mt-3 max-w-[300px] text-subhead leading-relaxed text-ink-2">
-            If an account exists for <span className="font-semibold text-ink">{form.email}</span>, a reset link is on its way. It expires in an hour.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMode("login");
-            onNext();
-          }}
-          className="flex h-14 w-full items-center justify-center btn-ghost"
-        >
-          Back to log in
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-7">
       <StepHeading
-        eyebrow="Verification"
+        eyebrow={mode === "forgot" ? "Password Recovery" : "Verification"}
         title="Check your student inbox"
-        sub={`We sent a 6-digit code to ${form.email}. Enter it below to verify your student email.`}
+        sub={
+          mode === "forgot"
+            ? `We sent a 6-digit recovery code to ${form.email}. Enter it below to reset your password.`
+            : `We sent a 6-digit code to ${form.email}. Enter it below to verify your student email.`
+        }
       />
 
       <div className="space-y-5">
@@ -1181,7 +1219,7 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
           onClick={() => onVerifyOtp(enteredOtp)}
           disabled={busy || enteredOtp.length !== 6}
         >
-          {busy ? "Verifying..." : "Verify Code"}
+          {busy ? "Verifying..." : mode === "forgot" ? "Continue to reset" : "Verify Code"}
         </PrimaryButton>
 
         <div className="flex items-center justify-between pt-2">
@@ -1209,6 +1247,96 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── RESET PASSWORD STEP ────────────────────────────────────────── */
+function ResetPasswordStep({ form, busy, onResetPassword, onBack }: any) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [validationError, setValidationError] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setValidationError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setValidationError("Passwords do not match.");
+      return;
+    }
+    setValidationError("");
+    onResetPassword(newPassword);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-7">
+      <StepHeading
+        eyebrow="Security"
+        title="Set a new password"
+        sub={`Choose a new password for ${form.email}. Must be at least 6 characters.`}
+      />
+
+      <div className="space-y-4">
+        {validationError && (
+          <div className="flex items-center gap-2 rounded-xl border border-signal/40 bg-signal/10 px-4 py-3 text-footnote text-crimson">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{validationError}</span>
+          </div>
+        )}
+
+        <FormField label="New Password" htmlFor="new-pw" icon={<KeyRound className="h-3.5 w-3.5" />}>
+          <div className="relative">
+            <Input
+              id="new-pw"
+              type={showPw ? "text" : "password"}
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              autoFocus
+              className="pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-ink-3 hover:text-ink"
+            >
+              {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+            </button>
+          </div>
+        </FormField>
+
+        <FormField label="Confirm New Password" htmlFor="confirm-pw" icon={<KeyRound className="h-3.5 w-3.5" />}>
+          <Input
+            id="confirm-pw"
+            type={showPw ? "text" : "password"}
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
+            placeholder="Repeat new password"
+          />
+        </FormField>
+      </div>
+
+      <PrimaryButton type="submit" disabled={busy || !newPassword || !confirmPassword}>
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+        {busy ? "Updating..." : "Update Password"}
+      </PrimaryButton>
+
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-footnote text-ink-3 hover:text-ink transition-colors"
+        >
+          Cancel and return to log in
+        </button>
+      </div>
+    </form>
   );
 }
 

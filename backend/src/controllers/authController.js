@@ -307,6 +307,13 @@ async function sendOtp(req, res) {
   });
 
   const resendApiKey = process.env.RESEND_API_KEY;
+  const isReset = req.body && req.body.purpose === "reset";
+  const subject = isReset ? `${code} is your LOCKIN password reset code` : `${code} is your LOCKIN verification code`;
+  const heading = isReset ? "Reset your password" : "Verify your college email";
+  const subtext = isReset
+    ? "Enter this 6-digit code to reset your LOCKIN account password:"
+    : "Enter this 6-digit code to complete your signup and verify your student status:";
+
   if (resendApiKey) {
     try {
       const fromAddr = process.env.RESEND_FROM || "LOCKIN <onboarding@resend.dev>";
@@ -319,12 +326,12 @@ async function sendOtp(req, res) {
         body: JSON.stringify({
           from: fromAddr,
           to: [normalizedEmail],
-          subject: `${code} is your LOCKIN verification code`,
+          subject: subject,
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #050505; color: #ffffff; padding: 40px 24px; border-radius: 12px; max-width: 460px; margin: 0 auto; border: 1px solid #222;">
               <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #D2042D; margin-bottom: 8px;">LOCKIN AUTH</div>
-              <h1 style="font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 12px 0;">Verify your college email</h1>
-              <p style="font-size: 14px; line-height: 1.5; color: #888888; margin: 0 0 24px 0;">Enter this 6-digit code to complete your signup and verify your student status:</p>
+              <h1 style="font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 12px 0;">${heading}</h1>
+              <p style="font-size: 14px; line-height: 1.5; color: #888888; margin: 0 0 24px 0;">${subtext}</p>
               <div style="background-color: #111111; border: 1px solid #333333; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
                 <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #D2042D; display: inline-block;">${code}</span>
               </div>
@@ -346,7 +353,7 @@ async function sendOtp(req, res) {
 
   res.json({
     success: true,
-    message: "Verification code sent to your email.",
+    message: isReset ? "Password reset code sent to your email." : "Verification code sent to your email.",
     ...(process.env.NODE_ENV !== "production" || !resendApiKey ? { devCode: code } : {})
   });
 }
@@ -425,11 +432,103 @@ async function verifyOtp(req, res) {
   });
 }
 
+/**
+ * POST /api/auth/reset-password
+ * Body: { email: string, code?: string, newPassword: string }
+ */
+async function resetPassword(req, res) {
+  const { email, code, newPassword } = req.body || {};
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: "Email and new password are required." });
+  }
+
+  if (typeof newPassword !== "string" || newPassword.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  let verified = false;
+  if (code) {
+    const inputCode = String(code).trim();
+    try {
+      const record = await prisma.otp.findFirst({
+        where: {
+          email: normalizedEmail,
+          used: false,
+          expiresAt: { gt: new Date() }
+        },
+        orderBy: { createdAt: "desc" }
+      });
+
+      if (record && record.code.trim() === inputCode) {
+        await prisma.otp.update({
+          where: { id: record.id },
+          data: { used: true }
+        });
+        otpStore.delete(normalizedEmail);
+        verified = true;
+      }
+    } catch (err) {
+      console.warn("DB OTP lookup failed in reset-password:", err?.message || err);
+    }
+
+    if (!verified) {
+      const memEntry = otpStore.get(normalizedEmail);
+      if (memEntry && Date.now() <= memEntry.expiresAt && memEntry.code.trim() === inputCode) {
+        otpStore.delete(normalizedEmail);
+        verified = true;
+      }
+    }
+  }
+
+  const verifiedTimestamp = verifiedEmailStore.get(normalizedEmail);
+  if (!verified && verifiedTimestamp && Date.now() - verifiedTimestamp < 15 * 60 * 1000) {
+    verified = true;
+  }
+
+  if (!verified) {
+    return res.status(400).json({ error: "Invalid or expired verification code. Please request a new code." });
+  }
+
+  const userRows = await prisma.$queryRawUnsafe(
+    `SELECT id FROM auth.users WHERE LOWER(email) = LOWER($1) LIMIT 1;`,
+    normalizedEmail
+  );
+
+  if (!userRows || userRows.length === 0) {
+    return res.status(404).json({ error: "No account found for this email address. Please sign up." });
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE auth.users 
+       SET encrypted_password = crypt($1, gen_salt('bf', 10)),
+           email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+           updated_at = NOW()
+       WHERE LOWER(email) = LOWER($2);`,
+      newPassword,
+      normalizedEmail
+    );
+
+    verifiedEmailStore.delete(normalizedEmail);
+
+    res.json({
+      success: true,
+      message: "Password updated successfully."
+    });
+  } catch (error) {
+    console.error("Password reset error:", error);
+    res.status(500).json({ error: "Failed to update password. Please try again." });
+  }
+}
+
 module.exports = {
   checkDomain,
   syncProfile,
   getMe,
   logout,
   sendOtp,
-  verifyOtp
+  verifyOtp,
+  resetPassword
 };

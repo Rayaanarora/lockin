@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { DEMO_LOGIN_ENABLED, forgetToken, getAuthUser } from "../../../lib/requireAuth";
 import { fail, limitByIp, notFound, segmentsOf } from "../../../lib/apiRoute";
 
-const { checkDomain, syncProfile, getMe, logout, sendOtp, verifyOtp } = require("../../../backend/src/controllers/authController");
+const { checkDomain, syncProfile, getMe, logout, sendOtp, verifyOtp, resetPassword } = require("../../../backend/src/controllers/authController");
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const route = segmentsOf(req).join("/");
@@ -30,6 +30,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === "POST" && route === "verify-otp") {
       if (!limitByIp(req, res, "auth-verify-otp", 30, 60e3)) return;
       return await verifyOtp(req, res);
+    }
+
+    if (req.method === "POST" && route === "reset-password") {
+      if (!limitByIp(req, res, "auth-reset-password", 15, 60e3)) return;
+      return await resetPassword(req, res);
     }
 
     if (req.method === "POST" && route === "profile") {
