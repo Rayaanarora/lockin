@@ -570,14 +570,14 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
       {/* Create mission */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl max-w-full overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Launch a mission</DialogTitle>
             <DialogDescription>Say what you're doing, when and where. People on your campus can lock in with you.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateMission} className="space-y-5">
+          <form onSubmit={handleCreateMission} className="space-y-5 w-full min-w-0 max-w-full overflow-x-hidden">
             {/* Starter Quest Templates Selector */}
-            <div className="rounded-xl border border-line bg-raised/70 p-3.5 space-y-3">
+            <div className="rounded-xl border border-line bg-raised/70 p-3.5 space-y-3 w-full min-w-0 max-w-full overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="t-label text-[11px] font-semibold text-ink">Side Quest Templates (1-Tap Fill)</span>
                 {selectedQuestId && (
@@ -605,13 +605,13 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               </div>
 
               {/* Pillar filters */}
-              <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5 w-full min-w-0">
                 {["All", "Physical", "Grind", "Discipline", "Social"].map((pillar) => (
                   <button
                     key={pillar}
                     type="button"
                     onClick={() => setSelectedPillar(pillar)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition shrink-0 ${
                       selectedPillar === pillar
                         ? "bg-ink text-bg font-semibold"
                         : "bg-surface text-ink-3 hover:text-ink hover:bg-overlay"
@@ -623,7 +623,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               </div>
 
               {/* Templates scroller */}
-              <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+              <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1 w-full min-w-0">
                 {getStarterQuestsByPillar(selectedPillar).map((q) => {
                   const isSelected = selectedQuestId === q.id;
                   return (
@@ -692,7 +692,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               <Textarea id="m-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Five mediums on graphs. No phones." required />
             </Field>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
               <Field label="Category" htmlFor="m-cat">
                 <select
                   id="m-cat"
@@ -802,7 +802,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                     exit={{ opacity: 0, height: 0 }}
                     className="space-y-4 pt-2 border-t border-line"
                   >
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
                       <Field label="Capacity" hint="Optional" htmlFor="m-cap">
                         <Input
                           id="m-cap"
@@ -980,7 +980,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
       {/* RSVP Registration Dialog */}
       <Dialog open={!!rsvpingMission} onOpenChange={(open) => { if (!open) setRsvpingMission(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md max-w-full overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>RSVP: {rsvpingMission?.title}</DialogTitle>
             <DialogDescription>
@@ -989,7 +989,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 : "Confirm your attendance for this event."}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={submitRsvp} className="space-y-4">
+          <form onSubmit={submitRsvp} className="space-y-4 w-full min-w-0">
             {rsvpingMission?.registration_q && (
               <Field label="Host Question" htmlFor="rsvp-note" hint="Reviewed by the event host">
                 <p className="mb-2 text-subhead font-medium text-ink">{rsvpingMission.registration_q}</p>

@@ -52,11 +52,11 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed z-[1101] grid w-full gap-5 overflow-y-auto border border-line bg-surface text-subhead text-ink shadow-lift outline-none",
+          "fixed z-[1101] flex flex-col w-full min-w-0 gap-5 overflow-y-auto overflow-x-hidden border border-line bg-surface text-subhead text-ink shadow-lift outline-none",
           // phone: sheet
           "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-sheet p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
           // tablet+: centred
-          "sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[86vh] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-sheet sm:p-6",
+          "sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[86vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-sheet sm:p-6",
           "transition-[transform,opacity] duration-[380ms] ease-out",
           "data-[starting-style]:translate-y-full data-[ending-style]:translate-y-full data-[ending-style]:duration-200",
           "sm:data-[starting-style]:-translate-y-[46%] sm:data-[starting-style]:scale-95 sm:data-[starting-style]:opacity-0",

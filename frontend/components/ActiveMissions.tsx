@@ -1222,7 +1222,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
       {/* Reflection */}
       <Dialog open={!!activeReflectionMission} onOpenChange={(open) => !open && setActiveReflectionMission(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg max-w-full overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Session done</DialogTitle>
             <DialogDescription>
@@ -1307,7 +1307,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
       {/* Host Event Roster Dialog */}
       <Dialog open={!!rosterMission} onOpenChange={(open) => { if (!open) setRosterMission(null); }}>
-        <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-xl max-w-full max-h-[85vh] overflow-x-hidden flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <span className="rounded-sm border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
