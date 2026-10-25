@@ -46,6 +46,66 @@ export interface Mission {
   focus_duration?: number;
   cover_color?: string | null;
   cover_image?: string | null;
+  is_event?: boolean;
+  require_approval?: boolean;
+  registration_q?: string | null;
+  secret_info?: string | null;
+  max_capacity?: number | null;
+  application_note?: string | null;
+  roster?: {
+    pending: Array<{
+      id: number;
+      participant_id: number;
+      user_id?: number;
+      name: string;
+      department?: string;
+      reputation_score?: number;
+      reputation_points?: number;
+      avatar_url?: string | null;
+      status?: string;
+      showed_up?: boolean | null;
+      application_note?: string | null;
+    }>;
+    going: Array<{
+      id: number;
+      participant_id: number;
+      user_id?: number;
+      name: string;
+      department?: string;
+      reputation_score?: number;
+      reputation_points?: number;
+      avatar_url?: string | null;
+      status?: string;
+      showed_up?: boolean | null;
+      application_note?: string | null;
+    }>;
+    checkedIn?: Array<{
+      id: number;
+      participant_id: number;
+      user_id?: number;
+      name: string;
+      department?: string;
+      reputation_score?: number;
+      reputation_points?: number;
+      avatar_url?: string | null;
+      status?: string;
+      showed_up?: boolean | null;
+      application_note?: string | null;
+    }>;
+    all?: Array<{
+      id: number;
+      participant_id: number;
+      user_id?: number;
+      name: string;
+      department?: string;
+      reputation_score?: number;
+      reputation_points?: number;
+      avatar_url?: string | null;
+      status?: string;
+      showed_up?: boolean | null;
+      application_note?: string | null;
+    }>;
+  };
   locked_in_count?: number;
   attendees?: Array<{
     id: number;
@@ -53,6 +113,9 @@ export interface Mission {
     department: string;
     reputation_score: number;
     is_host: boolean;
+    status?: string;
+    showed_up?: boolean | null;
+    application_note?: string | null;
   }>;
 }
 

@@ -85,6 +85,16 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
   const [selectedPillar, setSelectedPillar] = useState<string>("All");
 
+  // Event Mode V2 states
+  const [isEvent, setIsEvent] = useState(false);
+  const [requireApproval, setRequireApproval] = useState(false);
+  const [registrationQ, setRegistrationQ] = useState("");
+  const [secretInfo, setSecretInfo] = useState("");
+  const [maxCapacity, setMaxCapacity] = useState("");
+  const [rsvpingMission, setRsvpingMission] = useState<Mission | null>(null);
+  const [rsvpNote, setRsvpNote] = useState("");
+  const [submittingRsvp, setSubmittingRsvp] = useState(false);
+
   const applyStarterQuest = useCallback((quest: StarterQuest) => {
     setSelectedQuestId(quest.id);
     const isSolo = quest.missionType === "solo";
@@ -204,6 +214,13 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       return;
     }
     const mission = currentMission;
+
+    // If this is an event with a required registration question, prompt for RSVP note first
+    if (action === "accept" && mission.is_event && mission.registration_q) {
+      setRsvpingMission(mission);
+      return;
+    }
+
     setError("");
     setExitDir(action === "accept" ? "right" : "left");
     // Optimistic: the card leaves immediately; the server catches up behind it.
@@ -261,10 +278,38 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     }
   }, [currentMission, busy, locked, api, refreshUser, setTab, setLocked]);
 
+  async function submitRsvp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!rsvpingMission) return;
+    setSubmittingRsvp(true);
+    const mission = rsvpingMission;
+    try {
+      setRsvpingMission(null);
+      setExitDir("right");
+      setMissions((ms) => ms.filter((m) => m.id !== mission.id));
+      setLockedFlash(true);
+      const minFlash = new Promise((r) => setTimeout(r, 900));
+      await api(`/missions/${mission.id}/accept`, {
+        method: "POST",
+        body: JSON.stringify({ userId: user.id, applicationNote: rsvpNote.trim() })
+      });
+      setRsvpNote("");
+      refreshUser().catch(() => {});
+      await minFlash;
+      setLockedFlash(false);
+      setTab?.("active");
+    } catch (err: any) {
+      setLockedFlash(false);
+      setError(err?.message || "Failed to submit RSVP.");
+    } finally {
+      setSubmittingRsvp(false);
+    }
+  }
+
   // Keyboard: ← pass, → lock in
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (showCreate) return;
+      if (showCreate || rsvpingMission) return;
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if (e.key === "ArrowLeft") handleAction("pass");
@@ -272,7 +317,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleAction, showCreate]);
+  }, [handleAction, showCreate, rsvpingMission]);
 
   async function handleCreateMission(e: React.FormEvent) {
     e.preventDefault();
@@ -288,7 +333,12 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         location: isSolo ? "Solo" : form.location,
         datetime: isSolo ? new Date().toISOString() : (form.datetime ? new Date(form.datetime).toISOString() : new Date().toISOString()),
         coverColor: coverColor || null,
-        coverImage: coverImage || null
+        coverImage: coverImage || null,
+        isEvent: isSolo ? false : isEvent,
+        requireApproval: isSolo ? false : requireApproval,
+        registrationQ: (!isSolo && isEvent && registrationQ.trim()) ? registrationQ.trim() : null,
+        secretInfo: (!isSolo && isEvent && secretInfo.trim()) ? secretInfo.trim() : null,
+        maxCapacity: (!isSolo && isEvent && maxCapacity.trim()) ? Number(maxCapacity) : null
       };
       const newMission = await api("/missions", { method: "POST", body: JSON.stringify(payload) });
       if (tasks.length > 0 && newMission?.id) {
@@ -310,6 +360,11 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       setCoverImage("");
       setShowCustomizeCover(false);
       setSelectedQuestId(null);
+      setIsEvent(false);
+      setRequireApproval(false);
+      setRegistrationQ("");
+      setSecretInfo("");
+      setMaxCapacity("");
       await load(activeCategory);
     } catch (err: any) {
       setCreateError(err.message || "Could not launch mission.");
@@ -502,7 +557,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 <X className="h-4 w-4" strokeWidth={1.75} /> Pass
               </motion.button>
               <motion.button type="button" onClick={() => handleAction("accept")} disabled={locked || busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-primary h-14 md:h-16">
-                <Check className="h-4 w-4" strokeWidth={1.75} /> Lock in
+                <Check className="h-4 w-4" strokeWidth={1.75} /> {currentMission.is_event ? (currentMission.require_approval ? "Request to join" : "RSVP") : "Lock in"}
               </motion.button>
             </div>
             <p className="t-label mt-4 text-center">
@@ -715,6 +770,90 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               </AnimatePresence>
             </Field>
 
+            {/* Event Mode toggle & options */}
+            {form.missionType === "group" && (
+              <div className="rounded-xl border border-line bg-surface/60 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-subhead font-semibold text-ink">Event Mode</p>
+                    <p className="text-caption text-ink-3">For meetups, workshops, and large group sessions</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isEvent}
+                    onClick={() => setIsEvent(!isEvent)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isEvent ? "bg-signal" : "bg-raised border border-line"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isEvent ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {isEvent && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-4 pt-2 border-t border-line"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Capacity" hint="Optional" htmlFor="m-cap">
+                        <Input
+                          id="m-cap"
+                          type="number"
+                          min="2"
+                          max="500"
+                          value={maxCapacity}
+                          onChange={(e) => setMaxCapacity(e.target.value)}
+                          placeholder="e.g. 20"
+                        />
+                      </Field>
+
+                      <div className="flex flex-col justify-end pb-1">
+                        <label className="flex items-center gap-2 cursor-pointer text-subhead text-ink">
+                          <input
+                            type="checkbox"
+                            checked={requireApproval}
+                            onChange={(e) => setRequireApproval(e.target.checked)}
+                            className="rounded border-line bg-raised accent-crimson h-4 w-4"
+                          />
+                          <span>Require Vetting</span>
+                        </label>
+                        <p className="text-[11px] text-ink-3 mt-1">Review guests before admitting</p>
+                      </div>
+                    </div>
+
+                    {requireApproval && (
+                      <Field label="Registration Question" hint="Shown to guests when they RSVP" htmlFor="m-regq">
+                        <Input
+                          id="m-regq"
+                          value={registrationQ}
+                          onChange={(e) => setRegistrationQ(e.target.value)}
+                          placeholder="e.g. What are you building or studying?"
+                        />
+                      </Field>
+                    )}
+
+                    <Field label="Secret Access Details" hint="Revealed only to approved attendees (e.g. WhatsApp link, private room)" htmlFor="m-secret">
+                      <Textarea
+                        id="m-secret"
+                        value={secretInfo}
+                        onChange={(e) => setSecretInfo(e.target.value)}
+                        placeholder="e.g. WhatsApp Group link: https://chat.whatsapp.com/... or Room 402, passcode: 1024"
+                        rows={2}
+                      />
+                    </Field>
+                  </motion.div>
+                )}
+              </div>
+            )}
+
             {/* Cover */}
             <div className="border-t border-line pt-4">
               <button
@@ -838,6 +977,51 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* RSVP Registration Dialog */}
+      <Dialog open={!!rsvpingMission} onOpenChange={(open) => { if (!open) setRsvpingMission(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>RSVP: {rsvpingMission?.title}</DialogTitle>
+            <DialogDescription>
+              {rsvpingMission?.require_approval
+                ? "This event requires host vetting. Answer the question below to submit your join request."
+                : "Confirm your attendance for this event."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitRsvp} className="space-y-4">
+            {rsvpingMission?.registration_q && (
+              <Field label="Host Question" htmlFor="rsvp-note" hint="Reviewed by the event host">
+                <p className="mb-2 text-subhead font-medium text-ink">{rsvpingMission.registration_q}</p>
+                <Textarea
+                  id="rsvp-note"
+                  value={rsvpNote}
+                  onChange={(e) => setRsvpNote(e.target.value)}
+                  placeholder="Your answer..."
+                  required
+                  rows={3}
+                />
+              </Field>
+            )}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRsvpingMission(null)}
+                className="btn-ghost flex-1 h-12"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submittingRsvp || (!!rsvpingMission?.registration_q && !rsvpNote.trim())}
+                className="btn-primary flex-1 h-12"
+              >
+                {submittingRsvp ? "Submitting..." : rsvpingMission?.require_approval ? "Request to Join" : "Confirm RSVP"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -937,6 +1121,20 @@ function CardBody({ mission }: { mission: Mission }) {
               · {mission.category_name || "Protocol"}
             </span>
           </div>
+        ) : mission.is_event ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1 rounded-sm border border-gold/60 bg-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+              Event · RSVP
+            </span>
+            {mission.require_approval && (
+              <span className="inline-flex items-center rounded-sm border border-line bg-raised px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-3">
+                Vetted
+              </span>
+            )}
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-3">
+              · {mission.category_name || "Event"}
+            </span>
+          </div>
         ) : (
           <p className="t-section">
             Mission #{pad(mission.id).padStart(4, "0")} · {mission.category_name || (mission.mission_type === "solo" ? "Solo" : "Group")}
@@ -950,7 +1148,9 @@ function CardBody({ mission }: { mission: Mission }) {
             const origin = typeof window !== "undefined" ? window.location.origin : "https://lockin.top";
             const text = isSystem
               ? `*Side Quest: ${mission.title}* on LOCKIN\n${mission.description}\n\nDuration: ${mission.focus_duration || 25} min focus\nLocation: ${mission.location || "Anywhere"}\n\nLock in: ${origin}`
-              : `*${mission.title}* on LOCKIN\n${mission.description}\n\nWhere: ${mission.location || "Campus"}\nWhen: ${mission.datetime ? formatDate(mission.datetime) : "Anytime"}\nHost: ${mission.creator_name || "Campus peer"}\n\nLock in: ${origin}`;
+              : mission.is_event
+                ? `*Event: ${mission.title}* on LOCKIN\n${mission.description}\n\nWhere: ${mission.location || "Campus"}\nWhen: ${mission.datetime ? formatDate(mission.datetime) : "Anytime"}\nHost: ${mission.creator_name || "Campus peer"}\n\nRSVP: ${origin}`
+                : `*${mission.title}* on LOCKIN\n${mission.description}\n\nWhere: ${mission.location || "Campus"}\nWhen: ${mission.datetime ? formatDate(mission.datetime) : "Anytime"}\nHost: ${mission.creator_name || "Campus peer"}\n\nLock in: ${origin}`;
             window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
           }}
           aria-label="Share mission on WhatsApp"
@@ -997,8 +1197,10 @@ function CardBody({ mission }: { mission: Mission }) {
               </>
             ) : (
               <>
-                <span className="block text-callout normal-case tracking-normal text-ink">{crew}</span>
-                locked in
+                <span className="block text-callout normal-case tracking-normal text-ink">
+                  {mission.is_event && mission.max_capacity ? `${crew} / ${mission.max_capacity}` : crew}
+                </span>
+                {mission.is_event ? "attending" : "locked in"}
               </>
             )}
           </p>
@@ -1106,7 +1308,7 @@ const SwipeCard = React.forwardRef<HTMLElement, { mission: Mission; exitDir: Dir
         style={{ opacity: acceptOpacity, scale: acceptScale }}
         className="pointer-events-none absolute left-6 top-1/2 z-30 -rotate-6 rounded-sm border border-ink bg-bg px-4 py-2 text-footnote font-medium uppercase tracking-[0.32em] text-ink"
       >
-        Lock in
+        {mission.is_event ? (mission.require_approval ? "Request" : "RSVP") : "Lock in"}
       </motion.div>
       <motion.div
         style={{ opacity: passOpacity, scale: passScale }}

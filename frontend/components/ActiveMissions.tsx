@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Download } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Download, Users, Radio, ExternalLink, Copy } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { uploadImage } from "../lib/supabase";
 import Chat from "./Chat";
@@ -59,6 +59,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(1500);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
   const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);
+
+  // Event & Roster states
+  const [rosterMission, setRosterMission] = useState<Mission | null>(null);
+  const [rosterTab, setRosterTab] = useState<"going" | "pending">("going");
+  const [broadcastText, setBroadcastText] = useState("");
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [broadcastSuccess, setBroadcastSuccess] = useState(false);
+  const [checkingInId, setCheckingInId] = useState<number | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
 
   // Exact target timestamp refs to survive background tab throttling
   const endTimeRef = useRef<number | null>(null);
@@ -379,9 +388,70 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         method: "POST",
         body: JSON.stringify({ participantId })
       });
-      await load();
+      const updatedList = await api(`/missions/active/${user.id}`);
+      setMissions(updatedList);
+      if (rosterMission && rosterMission.id === missionId) {
+        const found = updatedList.find((m: any) => m.id === missionId);
+        if (found) setRosterMission(found);
+      }
     } catch (err: any) {
       alert(err.message || "Failed to approve request.");
+    }
+  }
+
+  async function handleDecline(missionId: number, participantId: number) {
+    try {
+      await api(`/missions/${missionId}/decline-participant`, {
+        method: "POST",
+        body: JSON.stringify({ participantId })
+      });
+      const updatedList = await api(`/missions/active/${user.id}`);
+      setMissions(updatedList);
+      if (rosterMission && rosterMission.id === missionId) {
+        const found = updatedList.find((m: any) => m.id === missionId);
+        if (found) setRosterMission(found);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to decline applicant.");
+    }
+  }
+
+  async function handleHostCheckIn(missionId: number, participantId: number) {
+    setCheckingInId(participantId);
+    try {
+      await api(`/missions/${missionId}/check-in`, {
+        method: "POST",
+        body: JSON.stringify({ participantId })
+      });
+      const updatedList = await api(`/missions/active/${user.id}`);
+      setMissions(updatedList);
+      if (rosterMission && rosterMission.id === missionId) {
+        const found = updatedList.find((m: any) => m.id === missionId);
+        if (found) setRosterMission(found);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to check in attendee.");
+    } finally {
+      setCheckingInId(null);
+    }
+  }
+
+  async function handleBroadcast(e: React.FormEvent) {
+    e.preventDefault();
+    if (!rosterMission || !broadcastText.trim()) return;
+    setSendingBroadcast(true);
+    try {
+      await api(`/missions/${rosterMission.id}/broadcast`, {
+        method: "POST",
+        body: JSON.stringify({ message: broadcastText.trim() })
+      });
+      setBroadcastText("");
+      setBroadcastSuccess(true);
+      setTimeout(() => setBroadcastSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || "Failed to send broadcast.");
+    } finally {
+      setSendingBroadcast(false);
     }
   }
 
@@ -645,7 +715,14 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="t-display text-title-2 text-ink">{mission.title}</h3>
-                        <p className="mt-1.5 truncate text-subhead text-ink-3">{roleLabel}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <p className="truncate text-subhead text-ink-3">{roleLabel}</p>
+                          {mission.is_event && (
+                            <span className="rounded-sm border border-gold/50 bg-gold/10 px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-[0.2em] text-gold">
+                              Event
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className={`flex h-7 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-[10px] font-medium uppercase tracking-[0.2em] ${status.cls}`}>
                         {status.live && (
@@ -670,29 +747,118 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       </span>
                     </div>
 
-                    {/* Crew */}
+                    {/* Crew & Roster */}
                     {mission.attendees && mission.attendees.length > 0 && (
-                      <div className="flex items-center gap-3">
-                        <div className="flex -space-x-2">
-                          {mission.attendees.slice(0, 4).map((a, i) => (
-                            <motion.button
-                              key={a.id}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex -space-x-2">
+                              {mission.attendees.slice(0, 4).map((a, i) => (
+                                <motion.button
+                                  key={a.id}
+                                  type="button"
+                                  onClick={() => setSelectedUserId(a.id)}
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ ...spring.pop, delay: 0.1 + i * 0.05 }}
+                                  whileHover={{ y: -3, zIndex: 10 }}
+                                  aria-label={`View ${a.name}`}
+                                  className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface bg-raised font-display text-footnote font-bold text-ink"
+                                >
+                                  {getInitials(a.name)}
+                                </motion.button>
+                              ))}
+                            </div>
+                            <span className="text-footnote font-medium text-ink-2">
+                              {mission.attendees.length} {mission.is_event ? "attending" : "locked in"}
+                              {mission.max_capacity ? ` / ${mission.max_capacity}` : ""}
+                            </span>
+                          </div>
+
+                          {isCreator && !isSolo && (
+                            <button
                               type="button"
-                              onClick={() => setSelectedUserId(a.id)}
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ ...spring.pop, delay: 0.1 + i * 0.05 }}
-                              whileHover={{ y: -3, zIndex: 10 }}
-                              aria-label={`View ${a.name}`}
-                              className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-surface bg-raised font-display text-title-3 font-bold text-ink"
+                              onClick={() => {
+                                setRosterMission(mission);
+                                setRosterTab((mission.roster?.pending?.length ?? 0) > 0 ? "pending" : "going");
+                              }}
+                              className="text-caption font-semibold uppercase tracking-wider text-ink-2 hover:text-ink flex items-center gap-1.5"
                             >
-                              {getInitials(a.name)}
-                            </motion.button>
-                          ))}
+                              <Users className="h-3.5 w-3.5 text-crimson" />
+                              <span>Roster</span>
+                              {(mission.roster?.pending?.length ?? 0) > 0 && (
+                                <span className="rounded-full bg-crimson px-1.5 py-0.2 text-[9px] text-white font-bold">
+                                  {mission.roster!.pending.length}
+                                </span>
+                              )}
+                            </button>
+                          )}
                         </div>
-                        <span className="text-subhead text-ink-2">
-                          {mission.attendees.length} locked in
-                        </span>
+
+                        {/* Quick Attendee Check-In list for Host */}
+                        {isCreator && canCheckIn && !isSolo && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {mission.attendees.filter((a) => a.id !== user.id).map((a) => (
+                              <div
+                                key={a.id}
+                                className="flex items-center gap-1.5 rounded-md border border-line bg-raised/70 px-2 py-1 text-footnote"
+                              >
+                                <span className="text-ink truncate max-w-[100px]">{a.name}</span>
+                                {a.showed_up ? (
+                                  <span className="rounded bg-success/20 px-1 py-0.2 text-[8px] font-bold uppercase tracking-wider text-success">
+                                    Checked In
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleHostCheckIn(mission.id, a.id)}
+                                    disabled={checkingInId === a.id}
+                                    className="rounded border border-signal/60 bg-signal/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-crimson hover:bg-signal/25 disabled:opacity-50"
+                                  >
+                                    {checkingInId === a.id ? "..." : "Check In"}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Access Details (Secret Info) */}
+                    {mission.secret_info && (active || executing || isCreator) && (
+                      <div className="rounded-xl border border-gold/30 bg-gold/5 p-3.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+                            Access Details
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(mission.secret_info || "");
+                              setCopiedSecret(true);
+                              setTimeout(() => setCopiedSecret(false), 2000);
+                            }}
+                            className="text-caption text-ink-3 hover:text-ink flex items-center gap-1"
+                          >
+                            {copiedSecret ? <Check className="h-3 w-3 text-gold" /> : <Copy className="h-3 w-3" />}
+                            <span>{copiedSecret ? "Copied" : "Copy"}</span>
+                          </button>
+                        </div>
+                        <p className="text-subhead text-ink font-mono whitespace-pre-wrap break-words text-xs">
+                          {mission.secret_info}
+                        </p>
+                        {mission.secret_info.match(/https?:\/\/[^\s]+/i) && (
+                          <a
+                            href={mission.secret_info.match(/https?:\/\/[^\s]+/i)![0]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold hover:underline pt-1"
+                          >
+                            <ExternalLink className="h-3 w-3" /> Open link
+                          </a>
+                        )}
                       </div>
                     )}
 
@@ -736,9 +902,29 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             <Sparkles className="h-3.5 w-3.5" /> {mission.participant_reputation} {POINTS_NAME}
                           </span>
                         </div>
-                        <ActionButton onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}>
-                          <Check className="h-5 w-5" strokeWidth={2.75} /> Approve
-                        </ActionButton>
+                        {mission.application_note && (
+                          <div className="mt-2 rounded-lg border border-line bg-surface p-2.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1">
+                              Applicant Response
+                            </p>
+                            <p className="text-subhead text-ink italic">&quot;{mission.application_note}&quot;</p>
+                          </div>
+                        )}
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => mission.participant_id && handleDecline(mission.id, mission.participant_id)}
+                            className="btn-ghost flex-1 h-10 text-footnote"
+                          >
+                            Decline
+                          </button>
+                          <ActionButton
+                            className="flex-1"
+                            onClick={() => mission.participant_id && handleApprove(mission.id, mission.participant_id)}
+                          >
+                            <Check className="h-4 w-4" strokeWidth={2.5} /> Approve
+                          </ActionButton>
+                        </div>
                       </Panel>
                     )}
 
@@ -1119,6 +1305,180 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         </DialogContent>
       </Dialog>
 
+      {/* Host Event Roster Dialog */}
+      <Dialog open={!!rosterMission} onOpenChange={(open) => { if (!open) setRosterMission(null); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <span className="rounded-sm border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+                {rosterMission?.is_event ? "Event Roster" : "Group Roster"}
+              </span>
+              <span className="text-caption text-ink-3">#{rosterMission?.id}</span>
+            </div>
+            <DialogTitle className="truncate">{rosterMission?.title}</DialogTitle>
+            <DialogDescription>
+              {rosterMission?.location} · {rosterMission?.datetime ? new Date(rosterMission.datetime).toLocaleString() : "Anytime"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Broadcast bar */}
+          <form onSubmit={handleBroadcast} className="rounded-xl border border-line bg-raised/70 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink flex items-center gap-1.5">
+                <Radio className="h-3.5 w-3.5 text-crimson animate-pulse" />
+                Broadcast to Attendees
+              </span>
+              {broadcastSuccess && <span className="text-[11px] text-success font-medium">Broadcast sent</span>}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={broadcastText}
+                onChange={(e) => setBroadcastText(e.target.value)}
+                placeholder="Alert all attendees (e.g. room update, running 5m late)..."
+                className="h-10 text-subhead"
+              />
+              <button
+                type="submit"
+                disabled={sendingBroadcast || !broadcastText.trim()}
+                className="btn-primary h-10 px-4 text-footnote font-semibold shrink-0"
+              >
+                {sendingBroadcast ? "Sending" : "Send"}
+              </button>
+            </div>
+          </form>
+
+          {/* Roster Tabs */}
+          <div className="flex gap-1 border-b border-line pt-1">
+            <button
+              type="button"
+              onClick={() => setRosterTab("going")}
+              className={`px-3 py-2 text-footnote font-semibold uppercase tracking-wider transition border-b-2 -mb-px ${
+                rosterTab === "going"
+                  ? "border-ink text-ink"
+                  : "border-transparent text-ink-3 hover:text-ink"
+              }`}
+            >
+              Confirmed ({rosterMission?.roster?.going?.length ?? rosterMission?.attendees?.length ?? 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRosterTab("pending")}
+              className={`px-3 py-2 text-footnote font-semibold uppercase tracking-wider transition border-b-2 -mb-px flex items-center gap-1.5 ${
+                rosterTab === "pending"
+                  ? "border-crimson text-crimson"
+                  : "border-transparent text-ink-3 hover:text-ink"
+              }`}
+            >
+              <span>Pending Requests</span>
+              {(rosterMission?.roster?.pending?.length ?? 0) > 0 && (
+                <span className="rounded-full bg-crimson px-1.5 py-0.2 text-[9px] text-white font-bold">
+                  {rosterMission!.roster!.pending.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1 min-h-[220px]">
+            {rosterTab === "going" && (
+              <div className="space-y-2">
+                {(!rosterMission?.roster?.going || rosterMission.roster.going.length === 0) && (
+                  <p className="text-subhead text-ink-3 py-8 text-center">No confirmed guests yet.</p>
+                )}
+                {rosterMission?.roster?.going?.map((guest: any) => (
+                  <div
+                    key={guest.participant_id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-raised text-footnote font-bold text-ink">
+                        {getInitials(guest.name)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-subhead font-semibold text-ink truncate">{guest.name}</p>
+                        <p className="text-caption text-ink-3 truncate">{guest.department || "SRM Student"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {guest.showed_up ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-success/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-success">
+                          <Check className="h-3 w-3" /> Checked In
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleHostCheckIn(rosterMission.id, guest.participant_id)}
+                          disabled={checkingInId === guest.participant_id}
+                          className="btn-primary h-8 px-3 text-[11px] font-semibold"
+                        >
+                          {checkingInId === guest.participant_id ? "..." : "Check In"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {rosterTab === "pending" && (
+              <div className="space-y-3">
+                {(!rosterMission?.roster?.pending || rosterMission.roster.pending.length === 0) && (
+                  <p className="text-subhead text-ink-3 py-8 text-center">No pending join requests.</p>
+                )}
+                {rosterMission?.roster?.pending?.map((applicant: any) => (
+                  <div
+                    key={applicant.participant_id}
+                    className="rounded-xl border border-line bg-surface p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-raised text-footnote font-bold text-ink">
+                          {getInitials(applicant.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-subhead font-semibold text-ink truncate">{applicant.name}</p>
+                          <p className="text-caption text-ink-3 truncate">{applicant.department || "SRM Student"}</p>
+                        </div>
+                      </div>
+                      <span className="rounded border border-gold/30 bg-gold/10 px-2 py-0.5 text-caption font-semibold text-gold">
+                        {applicant.reputation_points} {POINTS_NAME}
+                      </span>
+                    </div>
+
+                    {applicant.application_note && (
+                      <div className="rounded-lg border border-line bg-raised p-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1">
+                          Applicant Response
+                        </p>
+                        <p className="text-subhead text-ink italic">&quot;{applicant.application_note}&quot;</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleDecline(rosterMission.id, applicant.participant_id)}
+                        className="btn-ghost flex-1 h-9 text-footnote"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(rosterMission.id, applicant.participant_id)}
+                        className="btn-primary flex-1 h-9 text-footnote font-semibold"
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Fullscreen focus */}
       <Portal>
       <AnimatePresence>
@@ -1184,7 +1544,7 @@ function Panel({ children, tone = "default" }: { children: React.ReactNode; tone
   );
 }
 
-function ActionButton({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
+function ActionButton({ children, onClick, disabled, className = "" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string }) {
   return (
     <motion.button
       type="button"
@@ -1192,7 +1552,7 @@ function ActionButton({ children, onClick, disabled }: { children: React.ReactNo
       disabled={disabled}
       whileTap={{ scale: 0.97 }}
       transition={spring.snap}
-      className="flex h-12 w-full items-center justify-center gap-2 btn-primary"
+      className={`flex h-12 w-full items-center justify-center gap-2 btn-primary ${className}`}
     >
       {children}
     </motion.button>

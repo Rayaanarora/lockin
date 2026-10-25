@@ -11,7 +11,23 @@ function assertUserId(userId, res) {
 }
 
 async function createMission(req, res) {
-  const { creator_id, title, description, location, datetime, categoryId, focusDuration, missionType, coverColor, coverImage } = req.body;
+  const {
+    creator_id,
+    title,
+    description,
+    location,
+    datetime,
+    categoryId,
+    focusDuration,
+    missionType,
+    coverColor,
+    coverImage,
+    isEvent,
+    requireApproval,
+    registrationQ,
+    secretInfo,
+    maxCapacity
+  } = req.body;
   const isSolo = missionType === "solo";
 
   if (!creator_id || !title || !description || (!isSolo && (!location || !datetime))) {
@@ -26,7 +42,12 @@ async function createMission(req, res) {
     datetime: datetime ? new Date(datetime) : null,
     categoryId: categoryId ? Number(categoryId) : 1,
     focusDuration: focusDuration ? Number(focusDuration) : 25,
-    missionType: isSolo ? "solo" : "group"
+    missionType: isSolo ? "solo" : "group",
+    isEvent: Boolean(isEvent),
+    requireApproval: Boolean(requireApproval),
+    registrationQ: registrationQ ? String(registrationQ).trim() : null,
+    secretInfo: secretInfo ? String(secretInfo).trim() : null,
+    maxCapacity: maxCapacity ? Number(maxCapacity) : null
   };
 
   try {
@@ -53,7 +74,12 @@ async function createMission(req, res) {
         verificationCode: verificationCode,
         missionType: payload.missionType,
         coverColor: coverColor || null,
-        coverImage: coverImage || null
+        coverImage: coverImage || null,
+        isEvent: payload.isEvent,
+        requireApproval: payload.requireApproval,
+        registrationQ: payload.registrationQ,
+        secretInfo: payload.secretInfo,
+        maxCapacity: payload.maxCapacity
       },
       include: {
         creator: {
@@ -86,7 +112,12 @@ async function createMission(req, res) {
       focus_duration: mission.focusDuration,
       mission_type: mission.missionType,
       cover_color: mission.coverColor,
-      cover_image: mission.coverImage
+      cover_image: mission.coverImage,
+      is_event: mission.isEvent,
+      require_approval: mission.requireApproval,
+      registration_q: mission.registrationQ,
+      secret_info: mission.secretInfo,
+      max_capacity: mission.maxCapacity
     });
   } catch (error) {
     if (!isDbUnavailable(error)) throw error;
@@ -310,6 +341,10 @@ async function getMissionFeed(req, res) {
         mission_type: isSystem ? "side_quest" : m.missionType,
         cover_color: m.coverColor,
         cover_image: m.coverImage,
+        is_event: Boolean(m.isEvent),
+        require_approval: Boolean(m.requireApproval),
+        registration_q: m.registrationQ || null,
+        max_capacity: m.maxCapacity || null,
         locked_in_count: isSystem ? 0 : attendees.length,
         attendees: isSystem ? [] : attendees
       };
@@ -324,7 +359,7 @@ async function getMissionFeed(req, res) {
 
 async function acceptMission(req, res) {
   const { id } = req.params;
-  const { userId } = req.body;
+  const { userId, applicationNote } = req.body;
   if (!assertUserId(userId, res)) return;
 
   try {
@@ -359,7 +394,8 @@ async function acceptMission(req, res) {
       }
 
       const isSystem = !mission.createdBy || mission.missionType === "side_quest";
-      const initialStatus = isSystem ? "Accepted" : "Requested";
+      // Only require approval if the host explicitly toggled requireApproval
+      const initialStatus = (isSystem || !mission.requireApproval) ? "Accepted" : "Requested";
 
       const participation = await tx.participation.upsert({
         where: {
@@ -368,11 +404,15 @@ async function acceptMission(req, res) {
             missionId: Number(id)
           }
         },
-        update: { status: initialStatus },
+        update: {
+          status: initialStatus,
+          applicationNote: applicationNote ? String(applicationNote).trim() : undefined
+        },
         create: {
           userId: Number(userId),
           missionId: Number(id),
-          status: initialStatus
+          status: initialStatus,
+          applicationNote: applicationNote ? String(applicationNote).trim() : null
         }
       });
 
@@ -454,14 +494,14 @@ async function getActiveMissions(req, res) {
         }
       },
       include: {
-        user: { select: { name: true } },
+        user: { select: { id: true, name: true, department: true, reputationScore: true, avatarUrl: true } },
         mission: {
           include: {
             category: true,
             creator: true,
             participations: {
               where: {
-                status: { in: ["Accepted", "Executing", "Completed"] }
+                status: { in: ["Accepted", "Executing", "Completed", "Requested"] }
               },
               include: {
                 user: {
@@ -469,7 +509,8 @@ async function getActiveMissions(req, res) {
                     id: true,
                     name: true,
                     department: true,
-                    reputationScore: true
+                    reputationScore: true,
+                    avatarUrl: true
                   }
                 }
               }
@@ -492,7 +533,8 @@ async function getActiveMissions(req, res) {
             id: true,
             name: true,
             department: true,
-            reputationScore: true
+            reputationScore: true,
+            avatarUrl: true
           }
         },
         mission: {
@@ -501,7 +543,7 @@ async function getActiveMissions(req, res) {
             creator: true,
             participations: {
               where: {
-                status: { in: ["Accepted", "Executing", "Completed"] }
+                status: { in: ["Accepted", "Executing", "Completed", "Requested"] }
               },
               include: {
                 user: {
@@ -509,7 +551,8 @@ async function getActiveMissions(req, res) {
                     id: true,
                     name: true,
                     department: true,
-                    reputationScore: true
+                    reputationScore: true,
+                    avatarUrl: true
                   }
                 }
               }
@@ -538,7 +581,8 @@ async function getActiveMissions(req, res) {
                 id: true,
                 name: true,
                 department: true,
-                reputationScore: true
+                reputationScore: true,
+                avatarUrl: true
               }
             }
           }
@@ -555,7 +599,9 @@ async function getActiveMissions(req, res) {
           name: m.creator.name,
           department: m.creator.department || "Host",
           reputation_score: m.creator.reputationScore || 0,
-          is_host: true
+          is_host: true,
+          status: "Accepted",
+          showed_up: true
         });
       }
       const acceptedParticipants = (m.participations || [])
@@ -567,7 +613,11 @@ async function getActiveMissions(req, res) {
             name: p.user.name,
             department: p.user.department || "Student",
             reputation_score: p.user.reputationScore || 0,
-            is_host: false
+            avatar_url: p.user.avatarUrl || null,
+            is_host: false,
+            status: p.status,
+            showed_up: p.showedUp,
+            application_note: p.applicationNote || null
           };
         })
         .filter(Boolean);
@@ -575,11 +625,35 @@ async function getActiveMissions(req, res) {
       return attendees;
     };
 
+    const buildRoster = (m) => {
+      if (!m || !m.participations) return { pending: [], going: [], checkedIn: [], all: [] };
+      const all = m.participations.map((part) => ({
+        id: part.id,
+        participant_id: part.userId,
+        user_id: part.userId,
+        name: part.user?.name || "Student",
+        department: part.user?.department || "Student",
+        reputation_score: part.user?.reputationScore || 0,
+        reputation_points: part.user?.reputationScore || 0,
+        avatar_url: part.user?.avatarUrl || null,
+        status: part.status,
+        showed_up: part.showedUp,
+        application_note: part.applicationNote || null
+      }));
+      return {
+        pending: all.filter((p) => p.status === "Requested"),
+        going: all.filter((p) => ["Accepted", "Executing", "Completed"].includes(p.status)),
+        checkedIn: all.filter((p) => p.showed_up === true),
+        all
+      };
+    };
+
     const acceptedRows = accepted
       .filter((p) => p.status !== "Rejected")
       .map((p) => {
         if (!p.mission) return null;
         const attendees = buildAttendees(p.mission);
+        const isApproved = ["Accepted", "Executing", "Completed"].includes(p.status);
         return {
           id: p.mission.id,
           creator_id: p.mission.createdBy,
@@ -600,6 +674,12 @@ async function getActiveMissions(req, res) {
           mission_type: p.mission.missionType,
           cover_color: p.mission.coverColor,
           cover_image: p.mission.coverImage,
+          is_event: Boolean(p.mission.isEvent),
+          require_approval: Boolean(p.mission.requireApproval),
+          registration_q: p.mission.registrationQ || null,
+          secret_info: isApproved ? (p.mission.secretInfo || null) : null,
+          max_capacity: p.mission.maxCapacity || null,
+          application_note: p.applicationNote || null,
           locked_in_count: attendees.length,
           attendees: attendees
         };
@@ -636,6 +716,13 @@ async function getActiveMissions(req, res) {
           mission_type: p.mission.missionType,
           cover_color: p.mission.coverColor,
           cover_image: p.mission.coverImage,
+          is_event: Boolean(p.mission.isEvent),
+          require_approval: Boolean(p.mission.requireApproval),
+          registration_q: p.mission.registrationQ || null,
+          secret_info: p.mission.secretInfo || null,
+          max_capacity: p.mission.maxCapacity || null,
+          application_note: p.applicationNote || null,
+          roster: buildRoster(p.mission),
           locked_in_count: attendees.length,
           attendees: attendees
         };
@@ -676,6 +763,12 @@ async function getActiveMissions(req, res) {
           mission_type: m.missionType,
           cover_color: m.coverColor,
           cover_image: m.coverImage,
+          is_event: Boolean(m.isEvent),
+          require_approval: Boolean(m.requireApproval),
+          registration_q: m.registrationQ || null,
+          secret_info: m.secretInfo || null,
+          max_capacity: m.maxCapacity || null,
+          roster: buildRoster(m),
           locked_in_count: attendees.length,
           attendees: attendees
         };
@@ -840,15 +933,28 @@ async function approveParticipant(req, res) {
         data: { status: "Accepted" }
       });
 
-      // Reject all other join requests for this mission
-      await tx.participation.updateMany({
-        where: {
-          missionId: Number(id),
-          id: { not: targetParticipation.id },
-          status: "Requested"
-        },
-        data: { status: "Rejected" }
-      });
+      const isMultiGuest = mission.isEvent || mission.missionType === "group";
+      if (!isMultiGuest) {
+        // Only reject all other requests for strict 1-on-1 pairing
+        await tx.participation.updateMany({
+          where: {
+            missionId: Number(id),
+            id: { not: targetParticipation.id },
+            status: "Requested"
+          },
+          data: { status: "Rejected" }
+        });
+      } else if (mission.maxCapacity) {
+        const acceptedCount = await tx.participation.count({
+          where: { missionId: Number(id), status: { in: ["Accepted", "Executing"] } }
+        });
+        if (acceptedCount >= mission.maxCapacity) {
+          await tx.participation.updateMany({
+            where: { missionId: Number(id), status: "Requested" },
+            data: { status: "Rejected" }
+          });
+        }
+      }
 
       return approved;
     });
@@ -1085,6 +1191,176 @@ async function submitVibeCheck(req, res) {
   }
 }
 
+async function declineParticipant(req, res) {
+  const { id } = req.params;
+  const { creatorId, participantId } = req.body;
+  if (!creatorId || !participantId) {
+    return res.status(400).json({ error: "creatorId and participantId are required." });
+  }
+
+  try {
+    const mission = await prisma.mission.findUnique({
+      where: { id: Number(id) }
+    });
+    if (!mission) {
+      return res.status(404).json({ error: "Mission not found." });
+    }
+    if (mission.createdBy !== Number(creatorId)) {
+      return res.status(403).json({ error: "Only the mission creator can decline requests." });
+    }
+
+    const participation = await prisma.participation.findFirst({
+      where: {
+        missionId: Number(id),
+        userId: Number(participantId),
+        status: "Requested"
+      }
+    });
+
+    if (!participation) {
+      return res.status(404).json({ error: "Pending request not found." });
+    }
+
+    await prisma.participation.update({
+      where: { id: participation.id },
+      data: { status: "Rejected" }
+    });
+
+    res.json({ success: true, mission_id: Number(id), participant_id: Number(participantId), status: "Rejected" });
+  } catch (error) {
+    console.error("Error declining participant:", error);
+    res.status(500).json({ error: "Failed to decline participant." });
+  }
+}
+
+async function hostCheckIn(req, res) {
+  const { id } = req.params;
+  const { hostId, participantId } = req.body;
+  if (!assertUserId(hostId, res) || !assertUserId(participantId, res)) return;
+
+  try {
+    const mission = await prisma.mission.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!mission) {
+      return res.status(404).json({ error: "Mission not found." });
+    }
+
+    if (mission.createdBy !== Number(hostId)) {
+      return res.status(403).json({ error: "Only the mission host can check in attendees." });
+    }
+
+    const participant = await prisma.participation.findFirst({
+      where: {
+        missionId: Number(id),
+        userId: Number(participantId)
+      }
+    });
+
+    if (!participant) {
+      return res.status(404).json({ error: "Participant not found." });
+    }
+
+    const updated = await prisma.participation.update({
+      where: { id: participant.id },
+      data: {
+        status: "Executing",
+        workStartedAt: new Date(),
+        workDuration: mission.focusDuration,
+        showedUp: true
+      }
+    });
+
+    // Real-time Push Notification to Attendee
+    try {
+      const supabaseClient = require("../config/supabase");
+      if (supabaseClient) {
+        const channel = supabaseClient.channel(`notifications:${participantId}`);
+        channel.subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            channel.send({
+              type: "broadcast",
+              event: "push_notification",
+              payload: {
+                title: "Checked In",
+                message: `Host verified your attendance for "${mission.title}". Session is live.`,
+                type: "check_in_verified",
+                missionId: Number(id)
+              }
+            }).catch(err => console.error("Realtime check-in broadcast failed:", err));
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Notification error:", e);
+    }
+
+    res.json({ success: true, participantId: Number(participantId), status: "Executing" });
+  } catch (error) {
+    console.error("Host check-in error:", error);
+    res.status(500).json({ error: "Failed to check in attendee." });
+  }
+}
+
+async function hostBroadcast(req, res) {
+  const { id } = req.params;
+  const { hostId, message } = req.body;
+  if (!assertUserId(hostId, res)) return;
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: "Message is required." });
+  }
+
+  try {
+    const mission = await prisma.mission.findUnique({
+      where: { id: Number(id) },
+      include: {
+        participations: {
+          where: {
+            status: { in: ["Accepted", "Executing"] }
+          },
+          select: { userId: true }
+        }
+      }
+    });
+
+    if (!mission) {
+      return res.status(404).json({ error: "Mission not found." });
+    }
+
+    if (mission.createdBy !== Number(hostId)) {
+      return res.status(403).json({ error: "Only the host can broadcast updates." });
+    }
+
+    const supabaseClient = require("../config/supabase");
+    if (supabaseClient) {
+      for (const p of mission.participations) {
+        if (p.userId === Number(hostId)) continue;
+        const channel = supabaseClient.channel(`notifications:${p.userId}`);
+        channel.subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            channel.send({
+              type: "broadcast",
+              event: "push_notification",
+              payload: {
+                title: `Update: ${mission.title}`,
+                message: message.trim(),
+                type: "host_broadcast",
+                missionId: Number(id)
+              }
+            }).catch(err => console.error("Broadcast failed:", err));
+          }
+        });
+      }
+    }
+
+    res.json({ success: true, count: mission.participations.length });
+  } catch (error) {
+    console.error("Host broadcast error:", error);
+    res.status(500).json({ error: "Failed to broadcast update." });
+  }
+}
+
 module.exports = {
   createMission,
   getMissionFeed,
@@ -1093,6 +1369,9 @@ module.exports = {
   getActiveMissions,
   submitAttendance,
   approveParticipant,
+  declineParticipant,
+  hostCheckIn,
+  hostBroadcast,
   getCategories,
   getCampuses,
   submitVibeCheck

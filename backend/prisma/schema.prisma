@@ -97,6 +97,11 @@ model Mission {
   missionType      String          @default("group") @map("mission_type") @db.VarChar(20)
   coverColor       String?         @map("cover_color") @db.VarChar(50)
   coverImage       String?         @map("cover_image") @db.Text
+  isEvent          Boolean?        @default(false) @map("is_event")
+  requireApproval  Boolean?        @default(false) @map("require_approval")
+  registrationQ    String?         @map("registration_q") @db.VarChar(200)
+  secretInfo       String?         @map("secret_info") @db.Text
+  maxCapacity      Int?            @map("max_capacity")
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   creator          User?           @relation("CreatedMissions", fields: [createdBy], references: [id], onDelete: Cascade)
   collegeRef       College?        @relation(fields: [collegeId], references: [id], onDelete: SetNull)
@@ -139,6 +144,7 @@ model Participation {
   workDuration          Int       @default(25) @map("work_duration")
   creatorVibeRating     String?   @map("creator_vibe_rating") @db.VarChar(10)
   participantVibeRating String?   @map("participant_vibe_rating") @db.VarChar(10)
+  applicationNote       String?   @map("application_note") @db.VarChar(300)
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   mission               Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
 

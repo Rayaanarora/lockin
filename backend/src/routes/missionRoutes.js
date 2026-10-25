@@ -8,6 +8,9 @@ const {
   getActiveMissions,
   submitAttendance,
   approveParticipant,
+  declineParticipant,
+  hostCheckIn,
+  hostBroadcast,
   getCategories,
   getCampuses,
   submitVibeCheck
@@ -28,6 +31,9 @@ router.post("/:id/attendance", requireAuth, asyncHandler(submitAttendance));
 router.post("/:id/finish", requireAuth, asyncHandler(finishSession));
 router.post("/:id/vibe-check", requireAuth, asyncHandler(submitVibeCheck));
 router.post("/:id/approve-participant", requireAuth, asyncHandler(approveParticipant));
+router.post("/:id/decline-participant", requireAuth, asyncHandler(declineParticipant));
+router.post("/:id/check-in", requireAuth, asyncHandler(hostCheckIn));
+router.post("/:id/broadcast", requireAuth, asyncHandler(hostBroadcast));
 
 module.exports = router;
 
