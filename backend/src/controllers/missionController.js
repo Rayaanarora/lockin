@@ -1305,8 +1305,9 @@ async function hostCheckIn(req, res) {
 
 async function hostBroadcast(req, res) {
   const { id } = req.params;
-  const { hostId, message } = req.body;
-  if (!assertUserId(hostId, res)) return;
+  const effectiveHostId = req.body.hostId || req.body.userId || req.user?.id;
+  const { message } = req.body;
+  if (!assertUserId(effectiveHostId, res)) return;
   if (!message || !message.trim()) {
     return res.status(400).json({ error: "Message is required." });
   }
@@ -1328,14 +1329,14 @@ async function hostBroadcast(req, res) {
       return res.status(404).json({ error: "Mission not found." });
     }
 
-    if (mission.createdBy !== Number(hostId)) {
+    if (mission.createdBy !== Number(effectiveHostId)) {
       return res.status(403).json({ error: "Only the host can broadcast updates." });
     }
 
     const supabaseClient = require("../config/supabase");
     if (supabaseClient) {
       for (const p of mission.participations) {
-        if (p.userId === Number(hostId)) continue;
+        if (p.userId === Number(effectiveHostId)) continue;
         const channel = supabaseClient.channel(`notifications:${p.userId}`);
         channel.subscribe((status) => {
           if (status === "SUBSCRIBED") {

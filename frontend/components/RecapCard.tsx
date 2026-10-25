@@ -438,6 +438,17 @@ export default function LockinRecapCard({
                   className={`relative flex flex-col justify-between overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
                   style={{ background: cardBg, position: "absolute", inset: 0, backfaceVisibility: "hidden" }}
                 >
+                  {/* Strava Photo Layer */}
+                  {screenshot && (
+                    <>
+                      <img
+                        src={screenshot}
+                        alt="Session evidence"
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/65 to-black/35" />
+                    </>
+                  )}
 
                   {/* Deer persona, as a quiet watermark */}
                   <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.07]">

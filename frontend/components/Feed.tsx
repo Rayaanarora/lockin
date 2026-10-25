@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { X, Check, Plus, AlertCircle, Share2, RefreshCw, ImagePlus } from "lucide-react";
+import { X, Check, Plus, AlertCircle, Share2, RefreshCw, ImagePlus, Trash2 } from "lucide-react";
 import { LockinMark } from "./ui/LockinLogo";
 import { uploadImage } from "../lib/supabase";
 import { User, Mission } from "../app/types";
@@ -38,6 +38,7 @@ const formatDate = (value?: string | null) => {
 
 const CORE_CATEGORIES = [
   { id: "all", name: "All" },
+  { id: "side_quest", name: "Side Quests" },
   { id: "1", name: "Coding" },
   { id: "8", name: "Fitness" },
   { id: "9", name: "Study" },
@@ -87,13 +88,23 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
   // Event Mode V2 states
   const [isEvent, setIsEvent] = useState(false);
+  const [showEventSettings, setShowEventSettings] = useState(false);
   const [requireApproval, setRequireApproval] = useState(false);
-  const [registrationQ, setRegistrationQ] = useState("");
+  const [registrationQuestions, setRegistrationQuestions] = useState<string[]>(["What are you building or studying?"]);
   const [secretInfo, setSecretInfo] = useState("");
   const [maxCapacity, setMaxCapacity] = useState("");
   const [rsvpingMission, setRsvpingMission] = useState<Mission | null>(null);
-  const [rsvpNote, setRsvpNote] = useState("");
+  const [rsvpAnswers, setRsvpAnswers] = useState<{ [qIndex: number]: string }>({});
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
+
+  const getQuestions = (qStr?: string | null): string[] => {
+    if (!qStr) return [];
+    try {
+      const parsed = JSON.parse(qStr);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.filter(Boolean);
+    } catch {}
+    return [qStr];
+  };
 
   const applyStarterQuest = useCallback((quest: StarterQuest) => {
     setSelectedQuestId(quest.id);
@@ -122,6 +133,31 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
   async function load(catId: string = "all") {
     try {
+      if (catId === "side_quest") {
+        const questMissions: Mission[] = STARTER_QUESTS.map((q, idx) => ({
+          id: 9000 + idx,
+          creator_id: null,
+          title: q.title,
+          description: q.description,
+          location: q.defaultLocation,
+          datetime: null,
+          creator_name: null,
+          creator_department: "Side Quest",
+          is_system: true,
+          category_name: q.categoryName,
+          category_id: q.categoryId,
+          mission_type: "side_quest",
+          focus_duration: q.focusDuration,
+          cover_color: q.coverColor,
+          cover_image: q.coverImage,
+          locked_in_count: 0,
+          attendees: []
+        }));
+        setMissions(questMissions);
+        setIndex(0);
+        return;
+      }
+
       const [feed, lock] = await Promise.all([
         api(`/missions/feed?userId=${user.id}&categoryId=${catId}`),
         api(`/users/${user.id}/lock`).catch(() => ({ locked: false }))
@@ -153,7 +189,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           location: q.defaultLocation,
           datetime: null,
           creator_name: null,
-          creator_department: "LOCKIN Protocol",
+          creator_department: "Side Quest",
           is_system: true,
           category_name: q.categoryName,
           category_id: q.categoryId,
@@ -180,7 +216,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           location: q.defaultLocation,
           datetime: null,
           creator_name: null,
-          creator_department: "LOCKIN Protocol",
+          creator_department: "Side Quest",
           is_system: true,
           category_name: q.categoryName,
           category_id: q.categoryId,
@@ -218,6 +254,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     // If this is an event with a required registration question, prompt for RSVP note first
     if (action === "accept" && mission.is_event && mission.registration_q) {
       setRsvpingMission(mission);
+      setRsvpAnswers({});
       return;
     }
 
@@ -283,6 +320,11 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     if (!rsvpingMission) return;
     setSubmittingRsvp(true);
     const mission = rsvpingMission;
+    const questions = getQuestions(mission.registration_q);
+    const combinedNote = questions.length > 0
+      ? questions.map((q, idx) => `Q: ${q}\nA: ${rsvpAnswers[idx]?.trim() || "Attending"}`).join("\n\n")
+      : "";
+
     try {
       setRsvpingMission(null);
       setExitDir("right");
@@ -291,9 +333,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       const minFlash = new Promise((r) => setTimeout(r, 900));
       await api(`/missions/${mission.id}/accept`, {
         method: "POST",
-        body: JSON.stringify({ userId: user.id, applicationNote: rsvpNote.trim() })
+        body: JSON.stringify({ userId: user.id, applicationNote: combinedNote })
       });
-      setRsvpNote("");
+      setRsvpAnswers({});
       refreshUser().catch(() => {});
       await minFlash;
       setLockedFlash(false);
@@ -336,7 +378,11 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         coverImage: coverImage || null,
         isEvent: isSolo ? false : isEvent,
         requireApproval: isSolo ? false : requireApproval,
-        registrationQ: (!isSolo && isEvent && registrationQ.trim()) ? registrationQ.trim() : null,
+        registrationQ: (!isSolo && isEvent && requireApproval)
+          ? (registrationQuestions.filter((q) => q.trim()).length > 0
+              ? JSON.stringify(registrationQuestions.filter((q) => q.trim()))
+              : null)
+          : null,
         secretInfo: (!isSolo && isEvent && secretInfo.trim()) ? secretInfo.trim() : null,
         maxCapacity: (!isSolo && isEvent && maxCapacity.trim()) ? Number(maxCapacity) : null
       };
@@ -361,8 +407,9 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       setShowCustomizeCover(false);
       setSelectedQuestId(null);
       setIsEvent(false);
+      setShowEventSettings(false);
       setRequireApproval(false);
-      setRegistrationQ("");
+      setRegistrationQuestions(["What are you building or studying?"]);
       setSecretInfo("");
       setMaxCapacity("");
       await load(activeCategory);
@@ -772,7 +819,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
             {/* Event Mode toggle & options */}
             {form.missionType === "group" && (
-              <div className="rounded-xl border border-line bg-surface/60 p-4 space-y-4">
+              <div className="rounded-xl border border-line bg-surface/60 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-subhead font-semibold text-ink">Event Mode</p>
@@ -782,7 +829,11 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                     type="button"
                     role="switch"
                     aria-checked={isEvent}
-                    onClick={() => setIsEvent(!isEvent)}
+                    onClick={() => {
+                      const next = !isEvent;
+                      setIsEvent(next);
+                      if (next) setShowEventSettings(true);
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       isEvent ? "bg-signal" : "bg-raised border border-line"
                     }`}
@@ -796,60 +847,26 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 </div>
 
                 {isEvent && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-4 pt-2 border-t border-line"
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
-                      <Field label="Capacity" hint="Optional" htmlFor="m-cap">
-                        <Input
-                          id="m-cap"
-                          type="number"
-                          min="2"
-                          max="500"
-                          value={maxCapacity}
-                          onChange={(e) => setMaxCapacity(e.target.value)}
-                          placeholder="e.g. 20"
-                        />
-                      </Field>
-
-                      <div className="flex flex-col justify-end pb-1">
-                        <label className="flex items-center gap-2 cursor-pointer text-subhead text-ink">
-                          <input
-                            type="checkbox"
-                            checked={requireApproval}
-                            onChange={(e) => setRequireApproval(e.target.checked)}
-                            className="rounded border-line bg-raised accent-crimson h-4 w-4"
-                          />
-                          <span>Require Vetting</span>
-                        </label>
-                        <p className="text-[11px] text-ink-3 mt-1">Review guests before admitting</p>
-                      </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-line text-caption text-ink-2">
+                    <div>
+                      <span>{maxCapacity ? `Cap: ${maxCapacity}` : "Unlimited"}</span>
+                      <span className="mx-1.5">·</span>
+                      <span>{requireApproval ? `${registrationQuestions.filter((q) => q.trim()).length || 1} questions` : "Open RSVP"}</span>
+                      {secretInfo.trim() && (
+                        <>
+                          <span className="mx-1.5">·</span>
+                          <span className="text-gold">Private info set</span>
+                        </>
+                      )}
                     </div>
-
-                    {requireApproval && (
-                      <Field label="Registration Question" hint="Shown to guests when they RSVP" htmlFor="m-regq">
-                        <Input
-                          id="m-regq"
-                          value={registrationQ}
-                          onChange={(e) => setRegistrationQ(e.target.value)}
-                          placeholder="e.g. What are you building or studying?"
-                        />
-                      </Field>
-                    )}
-
-                    <Field label="Secret Access Details" hint="Revealed only to approved attendees (e.g. WhatsApp link, private room)" htmlFor="m-secret">
-                      <Textarea
-                        id="m-secret"
-                        value={secretInfo}
-                        onChange={(e) => setSecretInfo(e.target.value)}
-                        placeholder="e.g. WhatsApp Group link: https://chat.whatsapp.com/... or Room 402, passcode: 1024"
-                        rows={2}
-                      />
-                    </Field>
-                  </motion.div>
+                    <button
+                      type="button"
+                      onClick={() => setShowEventSettings(true)}
+                      className="text-footnote font-semibold text-crimson hover:underline"
+                    >
+                      Configure Event
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -978,6 +995,106 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         </DialogContent>
       </Dialog>
 
+      {/* Event Setup Sheet / Dialog */}
+      <Dialog open={showEventSettings} onOpenChange={setShowEventSettings}>
+        <DialogContent className="sm:max-w-lg max-w-full overflow-x-hidden max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Event Configuration</DialogTitle>
+            <DialogDescription>
+              Set capacity, screening questions, and private access details for your event.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+              <Field label="Guest Capacity" hint="Optional" htmlFor="evt-cap">
+                <Input
+                  id="evt-cap"
+                  type="number"
+                  min="2"
+                  max="500"
+                  value={maxCapacity}
+                  onChange={(e) => setMaxCapacity(e.target.value)}
+                  placeholder="e.g. 25"
+                />
+              </Field>
+
+              <div className="flex flex-col justify-end pb-1">
+                <label className="flex items-center gap-2 cursor-pointer text-subhead text-ink">
+                  <input
+                    type="checkbox"
+                    checked={requireApproval}
+                    onChange={(e) => setRequireApproval(e.target.checked)}
+                    className="rounded border-line bg-raised accent-crimson h-4 w-4"
+                  />
+                  <span>Require Vetting</span>
+                </label>
+                <p className="text-[11px] text-ink-3 mt-1">Screen each guest before approving</p>
+              </div>
+            </div>
+
+            {requireApproval && (
+              <div className="space-y-3 rounded-xl border border-line bg-raised/40 p-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-caption font-semibold uppercase tracking-wider text-ink">
+                    Screening Questions
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRegistrationQuestions((qs) => [...qs, ""])}
+                    className="text-xs font-semibold text-crimson hover:underline flex items-center gap-1"
+                  >
+                    + Add Question
+                  </button>
+                </div>
+                <div className="space-y-2.5">
+                  {registrationQuestions.map((q, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Input
+                        value={q}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRegistrationQuestions((qs) => qs.map((item, i) => (i === idx ? val : item)));
+                        }}
+                        placeholder={`Question ${idx + 1} (e.g. What is your GitHub or major?)`}
+                      />
+                      {registrationQuestions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setRegistrationQuestions((qs) => qs.filter((_, i) => i !== idx))}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-3 hover:text-crimson transition-colors"
+                          aria-label={`Remove question ${idx + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Field label="Secret Access Details" hint="Revealed to guests once approved (e.g. WhatsApp group, Discord, private room pin)" htmlFor="evt-sec">
+              <Textarea
+                id="evt-sec"
+                value={secretInfo}
+                onChange={(e) => setSecretInfo(e.target.value)}
+                placeholder="e.g. WhatsApp Group: https://chat.whatsapp.com/... or Room 402, passcode: 1024"
+                rows={3}
+              />
+            </Field>
+
+            <button
+              type="button"
+              onClick={() => setShowEventSettings(false)}
+              className="btn-primary w-full h-12"
+            >
+              Save Event Settings
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* RSVP Registration Dialog */}
       <Dialog open={!!rsvpingMission} onOpenChange={(open) => { if (!open) setRsvpingMission(null); }}>
         <DialogContent className="sm:max-w-md max-w-full overflow-x-hidden">
@@ -985,23 +1102,30 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             <DialogTitle>RSVP: {rsvpingMission?.title}</DialogTitle>
             <DialogDescription>
               {rsvpingMission?.require_approval
-                ? "This event requires host vetting. Answer the question below to submit your join request."
+                ? "This event requires host vetting. Answer the questions below to submit your join request."
                 : "Confirm your attendance for this event."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={submitRsvp} className="space-y-4 w-full min-w-0">
             {rsvpingMission?.registration_q && (
-              <Field label="Host Question" htmlFor="rsvp-note" hint="Reviewed by the event host">
-                <p className="mb-2 text-subhead font-medium text-ink">{rsvpingMission.registration_q}</p>
-                <Textarea
-                  id="rsvp-note"
-                  value={rsvpNote}
-                  onChange={(e) => setRsvpNote(e.target.value)}
-                  placeholder="Your answer..."
-                  required
-                  rows={3}
-                />
-              </Field>
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                {getQuestions(rsvpingMission.registration_q).map((q, idx) => (
+                  <Field key={idx} label={`Question ${idx + 1}`} htmlFor={`rsvp-q-${idx}`} hint="Reviewed by the event host">
+                    <p className="mb-2 text-subhead font-medium text-ink">{q}</p>
+                    <Textarea
+                      id={`rsvp-q-${idx}`}
+                      value={rsvpAnswers[idx] || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRsvpAnswers((prev) => ({ ...prev, [idx]: val }));
+                      }}
+                      placeholder="Your answer..."
+                      required
+                      rows={2}
+                    />
+                  </Field>
+                ))}
+              </div>
             )}
             <div className="flex gap-3 pt-2">
               <button
@@ -1013,7 +1137,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               </button>
               <button
                 type="submit"
-                disabled={submittingRsvp || (!!rsvpingMission?.registration_q && !rsvpNote.trim())}
+                disabled={submittingRsvp || (!!rsvpingMission?.registration_q && getQuestions(rsvpingMission.registration_q).some((_, i) => !(rsvpAnswers[i] || "").trim()))}
                 className="btn-primary flex-1 h-12"
               >
                 {submittingRsvp ? "Submitting..." : rsvpingMission?.require_approval ? "Request to Join" : "Confirm RSVP"}
@@ -1115,10 +1239,10 @@ function CardBody({ mission }: { mission: Mission }) {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-signal/60 bg-signal/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-crimson">
               <span className="h-1.5 w-1.5 rounded-full bg-crimson animate-pulse" />
-              Side Quest Protocol
+              Side Quest
             </span>
             <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-3">
-              · {mission.category_name || "Protocol"}
+              · {mission.category_name || "Side Quest"}
             </span>
           </div>
         ) : mission.is_event ? (

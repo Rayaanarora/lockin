@@ -55,7 +55,7 @@ const TUTORIAL_STEPS = [
   {
     icon: Users,
     title: "Show up in person",
-    body: "Group missions have a place and a time. When you arrive, the host gives you a 4-digit code to check in."
+    body: "Group missions have a place and time. Check in with the host on arrival to confirm your attendance."
   },
   {
     icon: Timer,
@@ -86,6 +86,8 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [error, setError] = useState("");
   const [interestCategories, setInterestCategories] = useState<InterestCategory[]>([]);
   const [devOtp, setDevOtp] = useState("");
+  const [detectedCampusId, setDetectedCampusId] = useState<any>("");
+  const [detectedCampusName, setDetectedCampusName] = useState("");
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
 
@@ -268,42 +270,21 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             ? `${matchedCollege.name} (${matchedCollege.full_name})`
             : matchedCollege.full_name || matchedCollege.name || "")
         : "";
+      setDetectedCampusId(defaultCampusId);
+      setDetectedCampusName(defaultCampusName);
 
       if (!supabase) throw new Error("Supabase is not initialized.");
 
       if (mode === "signup") {
-        const { data, error: signUpErr } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
-          options: { emailRedirectTo: window.location.origin },
+        const otpRes = await api("/auth/send-otp", {
+          method: "POST",
+          body: JSON.stringify({ email: form.email })
         });
-
-        if (signUpErr) throw signUpErr;
-
-        if (data.user && !data.session) {
-          // Verification link sent
-          setStep(2);
-        } else if (data.session) {
-          const syncRes = await api("/auth/profile", {
-            method: "POST"
-          });
-          const isIncomplete = !syncRes.user.department || !syncRes.user.college;
-          if (isIncomplete) {
-            setTempUserId(syncRes.user.id);
-            setForm(f => ({
-              ...f,
-              campusId: defaultCampusId,
-              campusName: defaultCampusName,
-              college_id: String(defaultCampusId || ""),
-              name: syncRes.user.name || f.name
-            }));
-            setDirection(1);
-            setStep(3);
-          } else {
-            localStorage.setItem("lockin_user_id", String(syncRes.user.id));
-            onReady(syncRes.user);
-          }
+        if (otpRes.devCode) {
+          setDevOtp(otpRes.devCode);
         }
+        setDirection(1);
+        setStep(2);
       } else if (mode === "login") {
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: form.email,
@@ -344,6 +325,68 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       }
     } catch (err: any) {
       setError(err.message || "Authentication operation failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifyOtp(code: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const verifyRes = await api("/auth/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email, code })
+      });
+      if (!verifyRes.success) {
+        throw new Error(verifyRes.error || "Invalid verification code.");
+      }
+
+      if (!supabase) throw new Error("Supabase is not initialized.");
+      const { data, error: signUpErr } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { emailRedirectTo: window.location.origin }
+      });
+      if (signUpErr) throw signUpErr;
+
+      const syncRes = await api("/auth/profile", { method: "POST" });
+      const isIncomplete = !syncRes.user.department || !syncRes.user.college;
+      if (isIncomplete) {
+        setTempUserId(syncRes.user.id);
+        setForm((f) => ({
+          ...f,
+          campusId: detectedCampusId,
+          campusName: detectedCampusName,
+          college_id: String(detectedCampusId || ""),
+          name: syncRes.user.name || f.name
+        }));
+        setDirection(1);
+        setStep(3);
+      } else {
+        localStorage.setItem("lockin_user_id", String(syncRes.user.id));
+        onReady(syncRes.user);
+      }
+    } catch (err: any) {
+      setError(err.message || "Verification failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    setBusy(true);
+    setError("");
+    try {
+      const otpRes = await api("/auth/send-otp", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email })
+      });
+      if (otpRes.devCode) {
+        setDevOtp(otpRes.devCode);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to resend code.");
     } finally {
       setBusy(false);
     }
@@ -570,7 +613,18 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
             {step === 1 && (
               <EmailStep form={form} setForm={setForm} validation={validation} onNext={goNext} busy={busy} mode={mode} setMode={setMode} onDemoLogin={DEMO_LOGIN_ENABLED ? handleDemoLogin : undefined} />
             )}
-            {step === 2 && <OtpStep form={form} onNext={goNext} busy={busy} mode={mode} setMode={setMode} />}
+            {step === 2 && (
+              <OtpStep
+                form={form}
+                onNext={goNext}
+                busy={busy}
+                mode={mode}
+                setMode={setMode}
+                onVerifyOtp={handleVerifyOtp}
+                onResendOtp={handleResendOtp}
+                devOtp={devOtp}
+              />
+            )}
             {step === 3 && (
               <CampusStep
                 form={form}
@@ -1038,47 +1092,122 @@ function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode, onD
   );
 }
 
-/* ─── CHECK INBOX ────────────────────────────────────────────────── */
-function OtpStep({ form, onNext, mode, setMode }: any) {
-  return (
-    <div className="space-y-8 text-center">
-      <div className="flex flex-col items-center">
-        <div className="relative mb-6 flex h-20 w-20 items-center justify-center">
-          {[0, 1].map((i) => (
-            <motion.span
-              key={i}
-              className="absolute inset-0 rounded-full border border-signal/70"
-              animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
-              transition={{ duration: 2, delay: i, repeat: Infinity, ease: "easeOut" }}
-            />
-          ))}
-          <motion.div
-            initial={{ scale: 0, rotate: -20 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={spring.pop}
-            className="relative flex h-20 w-20 items-center justify-center rounded-full border border-signal/70 bg-surface"
-          >
-            <Mail className="h-8 w-8 text-crimson" />
-          </motion.div>
-        </div>
-        <h2 className="t-display text-large-title text-ink">{mode === "forgot" ? "Link sent" : "Verify your email"}</h2>
-        <p className="mx-auto mt-3 max-w-[300px] text-subhead leading-relaxed text-ink-2">
-          {mode === "forgot" ? "If an account exists for " : "We sent a confirmation link to "}
-          <span className="font-semibold text-ink">{form.email}</span>
-          {mode === "forgot" ? ", a reset link is on its way. It expires in an hour." : ". Open it, then come back and log in."}
-        </p>
-      </div>
+/* ─── CHECK INBOX & OTP ──────────────────────────────────────────── */
+function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, devOtp }: any) {
+  const [enteredOtp, setEnteredOtp] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(30);
 
-      <button
-        type="button"
-        onClick={() => {
-          setMode("login");
-          onNext();
-        }}
-        className="flex h-14 w-full items-center justify-center btn-ghost"
-      >
-        Back to log in
-      </button>
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  if (mode === "forgot") {
+    return (
+      <div className="space-y-8 text-center">
+        <div className="flex flex-col items-center">
+          <div className="relative mb-6 flex h-20 w-20 items-center justify-center">
+            {[0, 1].map((i) => (
+              <motion.span
+                key={i}
+                className="absolute inset-0 rounded-full border border-signal/70"
+                animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
+                transition={{ duration: 2, delay: i, repeat: Infinity, ease: "easeOut" }}
+              />
+            ))}
+            <motion.div
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={spring.pop}
+              className="relative flex h-20 w-20 items-center justify-center rounded-full border border-signal/70 bg-surface"
+            >
+              <Mail className="h-8 w-8 text-crimson" />
+            </motion.div>
+          </div>
+          <h2 className="t-display text-large-title text-ink">Link sent</h2>
+          <p className="mx-auto mt-3 max-w-[300px] text-subhead leading-relaxed text-ink-2">
+            If an account exists for <span className="font-semibold text-ink">{form.email}</span>, a reset link is on its way. It expires in an hour.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode("login");
+            onNext();
+          }}
+          className="flex h-14 w-full items-center justify-center btn-ghost"
+        >
+          Back to log in
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-7">
+      <StepHeading
+        eyebrow="Verification"
+        title="Check your student inbox"
+        sub={`We sent a 6-digit code to ${form.email}. Enter it below to verify your student email.`}
+      />
+
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="otp-input" className="sr-only">
+            6-digit verification code
+          </label>
+          <input
+            id="otp-input"
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={enteredOtp}
+            onChange={(e) => setEnteredOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+            placeholder="000000"
+            autoFocus
+            className="h-16 w-full rounded-xl border border-line bg-raised px-4 text-center font-mono text-3xl font-bold tracking-[0.5em] text-ink focus:border-crimson focus:outline-none"
+          />
+        </div>
+
+        {devOtp && (
+          <p className="text-center text-xs text-ink-3">
+            Dev code: <span className="font-mono font-bold text-crimson">{devOtp}</span>
+          </p>
+        )}
+
+        <PrimaryButton
+          onClick={() => onVerifyOtp(enteredOtp)}
+          disabled={busy || enteredOtp.length !== 6}
+        >
+          {busy ? "Verifying..." : "Verify Code"}
+        </PrimaryButton>
+
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            disabled={busy || resendCooldown > 0}
+            onClick={() => {
+              setResendCooldown(30);
+              onResendOtp();
+            }}
+            className="text-footnote font-semibold text-ink-3 hover:text-ink disabled:opacity-50 transition-colors"
+          >
+            {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login");
+              onNext();
+            }}
+            className="text-footnote text-ink-3 hover:text-ink transition-colors"
+          >
+            Use different email
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

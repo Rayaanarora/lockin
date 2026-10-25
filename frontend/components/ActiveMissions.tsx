@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Download, Users, Radio, ExternalLink, Copy } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Download, Users, Radio, ExternalLink, Copy, ChevronDown } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { uploadImage } from "../lib/supabase";
 import Chat from "./Chat";
@@ -106,6 +106,16 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                 osc.stop(ctx.currentTime + 0.2);
               } catch (e) {
                 console.warn("AudioContext block", e);
+              }
+
+              if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                  new Notification("Focus Session Complete", {
+                    body: `Target focus time reached for "${activeFocusMission.title}".`
+                  });
+                } catch (e) {
+                  console.warn("Notification error:", e);
+                }
               }
             }
           }
@@ -443,7 +453,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     try {
       await api(`/missions/${rosterMission.id}/broadcast`, {
         method: "POST",
-        body: JSON.stringify({ message: broadcastText.trim() })
+        body: JSON.stringify({ hostId: user.id, message: broadcastText.trim() })
       });
       setBroadcastText("");
       setBroadcastSuccess(true);
@@ -607,6 +617,41 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const pendingRequests = missions.filter((m) => m.role === "creator" && m.status === "Requested").length;
   const completedCount = missions.filter((m) => m.status === "Completed").length;
 
+  const [showPastMissions, setShowPastMissions] = useState(false);
+
+  const { pendingRequestsList, executingList, dueList, upcomingList, pastList } = useMemo(() => {
+    const pendingRequestsList: Mission[] = [];
+    const executingList: Mission[] = [];
+    const dueList: Mission[] = [];
+    const upcomingList: Mission[] = [];
+    const pastList: Mission[] = [];
+
+    for (const m of missions) {
+      if (m.status === "Completed" || m.status === "Missed") {
+        pastList.push(m);
+      } else if (m.status === "Requested" && m.role === "creator") {
+        pendingRequestsList.push(m);
+      } else if (m.status === "Executing") {
+        executingList.push(m);
+      } else if (m.status === "Accepted" && (isDue(m.datetime) || m.mission_type === "solo")) {
+        dueList.push(m);
+      } else {
+        upcomingList.push(m);
+      }
+    }
+
+    return { pendingRequestsList, executingList, dueList, upcomingList, pastList };
+  }, [missions]);
+
+  const sortedActiveMissions = useMemo(() => {
+    return [
+      ...pendingRequestsList,
+      ...executingList,
+      ...dueList,
+      ...upcomingList
+    ];
+  }, [pendingRequestsList, executingList, dueList, upcomingList]);
+
   return (
     <section className="mx-auto w-full max-w-md flex-1 space-y-6 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-14 md:space-y-10">
       {/* Title */}
@@ -655,8 +700,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           </p>
         </motion.div>
       ) : (
-        <Reveal className="grid grid-cols-1 gap-4 md:grid-cols-2" each={0.06}>
-          {missions.map((mission) => {
+        <div className="space-y-6">
+          <Reveal className="grid grid-cols-1 gap-4 md:grid-cols-2" each={0.06}>
+            {(showPastMissions ? [...sortedActiveMissions, ...pastList] : sortedActiveMissions).map((mission) => {
             const isSolo = mission.mission_type === "solo";
             const due = isDue(mission.datetime) || isSolo;
             const isCreator = mission.role === "creator" || isSolo;
@@ -907,7 +953,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1">
                               Applicant Response
                             </p>
-                            <p className="text-subhead text-ink italic">&quot;{mission.application_note}&quot;</p>
+                            <div className="text-subhead text-ink whitespace-pre-wrap text-xs">
+                              {mission.application_note}
+                            </div>
                           </div>
                         )}
                         <div className="mt-3 flex gap-2">
@@ -1089,9 +1137,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
                           />
                           <span className="relative">
-                            <span className="t-label">Focus mode</span>
+                            <span className="t-label">{timerRunning || activeFocusMission?.id === mission.id ? "Session active" : "Focus mode"}</span>
                             <span className="t-display tabular mt-1 block text-title-1 text-ink">
-                              {activeFocusMission?.id === mission.id ? formatTime(timeLeftSeconds) : "Enter"}
+                              {timerRunning || activeFocusMission?.id === mission.id ? `Continue focus (${formatTime(timeLeftSeconds)})` : "Continue focus"}
                             </span>
                           </span>
                           <Flame className="relative h-8 w-8 text-crimson transition-transform group-hover:scale-110" />
@@ -1205,7 +1253,23 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
               </Reveal.Item>
             );
           })}
-        </Reveal>
+          </Reveal>
+
+          {pastList.length > 0 && (
+            <div className="border-t border-line pt-4">
+              <button
+                type="button"
+                onClick={() => setShowPastMissions(!showPastMissions)}
+                className="flex w-full items-center justify-between rounded-xl border border-line bg-surface/60 px-4 py-3.5 text-subhead font-semibold text-ink-2 hover:bg-raised transition-colors"
+              >
+                <span>Past Missions ({pastList.length})</span>
+                <motion.span animate={{ rotate: showPastMissions ? 180 : 0 }} transition={spring.snap}>
+                  <ChevronDown className="h-4 w-4 text-ink-3" />
+                </motion.span>
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <Portal>
@@ -1451,7 +1515,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1">
                           Applicant Response
                         </p>
-                        <p className="text-subhead text-ink italic">&quot;{applicant.application_note}&quot;</p>
+                        <div className="text-subhead text-ink whitespace-pre-wrap text-xs">
+                          {applicant.application_note}
+                        </div>
                       </div>
                     )}
 

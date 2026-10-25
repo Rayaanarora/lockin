@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, Globe, Users, UserCheck, Trash2, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Flame } from "lucide-react";
+import { MessageCircle, Globe, Users, UserCheck, Trash2, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Flame, Heart } from "lucide-react";
 import { Post } from "../app/types";
 import { spring } from "../lib/motion";
 
@@ -200,9 +200,9 @@ function ImageGrid({ images, onDoubleTap }: { images: string[]; onDoubleTap: () 
   );
 }
 
-/* ───────────── Reaction ───────────── */
+/* ───────────── Like Button ───────────── */
 
-function ReactionButton({ emoji, label, count, active, onClick }: { emoji: Emoji; label: string; count: number; active: boolean; onClick: () => void }) {
+function LikeButton({ count, active, onClick }: { count: number; active: boolean; onClick: () => void }) {
   const [bursts, setBursts] = useState<number[]>([]);
   return (
     <motion.button
@@ -214,14 +214,15 @@ function ReactionButton({ emoji, label, count, active, onClick }: { emoji: Emoji
       whileTap={{ scale: 0.85 }}
       transition={spring.snap}
       aria-pressed={active}
-      aria-label={`${label}, ${count}`}
-      className={`relative flex h-9 items-center gap-1 rounded-sm border px-2.5 transition-colors after:absolute after:-inset-1 after:content-[''] ${
-        active ? "border-signal/60 bg-surface text-ink" : "border-line bg-raised text-ink-2 hover:border-ink-3/40 hover:text-ink"
+      aria-label={`Like, ${count}`}
+      className={`relative flex h-9 items-center gap-1.5 rounded-sm border px-3 transition-colors ${
+        active ? "border-crimson/60 bg-crimson/10 text-crimson" : "border-line bg-raised text-ink-2 hover:border-ink-3/40 hover:text-ink"
       }`}
     >
-      <motion.span animate={active ? { scale: [1, 1.35, 1], rotate: [0, -12, 0] } : { scale: 1 }} transition={{ duration: 0.35 }} className="text-subhead leading-none">
-        {emoji}
-      </motion.span>
+      <Heart
+        className={`h-4 w-4 transition-transform ${active ? "fill-crimson text-crimson scale-110" : "text-ink-2"}`}
+        strokeWidth={1.75}
+      />
       <span className="relative h-4 min-w-[1ch] overflow-hidden text-footnote font-semibold leading-4">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span key={count} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }} transition={{ duration: 0.18 }} className="tabular block">
@@ -232,14 +233,14 @@ function ReactionButton({ emoji, label, count, active, onClick }: { emoji: Emoji
       {bursts.map((b) => (
         <motion.span
           key={b}
-          className="pointer-events-none absolute left-2.5 top-0 text-title-3"
+          className="pointer-events-none absolute left-3 top-0"
           initial={{ y: 0, opacity: 1, scale: 0.8 }}
-          animate={{ y: -42, opacity: 0, scale: 1.4, x: [0, 6, -4, 2] }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          animate={{ y: -36, opacity: 0, scale: 1.4 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
           onAnimationComplete={() => setBursts((all) => all.filter((x) => x !== b))}
           aria-hidden="true"
         >
-          {emoji}
+          <Heart className="h-4 w-4 fill-crimson text-crimson" />
         </motion.span>
       ))}
     </motion.button>
@@ -255,6 +256,9 @@ export default function FeedPostCard({ post, currentUserId, onReactionToggle, on
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
   const VisIcon = visibility === "followers" ? Users : visibility === "college" ? UserCheck : Globe;
   const visLabel = visibility === "followers" ? "Followers" : visibility === "college" ? "Campus" : "Everyone";
+
+  const totalLikes = Object.values(reactionCounts || {}).reduce((a, b) => a + b, 0);
+  const hasLiked = Object.values(userReactions || {}).some(Boolean);
 
   return (
     <article className="overflow-hidden rounded-card border border-line bg-surface transition-colors hover:border-ink-3/30">
@@ -281,7 +285,7 @@ export default function FeedPostCard({ post, currentUserId, onReactionToggle, on
         )}
       </header>
 
-      <ImageGrid images={images} onDoubleTap={() => !userReactions?.["🔥"] && onReactionToggle(id, "🔥")} />
+      <ImageGrid images={images} onDoubleTap={() => !hasLiked && onReactionToggle(id, "❤️")} />
 
       {/* Recap */}
       {recap && (
@@ -316,18 +320,11 @@ export default function FeedPostCard({ post, currentUserId, onReactionToggle, on
 
       {/* Actions */}
       <footer className="flex items-center gap-2 px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
-        <div className="flex gap-1">
-          {REACTIONS.map(({ emoji, label }) => (
-            <ReactionButton
-              key={emoji}
-              emoji={emoji}
-              label={label}
-              count={reactionCounts?.[emoji] ?? 0}
-              active={userReactions?.[emoji] ?? false}
-              onClick={() => onReactionToggle(id, emoji)}
-            />
-          ))}
-        </div>
+        <LikeButton
+          count={totalLikes}
+          active={hasLiked}
+          onClick={() => onReactionToggle(id, "❤️")}
+        />
         <button
           type="button"
           onClick={() => onCommentsClick(post)}

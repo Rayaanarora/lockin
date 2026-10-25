@@ -113,6 +113,51 @@ async function sendMessage(req, res) {
           }).catch(err => console.error("Realtime broadcast failed:", err));
         }
       });
+
+      // Send push notification to all other participants
+      try {
+        const mission = await prisma.mission.findUnique({
+          where: { id: Number(missionId) },
+          select: {
+            title: true,
+            createdBy: true,
+            participations: {
+              where: { status: { in: ["Accepted", "Executing"] } },
+              select: { userId: true }
+            }
+          }
+        });
+        if (mission) {
+          const recipientIds = new Set();
+          if (mission.createdBy && mission.createdBy !== Number(senderId)) {
+            recipientIds.add(mission.createdBy);
+          }
+          for (const p of mission.participations || []) {
+            if (p.userId && p.userId !== Number(senderId)) {
+              recipientIds.add(p.userId);
+            }
+          }
+          for (const recipientId of recipientIds) {
+            const notifChannel = supabaseClient.channel(`notifications:${recipientId}`);
+            notifChannel.subscribe((status) => {
+              if (status === "SUBSCRIBED") {
+                notifChannel.send({
+                  type: "broadcast",
+                  event: "push_notification",
+                  payload: {
+                    title: `${msg.sender?.name || "Chat"} · ${mission.title}`,
+                    message: message.trim(),
+                    type: "chat_message",
+                    missionId: Number(missionId)
+                  }
+                }).catch((e) => console.error("Chat push notification failed:", e));
+              }
+            });
+          }
+        }
+      } catch (pushErr) {
+        console.warn("Error sending chat push notifications:", pushErr);
+      }
     }
 
     res.status(201).json(response);
@@ -133,6 +178,51 @@ async function sendMessage(req, res) {
           }).catch(err => console.error("Realtime broadcast failed:", err));
         }
       });
+
+      // Send push notification to all other participants
+      try {
+        const mission = await prisma.mission.findUnique({
+          where: { id: Number(missionId) },
+          select: {
+            title: true,
+            createdBy: true,
+            participations: {
+              where: { status: { in: ["Accepted", "Executing"] } },
+              select: { userId: true }
+            }
+          }
+        });
+        if (mission) {
+          const recipientIds = new Set();
+          if (mission.createdBy && mission.createdBy !== Number(senderId)) {
+            recipientIds.add(mission.createdBy);
+          }
+          for (const p of mission.participations || []) {
+            if (p.userId && p.userId !== Number(senderId)) {
+              recipientIds.add(p.userId);
+            }
+          }
+          for (const recipientId of recipientIds) {
+            const notifChannel = supabaseClient.channel(`notifications:${recipientId}`);
+            notifChannel.subscribe((status) => {
+              if (status === "SUBSCRIBED") {
+                notifChannel.send({
+                  type: "broadcast",
+                  event: "push_notification",
+                  payload: {
+                    title: `${msg.sender?.name || "Chat"} · ${mission.title}`,
+                    message: message.trim(),
+                    type: "chat_message",
+                    missionId: Number(missionId)
+                  }
+                }).catch((e) => console.error("Chat push notification failed:", e));
+              }
+            });
+          }
+        }
+      } catch (pushErr) {
+        console.warn("Error sending chat push notifications:", pushErr);
+      }
     }
     res.status(201).json(response);
   }

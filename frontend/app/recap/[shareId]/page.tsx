@@ -107,6 +107,16 @@ export default function PublicShareRecap() {
           style={{ transformPerspective: 1200 }}
           className={`relative mt-8 flex aspect-[9/16] w-full flex-col justify-between overflow-hidden rounded-sm border bg-surface p-7 shadow-lift ${accent === "gold" ? "border-gold/40" : "border-signal/70"}`}
         >
+          {recap.metadata?.screenshot && (
+            <>
+              <img
+                src={recap.metadata.screenshot}
+                alt="Session evidence"
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/65 to-black/35" />
+            </>
+          )}
           <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.07]">
             <LockinMark size={260} color="rgb(var(--ink))" showTriangle={false} />
           </div>
