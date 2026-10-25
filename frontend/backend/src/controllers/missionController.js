@@ -720,6 +720,72 @@ async function submitVibeCheck(req, res) {
   }
 }
 
+async function declineParticipant(req, res) {
+  const creatorId = req.userId;
+  const missionId = toId(req.params.id);
+  const participantId = toId(req.body && (req.body.participantId || req.body.userId));
+  if (!missionId || !participantId) return res.status(400).json({ error: "participantId is required." });
+
+  try {
+    const mission = await prisma.mission.findUnique({ where: { id: missionId } });
+    if (!mission) return res.status(404).json({ error: "Mission not found." });
+    if (mission.createdBy !== creatorId) return res.status(403).json({ error: "Only the mission host can decline requests." });
+
+    const target = await prisma.participation.findFirst({
+      where: { missionId, userId: participantId, status: "Requested" }
+    });
+    if (!target) return res.status(404).json({ error: "Join request not found." });
+
+    await prisma.participation.update({
+      where: { id: target.id },
+      data: { status: "Rejected" }
+    });
+
+    res.json({ success: true, mission_id: missionId, participant_id: participantId, status: "Rejected" });
+  } catch (error) {
+    console.error("Decline participant error:", error);
+    res.status(500).json({ error: "Failed to decline participant." });
+  }
+}
+
+async function hostBroadcast(req, res) {
+  const hostId = req.userId || (req.body && req.body.hostId);
+  const missionId = toId(req.params.id);
+  const { message } = req.body || {};
+  if (!missionId) return res.status(400).json({ error: "missionId is required." });
+  if (!message || !message.trim()) return res.status(400).json({ error: "Message is required." });
+
+  try {
+    const mission = await prisma.mission.findUnique({
+      where: { id: missionId },
+      include: {
+        participations: {
+          where: { status: { in: ["Accepted", "Executing"] } },
+          select: { userId: true }
+        }
+      }
+    });
+
+    if (!mission) return res.status(404).json({ error: "Mission not found." });
+    if (mission.createdBy !== hostId) return res.status(403).json({ error: "Only the host can broadcast updates." });
+
+    for (const p of mission.participations) {
+      if (p.userId === hostId) continue;
+      notifyUser(p.userId, {
+        title: `Update: ${mission.title}`,
+        message: message.trim(),
+        type: "host_broadcast",
+        missionId
+      });
+    }
+
+    res.json({ success: true, count: mission.participations.length });
+  } catch (error) {
+    console.error("Host broadcast error:", error);
+    res.status(500).json({ error: "Failed to broadcast update." });
+  }
+}
+
 module.exports = {
   createMission,
   getMissionFeed,
@@ -728,6 +794,8 @@ module.exports = {
   getActiveMissions,
   submitAttendance,
   approveParticipant,
+  declineParticipant,
+  hostBroadcast,
   getCategories,
   getCampuses,
   submitVibeCheck

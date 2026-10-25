@@ -10,6 +10,8 @@ const {
   getActiveMissions,
   submitAttendance,
   approveParticipant,
+  declineParticipant,
+  hostBroadcast,
   getCategories,
   getCampuses,
   submitVibeCheck
@@ -52,6 +54,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return await submitVibeCheck(req, res);
         case "approve-participant":
           return await approveParticipant(req, res);
+        case "decline-participant":
+          return await declineParticipant(req, res);
+        case "broadcast":
+          return await hostBroadcast(req, res);
       }
     }
 
