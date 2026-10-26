@@ -334,9 +334,26 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             <p className="mt-1 text-subhead text-ink-3">{user.department}</p>
             {user.bio && <p className="mt-3 max-w-[280px] text-subhead leading-relaxed text-ink-2">{user.bio}</p>}
 
-            <div className="mt-4 flex items-center gap-2 rounded-sm border border-line bg-raised py-1.5 pl-2 pr-3.5">
-              <CountUp value={aura} className="font-display text-title-3 font-bold text-ink" />
-              <span className="text-micro font-semibold uppercase text-ink-2">{POINTS_NAME} · {tier.name}</span>
+            {!user.avatar_url && (
+              <button type="button" onClick={() => setShowEdit(true)} className="mt-3 h-11 px-3 text-footnote text-ink-2 underline decoration-line underline-offset-4 hover:text-ink">
+                Add a photo so people recognise you
+              </button>
+            )}
+
+            <div className="mt-5 w-full rounded-sm bg-signal p-4 text-left text-ink">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="flex items-baseline gap-2">
+                  <CountUp value={aura} className="t-display tabular text-[40px] leading-none" />
+                  <span className="t-label text-ink/80">{POINTS_NAME}</span>
+                </span>
+                <span className="t-label text-ink">{tier.name}</span>
+              </div>
+              <div className="mt-3 h-1 overflow-hidden bg-ink/25" aria-hidden="true">
+                <div className="h-full bg-ink" style={{ width: `${Math.min(100, Math.max(0, tierProgress * 100))}%` }} />
+              </div>
+              <p className="mt-2 text-footnote text-ink/85">
+                {tier.ceil === tier.floor ? "Top rank. Keep showing up." : `${Math.max(0, tier.ceil - aura)} to the next rank`}
+              </p>
             </div>
 
             {/* Follow counts */}

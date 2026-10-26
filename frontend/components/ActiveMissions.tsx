@@ -1093,21 +1093,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                               setTimerRunning(true);
                             }
                           }}
-                          className="group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-signal/70 bg-surface p-4 text-left"
+                          className="group relative flex w-full items-center justify-between overflow-hidden rounded-sm bg-signal p-5 text-left text-ink transition-colors hover:bg-cherry"
                         >
-                          <motion.span
-                            aria-hidden="true"
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-signal/15 to-transparent"
-                            animate={{ x: ["-100%", "100%"] }}
-                            transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
-                          />
                           <span className="relative">
-                            <span className="t-label">{timerRunning || activeFocusMission?.id === mission.id ? "Session active" : "Focus mode"}</span>
+                            <span className="t-label text-ink/80">{timerRunning || activeFocusMission?.id === mission.id ? "Session active" : "Focus mode"}</span>
                             <span className="t-display tabular mt-1 block text-title-1 text-ink">
                               {timerRunning || activeFocusMission?.id === mission.id ? `Continue focus (${formatTime(timeLeftSeconds)})` : "Continue focus"}
                             </span>
                           </span>
-                          <Flame className="relative h-8 w-8 text-crimson transition-transform group-hover:scale-110" />
+                          <Flame className="relative h-8 w-8 text-ink transition-transform group-hover:scale-110" />
                         </motion.button>
 
                         <TaskList

@@ -567,28 +567,31 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
             {lockedFlash && (
               <motion.div
                 key="flash"
-                className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                role="status"
+                aria-live="assertive"
+                className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center overflow-hidden rounded-sm bg-signal text-ink"
+                initial={{ clipPath: "circle(0% at 70% 85%)" }}
+                animate={{ clipPath: "circle(150% at 70% 85%)" }}
                 exit={{ opacity: 0, transition: { duration: 0.25 } }}
+                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               >
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="absolute h-40 w-40 rounded-full border border-signal"
-                    initial={{ scale: 0.3, opacity: 0.9 }}
-                    animate={{ scale: 2.6, opacity: 0 }}
-                    transition={{ duration: 0.7, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                ))}
-                <motion.div
-                  initial={{ scale: 0.92, opacity: 0, letterSpacing: "0.6em" }}
-                  animate={{ scale: 1, opacity: 1, letterSpacing: "0.32em" }}
-                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                  className="rounded-sm border border-ink bg-bg px-8 py-4 text-subhead font-medium uppercase text-ink"
+                <LockinMark size={72} color="rgb(var(--ink))" animate delay={0.05} />
+                <motion.p
+                  initial={{ opacity: 0, y: 10, letterSpacing: "0.5em" }}
+                  animate={{ opacity: 1, y: 0, letterSpacing: "0.3em" }}
+                  transition={{ delay: 0.25, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-6 text-title-3 font-medium uppercase"
                 >
                   Locked in
-                </motion.div>
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.45, duration: 0.4 }}
+                  className="mt-2 text-subhead text-ink/80"
+                >
+                  It&apos;s in your Queue.
+                </motion.p>
               </motion.div>
             )}
           </AnimatePresence>
