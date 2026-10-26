@@ -11,13 +11,15 @@ import PostDetailModal from "./PostDetailModal";
 import UserSearchModal from "./UserSearchModal";
 import PublicProfile from "./PublicProfile";
 import PostComposer from "./PostComposer";
+import FeedRail from "./FeedRail";
 
 interface SocialFeedProps {
   user: User;
   api: (path: string, options?: RequestInit) => Promise<any>;
+  setTab?: (tab: string) => void;
 }
 
-export default function SocialFeed({ user, api }: SocialFeedProps) {
+export default function SocialFeed({ user, api, setTab }: SocialFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [filter, setFilter] = useState<"everyone" | "following" | "college">("college");
   const [loading, setLoading] = useState(true);
@@ -148,7 +150,9 @@ export default function SocialFeed({ user, api }: SocialFeedProps) {
   };
 
   return (
-    <section className="mx-auto w-full max-w-[600px] flex-1 pt-2 md:pt-12">
+    <section className="mx-auto w-full max-w-[600px] flex-1 pt-2 md:pt-12 lg:max-w-[1080px] lg:px-12 2xl:max-w-[1360px]">
+      <div className="lg:grid lg:grid-cols-[minmax(0,640px)_300px] lg:justify-between lg:gap-14 2xl:grid-cols-[minmax(0,780px)_360px] 2xl:gap-20">
+      <div className="min-w-0">
       {/* Header */}
       <div className="flex items-end justify-between gap-4 px-5 md:px-0">
         <div>
@@ -289,6 +293,21 @@ export default function SocialFeed({ user, api }: SocialFeedProps) {
             )}
           </>
         )}
+      </div>
+
+      </div>
+
+      <div className="lg:sticky lg:top-12 lg:self-start lg:pt-[106px]">
+        <FeedRail
+          user={user}
+          api={api}
+          setTab={setTab}
+          onOpenProfile={(id) => {
+            setSelectedProfileUserId(id);
+            setIsProfileOpen(true);
+          }}
+        />
+      </div>
       </div>
 
       <PostComposer

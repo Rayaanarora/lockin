@@ -268,7 +268,7 @@ export default function Home() {
       );
     }
     if (tab === "feed") {
-      return <SocialFeed user={user} api={api} />;
+      return <SocialFeed user={user} api={api} setTab={setTab} />;
     }
     if (tab === "inbox") {
       return (
