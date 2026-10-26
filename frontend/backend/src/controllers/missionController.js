@@ -108,7 +108,7 @@ async function getMissionFeed(req, res) {
     take: 50,
     include: {
       category: true,
-      creator: { select: { name: true, department: true, reputationScore: true } },
+      creator: { select: { name: true, username: true, department: true, reputationScore: true } },
       participations: {
         where: { status: { in: ["Accepted", "Executing", "Completed"] } },
         include: { user: { select: { id: true, name: true, department: true, reputationScore: true } } }
@@ -133,6 +133,7 @@ async function getMissionFeed(req, res) {
       location: m.location,
       datetime: m.datetime ? m.datetime.toISOString() : null,
       creator_name: m.creator?.name || "Unknown",
+      creator_username: m.creator?.username || null,
       creator_department: m.creator?.department || "Creator",
       category_name: m.category?.categoryName || "Other",
       category_id: m.categoryId,

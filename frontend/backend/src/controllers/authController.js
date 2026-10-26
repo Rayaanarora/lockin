@@ -141,6 +141,7 @@ async function syncProfile(req, res) {
     user: {
       id: user.id,
       name: user.name,
+      username: user.username || null,
       email: user.email,
       email_verified: user.emailVerified,
       college: user.college,
@@ -170,6 +171,7 @@ async function getMe(req, res) {
   res.json({
     id: dbUser.id,
     name: dbUser.name,
+    username: dbUser.username || null,
     email: dbUser.email,
     email_verified: dbUser.emailVerified,
     college: dbUser.college,

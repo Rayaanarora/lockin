@@ -25,8 +25,11 @@ async function getMessages(req, res) {
     where: { missionId },
     orderBy: { createdAt: "asc" },
     take: 500,
-    include: { sender: { select: { name: true } } }
+    include: { sender: { select: { name: true, username: true } } }
   });
+  // Opening the chat reads it (inbox unread counts).
+  const { markMissionChatRead } = require("./inboxController");
+  await markMissionChatRead(missionId, req.userId);
 
   res.json(
     messages.map((m) => ({
@@ -35,7 +38,8 @@ async function getMessages(req, res) {
       sender_id: m.senderId,
       message: m.message,
       created_at: m.createdAt,
-      sender_name: m.sender.name
+      sender_name: m.sender.name,
+      sender_username: m.sender.username || null
     }))
   );
 }
@@ -56,7 +60,7 @@ async function sendMessage(req, res) {
 
   const msg = await prisma.message.create({
     data: { missionId, senderId: req.userId, message: text },
-    include: { sender: { select: { name: true } } }
+    include: { sender: { select: { name: true, username: true } } }
   });
 
   const response = {
@@ -65,11 +69,12 @@ async function sendMessage(req, res) {
     sender_id: msg.senderId,
     message: msg.message,
     created_at: msg.createdAt,
-    sender_name: msg.sender.name
+    sender_name: msg.sender.name,
+    sender_username: msg.sender.username || null
   };
 
-  notifyMissionChat(missionId, response);
+  await notifyMissionChat(missionId, response);
   res.status(201).json(response);
 }
 
-module.exports = { getMessages, sendMessage };
+module.exports = { getMessages, sendMessage, canChat };

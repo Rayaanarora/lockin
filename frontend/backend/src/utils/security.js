@@ -110,7 +110,27 @@ function sendServerError(res, error, scope) {
   return res.status(500).json({ error: "Something went wrong. Please try again." });
 }
 
+// Usernames: Instagram-style, stored lowercase, unique (users_username_key).
+const USERNAME_RE = /^[a-z0-9._]{3,20}$/;
+const RESERVED_USERNAMES = new Set([
+  "admin", "administrator", "lockin", "lockin.top", "support", "help", "official", "team",
+  "staff", "mod", "moderator", "system", "root", "null", "undefined", "api", "inbox", "settings"
+]);
+
+/** Returns { username } when valid, or { error } with a message for the user. */
+function checkUsername(value) {
+  const u = String(value || "").trim().replace(/^@/, "").toLowerCase();
+  if (u.length < 3) return { error: "Usernames need at least 3 characters." };
+  if (u.length > 20) return { error: "Usernames can be at most 20 characters." };
+  if (!USERNAME_RE.test(u)) return { error: "Use only letters, numbers, periods and underscores." };
+  if (/^[._]|[._]$/.test(u) || /\.\./.test(u)) return { error: "Periods and underscores can't start, end or repeat." };
+  if (/^\d+$/.test(u)) return { error: "Usernames need at least one letter." };
+  if (RESERVED_USERNAMES.has(u)) return { error: "That username is reserved." };
+  return { username: u };
+}
+
 module.exports = {
+  checkUsername,
   IDENTITY_FIELDS,
   forceIdentity,
   toId,

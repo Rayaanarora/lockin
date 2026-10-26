@@ -6,7 +6,7 @@ import { User, Mission } from "../app/types";
 import HeatMap from "./HeatMap";
 import FollowListModal from "./FollowListModal";
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Instagram, Github, UserPlus, UserMinus, Zap, Clock, CheckCircle2, Calendar, ListTodo } from "lucide-react";
+import { Flame, Instagram, Github, UserPlus, UserMinus, MessageSquare, Zap, Clock, CheckCircle2, Calendar, ListTodo } from "lucide-react";
 import { AuraAvatar } from "./ui/AuraAvatar";
 import { CountUp, Reveal, Skeleton } from "./ui/motion";
 import { spring } from "../lib/motion";
@@ -118,6 +118,7 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
             <div className="relative -mx-5 -mt-2 flex flex-col items-center px-5 pb-2 pt-4 text-center sm:-mx-6 sm:px-6">
               <AuraAvatar src={u.avatar_url} initials={initials} progress={tierProgress} size={104} />
               <h2 className="t-display relative mt-4 text-title-1 text-ink">{u.name}</h2>
+              {u.username && <p className="relative mt-1 text-subhead text-ink-2">@{u.username}</p>}
               <p className="relative mt-1 text-subhead text-ink-3">
                 {u.department}
                 {u.college ? ` · ${u.college}` : ""}
@@ -190,6 +191,19 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
                       </motion.span>
                     </AnimatePresence>
                   </motion.button>
+                )}
+                {!isSelf && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      window.dispatchEvent(new CustomEvent("lockin:open-dm", { detail: { userId } }));
+                    }}
+                    aria-label={`Message ${u.name}`}
+                    className="btn-ghost flex w-28 items-center justify-center gap-2 text-subhead"
+                  >
+                    <MessageSquare className="h-4 w-4" strokeWidth={1.5} /> Message
+                  </button>
                 )}
               </div>
             </div>

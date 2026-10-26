@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getAuthUser } from "../../../lib/requireAuth";
 import { fail, notFound, requireSelf, segmentsOf, setParams } from "../../../lib/apiRoute";
 
-const { createUser, getUser, getLockStatus, updateUser, getLeaderboard, getUserHeat, getPublicProfile, searchUsers } = require("../../../backend/src/controllers/userController");
+const { createUser, getUser, getLockStatus, updateUser, getLeaderboard, getUserHeat, getPublicProfile, searchUsers, usernameAvailable } = require("../../../backend/src/controllers/userController");
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getAuthUser(req, res);
@@ -11,6 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const seg = segmentsOf(req);
   try {
     if (req.method === "GET" && seg[0] === "search") return await searchUsers(req, res);
+    if (req.method === "GET" && seg[0] === "username-available") return await usernameAvailable(req, res);
     if (req.method === "GET" && seg[0] === "leaderboard") return await getLeaderboard(req, res);
     if (req.method === "POST" && !seg[0]) return await createUser(req, res);
 

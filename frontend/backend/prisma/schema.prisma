@@ -12,6 +12,7 @@ model User {
   id               Int             @id @default(autoincrement()) @map("user_id")
   supabaseId       String?         @unique @map("supabase_id")
   name             String          @db.VarChar(50)
+  username         String?         @unique @db.VarChar(20)
   email            String?         @unique @db.VarChar(100)
   emailVerified    Boolean         @default(false) @map("email_verified")
   verifiedAt       DateTime?       @map("verified_at")
@@ -38,6 +39,11 @@ model User {
   posts            Post[]
   comments         Comment[]
   reactions        Reaction[]
+  dmThreadsA       DmThread[]      @relation("DmUserA")
+  dmThreadsB       DmThread[]      @relation("DmUserB")
+  dmThreadsStarted DmThread[]      @relation("DmStarter")
+  dmMessages       DmMessage[]
+  chatReads        MissionChatRead[]
 
   @@map("users")
 }
@@ -104,6 +110,7 @@ model Mission {
   messages         Message[]
   sessionRecaps    SessionRecap[]
   tasks            Task[]
+  chatReads        MissionChatRead[]
 
   @@map("mission")
 }
@@ -155,6 +162,7 @@ model Message {
   mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
+  @@index([missionId, createdAt])
   @@map("messages")
 }
 
@@ -287,4 +295,52 @@ model Reaction {
 
   @@unique([userId, postId, emoji])
   @@map("reaction")
+}
+
+// Direct messages: one thread per pair (userAId < userBId). "request" until the
+// recipient replies or accepts; see supabase/inbox_usernames.sql.
+model DmThread {
+  id            Int         @id @default(autoincrement()) @map("thread_id")
+  userAId       Int         @map("user_a_id")
+  userBId       Int         @map("user_b_id")
+  startedBy     Int         @map("started_by")
+  status        String      @default("active") @db.VarChar(10)
+  lastMessageAt DateTime    @default(now()) @map("last_message_at")
+  aLastReadAt   DateTime?   @map("a_last_read_at")
+  bLastReadAt   DateTime?   @map("b_last_read_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  userA         User        @relation("DmUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB         User        @relation("DmUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  starter       User        @relation("DmStarter", fields: [startedBy], references: [id], onDelete: Cascade)
+  messages      DmMessage[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId, lastMessageAt])
+  @@index([userBId, lastMessageAt])
+  @@map("dm_thread")
+}
+
+model DmMessage {
+  id        Int      @id @default(autoincrement()) @map("dm_message_id")
+  threadId  Int      @map("thread_id")
+  senderId  Int      @map("sender_id")
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  thread    DmThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("dm_message")
+}
+
+// When each user last read each mission chat (inbox unread counts).
+model MissionChatRead {
+  userId     Int      @map("user_id")
+  missionId  Int      @map("mission_id")
+  lastReadAt DateTime @default(now()) @map("last_read_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, missionId])
+  @@map("mission_chat_read")
 }

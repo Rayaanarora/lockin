@@ -1346,7 +1346,7 @@ function CardBody({ mission }: { mission: Mission }) {
             {isSystem ? (
               <span className="text-crimson font-semibold tracking-[0.16em]">LOCKIN PROTOCOL</span>
             ) : (
-              `@${handleOf(mission.creator_name || undefined)}`
+              `@${mission.creator_username || handleOf(mission.creator_name || undefined)}`
             )}
           </p>
         </div>

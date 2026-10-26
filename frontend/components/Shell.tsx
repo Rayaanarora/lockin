@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { User } from "../app/types";
 import { LockinLogo } from "./ui/LockinLogo";
 import { CountUp } from "./ui/motion";
-import { NAV_ITEMS } from "./Nav";
+import { NAV_ITEMS, UnreadBadge } from "./Nav";
 import { spring } from "../lib/motion";
 import { POINTS_NAME } from "../lib/brand";
 
@@ -13,9 +13,10 @@ interface ShellProps {
   tab?: string;
   setTab?: (tab: string) => void;
   user?: User | null;
+  unread?: number;
 }
 
-export default function Shell({ children, tab, setTab, user }: ShellProps) {
+export default function Shell({ children, tab, setTab, user, unread = 0 }: ShellProps) {
   const isDesktopDashboard = !!user && !!tab && !!setTab;
 
   return (
@@ -66,7 +67,8 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
                         </motion.span>
                       )}
                       <Icon className={`relative h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? "text-crimson" : "text-ink-3 group-hover:text-ink-2"}`} />
-                      <span className="relative">{item.label}</span>
+                      <span className="relative flex-1 text-left">{item.label}</span>
+                      {item.key === "inbox" && unread > 0 && <UnreadBadge n={unread} className="relative" />}
                     </button>
                   );
                 })}
@@ -84,6 +86,7 @@ export default function Shell({ children, tab, setTab, user }: ShellProps) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-subhead font-semibold leading-tight text-ink">{user.name}</p>
+                  {user.username && <p className="truncate text-footnote text-ink-3">@{user.username}</p>}
                   <p className="mt-1 flex items-center gap-1.5 text-footnote text-gold">
                     <CountUp value={user.reputation_score ?? 0} className="font-semibold" />
                     <span className="text-ink-3">{POINTS_NAME}</span>

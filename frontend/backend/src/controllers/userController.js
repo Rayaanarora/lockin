@@ -1,5 +1,5 @@
 const prisma = require("../config/db");
-const { toId, cleanText, safeImageRef } = require("../utils/security");
+const { toId, cleanText, safeImageRef, checkUsername, rateLimit } = require("../utils/security");
 const { isDbUnavailable } = require("../utils/dbFallback");
 
 function required(value) {
@@ -49,6 +49,11 @@ async function updateUser(req, res) {
       data[key] = handle;
     }
   }
+  if (b.username !== undefined) {
+    const check = checkUsername(b.username);
+    if (check.error) return res.status(400).json({ error: check.error, field: "username" });
+    data.username = check.username;
+  }
   if (b.interests !== undefined) data.interests = cleanText(b.interests, 500);
   if (b.avatarUrl !== undefined) {
     const avatar = safeImageRef(b.avatarUrl);
@@ -78,8 +83,24 @@ async function updateUser(req, res) {
     data.college = cleanText(b.college, 100);
   }
 
-  const user = await prisma.user.update({ where: { id: userId }, data, include: { collegeRef: true } });
-  res.json(privateView(user));
+  try {
+    const user = await prisma.user.update({ where: { id: userId }, data, include: { collegeRef: true } });
+    res.json(privateView(user));
+  } catch (error) {
+    if (error.code === "P2002") return res.status(409).json({ error: "That username is taken.", field: "username" });
+    throw error;
+  }
+}
+
+// GET /api/users/username-available?u=  (signed in; your own name counts as available)
+async function usernameAvailable(req, res) {
+  const rl = rateLimit(`uname:${req.userId}`, 60, 60e3);
+  if (!rl.ok) return res.status(429).json({ error: "Slow down a little." });
+  const check = checkUsername(req.query.u);
+  if (check.error) return res.json({ available: false, reason: check.error });
+  const owner = await prisma.user.findUnique({ where: { username: check.username }, select: { id: true } });
+  const available = !owner || owner.id === req.userId;
+  res.json({ username: check.username, available, reason: available ? null : "That username is taken." });
 }
 
 /** What the owner sees about themselves. Still no auth ids. */
@@ -87,6 +108,7 @@ function privateView(user) {
   return {
     id: user.id,
     name: user.name,
+    username: user.username || null,
     email: user.email,
     college: user.college,
     college_id: user.email, // legacy field name the UI expects
@@ -119,6 +141,7 @@ async function getLeaderboard(req, res) {
       select: {
         id: true,
         name: true,
+        username: true,
         department: true,
         reputationScore: true,
         interests: true
@@ -128,6 +151,7 @@ async function getLeaderboard(req, res) {
     const rows = leaderboard.map((u) => ({
       id: u.id,
       name: u.name,
+      username: u.username || null,
       department: u.department,
       reputation_score: u.reputationScore,
       interests: u.interests
@@ -263,6 +287,7 @@ async function getPublicProfile(req, res) {
       user: {
         id: user.id,
         name: user.name,
+        username: user.username || null,
         college: user.college,
         department: user.department,
         reputation_score: user.reputationScore,
@@ -343,6 +368,7 @@ async function searchUsers(req, res) {
           {
             OR: [
               { name: { contains: cleanQuery, mode: "insensitive" } },
+              { username: { contains: cleanQuery.replace(/^@/, "").toLowerCase() } },
               { department: { contains: cleanQuery, mode: "insensitive" } }
             ]
           },
@@ -352,6 +378,7 @@ async function searchUsers(req, res) {
       select: {
         id: true,
         name: true,
+        username: true,
         department: true,
         college: true,
         reputationScore: true,
@@ -386,5 +413,6 @@ module.exports = {
   getLeaderboard,
   getUserHeat,
   getPublicProfile,
-  searchUsers
+  searchUsers,
+  usernameAvailable
 };

@@ -29,6 +29,7 @@ import { Textarea } from "./ui/textarea";
 import { User, InterestCategory } from "../app/types";
 import { LockinLogo, LockinMark } from "./ui/LockinLogo";
 import Landing from "./Landing";
+import UsernameField, { UsernameState, suggestUsername } from "./inbox/UsernameField";
 import { spring, stagger, rise } from "../lib/motion";
 
 import { supabase } from "../lib/supabase";
@@ -92,6 +93,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [verifiedResetCode, setVerifiedResetCode] = useState("");
 
+  const [usernameState, setUsernameState] = useState<UsernameState>("idle");
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -101,6 +103,8 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     college_id: "",
     department: "",
     name: "",
+    username: "",
+    usernameTouched: false,
     bio: "",
     location: "",
     instagram: "",
@@ -480,6 +484,15 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     setValidation({});
   }
 
+  // A server-side username error is stale as soon as the username changes.
+  useEffect(() => {
+    setValidation((v: { [key: string]: string }) => {
+      if (!v.username) return v;
+      const { username, ...rest } = v;
+      return rest;
+    });
+  }, [form.username]);
+
   function validateStep(s: number) {
     const errs: { [key: string]: string } = {};
     if (s === 3) {
@@ -491,6 +504,10 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     }
     if (s === 4) {
       if (form.name.trim().length < 2) errs.name = "Name must be at least 2 characters.";
+      if (usernameState !== "available") {
+        errs.username =
+          usernameState === "checking" ? "Still checking that username…" : usernameState === "taken" ? "That username is taken." : "Pick a valid username.";
+      }
     }
     setValidation(errs);
     return Object.keys(errs).length === 0;
@@ -543,6 +560,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
+          username: form.username,
           college: college,
           collegeId: form.campusId ? Number(form.campusId) : null,
           department: form.department.trim(),
@@ -570,7 +588,14 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       localStorage.setItem("lockin_user_id", String(user.id));
       onReady(user);
     } catch (err: any) {
-      setError(err.message || "Registration failed. Try again.");
+      if (err?.status === 409 || (err?.status === 400 && /username/i.test(err.message || ""))) {
+        // Someone took it between the check and the save: back to the profile step.
+        setValidation({ username: err.message });
+        setDirection(-1);
+        setStep(4);
+      } else {
+        setError(err.message || "Registration failed. Try again.");
+      }
       setBusy(false);
     }
   }
@@ -703,7 +728,9 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                 onNext={goNext}
               />
             )}
-            {step === 4 && <ProfileStep form={form} setForm={setForm} validation={validation} onNext={goNext} />}
+            {step === 4 && (
+              <ProfileStep form={form} setForm={setForm} validation={validation} onNext={goNext} api={api} onUsernameState={setUsernameState} />
+            )}
             {step === 5 && (
               <SocialsStep form={form} setForm={setForm} toggleInterest={toggleInterest} onNext={goNext} interestCategories={interestCategories} />
             )}
@@ -855,7 +882,7 @@ function CampusStep({ form, setForm, validation, campuses, campusSearch, setCamp
 }
 
 /* ─── PROFILE ────────────────────────────────────────────────────── */
-function ProfileStep({ form, setForm, validation, onNext }: any) {
+function ProfileStep({ form, setForm, validation, onNext, api, onUsernameState }: any) {
   const over = form.bio.length > 140;
   return (
     <div className="space-y-7">
@@ -867,11 +894,29 @@ function ProfileStep({ form, setForm, validation, onNext }: any) {
             id="g-name"
             autoComplete="name"
             value={form.name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, name: e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              const name = e.target.value;
+              // Suggest a handle from the name until they edit it themselves.
+              setForm((f: any) => ({ ...f, name, username: f.usernameTouched ? f.username : suggestUsername(name) }));
+            }}
             placeholder="Your name"
             aria-invalid={!!validation.name}
           />
         </FormField>
+
+        <div>
+          <label htmlFor="g-username" className="t-label mb-2 block">
+            Username
+          </label>
+          <UsernameField
+            id="g-username"
+            value={form.username}
+            onChange={(v: string) => setForm((f: any) => ({ ...f, username: v, usernameTouched: true }))}
+            onState={onUsernameState}
+            api={api}
+            serverError={validation.username && validation.username !== "Still checking that username…" ? validation.username : undefined}
+          />
+        </div>
 
         <FormField
           label="Short bio"

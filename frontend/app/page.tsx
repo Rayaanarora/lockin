@@ -16,6 +16,9 @@ import ActiveMissions from "../components/ActiveMissions";
 import Profile from "../components/Profile";
 import SocialFeed from "../components/SocialFeed";
 import LoadingScreen from "../components/LoadingScreen";
+import Inbox, { InboxTarget } from "../components/Inbox";
+import ClaimUsername from "../components/ClaimUsername";
+import { DM_EVENT, DmEventDetail } from "../components/inbox/panes";
 
 import { supabase } from "../lib/supabase";
 import { api, API, isDemoSession } from "../lib/api";
@@ -29,13 +32,17 @@ export default function Home() {
   const [locked, setLocked] = useState(false);
   const [bootError, setBootError] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
+  const [unread, setUnread] = useState(0);
+  const [inboxTarget, setInboxTarget] = useState<InboxTarget>(null);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
 
   // Synchronize active tab from URL query params if present
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const queryTab = params.get("tab");
-      if (queryTab && ["missions", "feed", "active", "profile"].includes(queryTab)) {
+      if (queryTab && ["missions", "feed", "active", "inbox", "profile"].includes(queryTab)) {
         setTab(queryTab);
       }
     }
@@ -75,6 +82,21 @@ export default function Home() {
       }
     );
 
+    // Direct messages ride the same private channel; open panes listen for the re-dispatch.
+    channel.on("broadcast", { event: "dm" }, ({ payload }: { payload: DmEventDetail }) => {
+      window.dispatchEvent(new CustomEvent(DM_EVENT, { detail: payload }));
+      if (tabRef.current === "inbox") return;
+      setUnread((n) => n + 1);
+      const body = payload.message.body;
+      const toastMsg = body.length > 90 ? `${body.slice(0, 90)}…` : body;
+      setToast({
+        title: payload.incoming_request ? `Message request from ${payload.from.name}` : payload.from.name,
+        message: toastMsg,
+        type: "dm"
+      });
+      setTimeout(() => setToast((t) => (t && t.type === "dm" && t.message === toastMsg ? null : t)), 4000);
+    });
+
     channel.subscribe();
 
     return () => {
@@ -84,6 +106,35 @@ export default function Home() {
 
   const userRef = useRef<User | null>(null);
   userRef.current = user;
+
+  // Inbox badge: a cheap count, refreshed quietly in the background.
+  useEffect(() => {
+    if (!user?.username) return;
+    let live = true;
+    const tick = () =>
+      api("/inbox/unread", { background: true })
+        .then((r) => live && typeof r.count === "number" && setUnread(r.count))
+        .catch(() => {});
+    tick();
+    const t = setInterval(tick, 45000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [user?.id, user?.username]);
+
+  // Open a conversation from anywhere:
+  // window.dispatchEvent(new CustomEvent("lockin:open-dm", { detail: { userId } }))
+  useEffect(() => {
+    const openDm = (e: Event) => {
+      const d = (e as CustomEvent<{ userId?: number; missionId?: number; title?: string }>).detail || {};
+      if (d.userId) setInboxTarget({ userId: d.userId });
+      else if (d.missionId) setInboxTarget({ missionId: d.missionId, title: d.title || "Mission chat" });
+      setTab("inbox");
+    };
+    window.addEventListener("lockin:open-dm", openDm);
+    return () => window.removeEventListener("lockin:open-dm", openDm);
+  }, []);
 
   /**
    * Load the signed-in user's profile. A failed request never signs anyone out:
@@ -197,6 +248,17 @@ export default function Home() {
     if (tab === "feed") {
       return <SocialFeed user={user} api={api} />;
     }
+    if (tab === "inbox") {
+      return (
+        <Inbox
+          user={user}
+          api={api}
+          target={inboxTarget}
+          onTargetHandled={() => setInboxTarget(null)}
+          onUnread={setUnread}
+        />
+      );
+    }
     if (tab === "profile") {
       return <Profile user={user} refreshUser={refreshUser} api={api} />;
     }
@@ -210,7 +272,7 @@ export default function Home() {
         setTab={setTab}
       />
     );
-  }, [tab, user, locked]);
+  }, [tab, user, locked, inboxTarget]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -241,8 +303,13 @@ export default function Home() {
     return <ProfileGate onReady={setUser} api={api} />;
   }
 
+  // Accounts from before usernames existed claim one once.
+  if (!user.username && !isDemoSession()) {
+    return <ClaimUsername user={user} api={api} onDone={setUser} />;
+  }
+
   return (
-    <Shell tab={tab} setTab={setTab} user={user}>
+    <Shell tab={tab} setTab={setTab} user={user} unread={unread}>
       <Header user={user} />
       {/*
         Tab change: the new screen mounts immediately and fades in with CSS.
@@ -252,7 +319,7 @@ export default function Home() {
       <div key={tab} className="screen-enter flex flex-1 flex-col pb-32 md:pb-8">
         {screen}
       </div>
-      <Nav tab={tab} setTab={setTab} />
+      <Nav tab={tab} setTab={setTab} unread={unread} />
 
       {/* Realtime toast */}
       <AnimatePresence>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import UsernameField, { UsernameState } from "./inbox/UsernameField";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
@@ -62,6 +63,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({
     name: user.name || "",
+    username: user.username || "",
     department: user.department || "",
     bio: user.bio || "",
     instagram: user.instagram || "",
@@ -70,6 +72,8 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
     avatarUrl: user.avatar_url || "",
   });
   const [updating, setUpdating] = useState(false);
+  const [usernameState, setUsernameState] = useState<UsernameState>("idle");
+  const [usernameError, setUsernameError] = useState("");
   const [error, setError] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -77,6 +81,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
   useEffect(() => {
     setForm({
       name: user.name || "",
+      username: user.username || "",
       department: user.department || "",
       bio: user.bio || "",
       instagram: user.instagram || "",
@@ -277,6 +282,11 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
       setError("Name must be at least 2 characters.");
       return;
     }
+    const usernameChanged = form.username !== (user.username || "");
+    if (usernameChanged && usernameState !== "available") {
+      setUsernameError(usernameState === "checking" ? "Still checking that username…" : "Pick an available username.");
+      return;
+    }
     setUpdating(true);
     setError("");
     try {
@@ -288,7 +298,8 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
       await loadProfileStats();
       setShowEdit(false);
     } catch (err: any) {
-      setError(err.message || "Failed to update profile.");
+      if (err?.status === 409 || (err?.status === 400 && /username/i.test(err.message || ""))) setUsernameError(err.message);
+      else setError(err.message || "Failed to update profile.");
     } finally {
       setUpdating(false);
     }
@@ -319,6 +330,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             <AuraAvatar src={user.avatar_url} initials={initials} progress={tierProgress} />
 
             <h1 className="t-display mt-5 text-title-1 text-ink">{user.name}</h1>
+            {user.username && <p className="mt-1 text-subhead text-ink-2">@{user.username}</p>}
             <p className="mt-1 text-subhead text-ink-3">{user.department}</p>
             {user.bio && <p className="mt-3 max-w-[280px] text-subhead leading-relaxed text-ink-2">{user.bio}</p>}
 
@@ -765,19 +777,44 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
               <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} accept="image/*" className="sr-only" />
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="pe-name" className="t-label block">Name</label>
+              <Input
+                id="pe-name"
+                autoComplete="name"
+                value={form.name}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Your name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="pe-username" className="t-label mb-2 block">Username</label>
+              <UsernameField
+                id="pe-username"
+                value={form.username}
+                onChange={(v) => {
+                  setForm((f) => ({ ...f, username: v }));
+                  setUsernameError("");
+                }}
+                onState={setUsernameState}
+                api={api}
+                serverError={usernameError}
+              />
+            </div>
+
             {[
-              { label: "Name", key: "name", placeholder: "Your name", auto: "name" },
               { label: "Department and year", key: "department", placeholder: "CSE, 3rd year" },
               { label: "Usual spot", key: "location", placeholder: "Main library" },
               { label: "Bio", key: "bio", placeholder: "What are you working on?" },
               { label: "Instagram", key: "instagram", placeholder: "handle" },
               { label: "GitHub", key: "github", placeholder: "handle" }
-            ].map(({ label, key, placeholder, auto }) => (
+            ].map(({ label, key, placeholder }) => (
               <div key={key} className="space-y-2">
                 <label htmlFor={`pe-${key}`} className="t-label block">{label}</label>
                 <Input
                   id={`pe-${key}`}
-                  autoComplete={auto}
+                  autoComplete="off"
                   value={(form as any)[key]}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   placeholder={placeholder}

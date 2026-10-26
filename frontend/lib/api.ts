@@ -93,10 +93,13 @@ function setInflight(delta: number) {
  *   signs the user out (a stale token after the tab slept is not a logout).
  * - Reads (GET) retry once on network failure or a 502/503/504.
  */
-export async function api(path: string, options: RequestInit = {}) {
+export async function api(path: string, options: RequestInit & { background?: boolean } = {}) {
+  // Background polls (inbox badge, list refresh) don't light the progress bar.
+  const { background, ...init } = options;
+  if (background) return request(path, init);
   setInflight(1);
   try {
-    return await request(path, options);
+    return await request(path, init);
   } finally {
     setInflight(-1);
   }

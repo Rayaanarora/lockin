@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   name: string;
+  username?: string | null;
   email?: string;
   email_verified?: boolean;
   college: string;
@@ -26,6 +27,7 @@ export interface Mission {
   location: string;
   datetime?: string | null;
   creator_name?: string | null;
+  creator_username?: string | null;
   creator_department?: string | null;
   is_system?: boolean;
   status?: string;
@@ -126,6 +128,7 @@ export interface Message {
   message: string;
   created_at: string;
   sender_name: string;
+  sender_username?: string | null;
 }
 
 export interface InterestCategory {
@@ -189,3 +192,47 @@ export interface Comment {
   };
 }
 
+
+/** A person as the inbox shows them. */
+export interface InboxPerson {
+  id: number;
+  name: string;
+  username: string | null;
+  avatar_url: string | null;
+  department?: string | null;
+}
+
+export interface DmMessage {
+  id: number;
+  thread_id: number;
+  sender_id: number;
+  body: string;
+  created_at: string;
+}
+
+export type Conversation =
+  | {
+      kind: "dm";
+      key: string;
+      thread_id: number;
+      status: "active" | "request";
+      incoming_request: boolean;
+      outgoing_request: boolean;
+      other: InboxPerson;
+      last_message: DmMessage | null;
+      last_at: string;
+      unread: number;
+    }
+  | {
+      kind: "mission";
+      key: string;
+      mission_id: number;
+      title: string;
+      is_host: boolean;
+      mission_status: string | null;
+      member_count: number;
+      host: { id: number; name: string; username: string | null } | null;
+      last_message: { id: number; sender_id: number; sender_name: string; body: string; created_at: string } | null;
+      last_at: string;
+      unread: number;
+    };
