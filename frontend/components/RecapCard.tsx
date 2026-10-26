@@ -39,6 +39,17 @@ interface RecapProps {
   };
 }
 
+// iOS Safari ignores backface-visibility when a face has positioned or blended
+// children, so the hidden face is also switched off halfway through the 0.7s flip.
+function faceStyle(shown: boolean): React.CSSProperties {
+  return {
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+    visibility: shown ? "visible" : "hidden",
+    transition: "visibility 0s linear 0.35s"
+  };
+}
+
 const SHARDS = [
   { clip: "polygon(0% 0%, 50% 0%, 25% 35%, 0% 25%)", tx: -200, ty: -200, r: -180 },
   { clip: "polygon(50% 0%, 100% 0%, 75% 30%, 25% 35%)", tx: 150, ty: -240, r: 160 },
@@ -264,7 +275,7 @@ export default function LockinRecapCard({
       const wasFlipped = isFlipped;
       if (wasFlipped) {
         setIsFlipped(false);
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 750));
       }
 
       const dataUrl = await toPng(cardRef.current, {
@@ -436,7 +447,7 @@ export default function LockinRecapCard({
                 <div
                   ref={cardRef}
                   className={`relative flex flex-col justify-between overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
-                  style={{ background: cardBg, position: "absolute", inset: 0, backfaceVisibility: "hidden" }}
+                  style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(!isFlipped) }}
                 >
                   {/* Strava Photo Layer */}
                   {screenshot && (
@@ -556,7 +567,7 @@ export default function LockinRecapCard({
                 {/* ───────── BACK ───────── */}
                 <div
                   className={`relative flex flex-col overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
-                  style={{ background: cardBg, position: "absolute", inset: 0, backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                  style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(isFlipped), transform: "rotateY(180deg)" }}
                 >
                   <div className="relative z-10 flex items-start justify-between">
                     <span className="text-footnote font-semibold text-ink">Reflection</span>
