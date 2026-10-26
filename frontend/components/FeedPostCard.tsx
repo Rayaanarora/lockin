@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, Globe, Users, UserCheck, Trash2, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, Flame, Heart } from "lucide-react";
+import { MessageCircle, Trash2, X, ChevronLeft, ChevronRight, Heart, MoreHorizontal } from "lucide-react";
 import { Post } from "../app/types";
 import { spring } from "../lib/motion";
 
@@ -14,14 +14,9 @@ interface FeedPostCardProps {
   onReactionToggle: (postId: number, emoji: Emoji) => void;
   onCommentsClick: (post: Post) => void;
   onDeletePost?: (postId: number) => void;
+  onOpenProfile?: (userId: number) => void;
 }
 
-const REACTIONS: { emoji: Emoji; label: string }[] = [
-  { emoji: "🔥", label: "Fire" },
-  { emoji: "🧠", label: "Big brain" },
-  { emoji: "❤️", label: "Love" },
-  { emoji: "💀", label: "Dead" }
-];
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -189,7 +184,7 @@ function ImageGrid({ images, onDoubleTap }: { images: string[]; onDoubleTap: () 
               onAnimationComplete={() => setTimeout(() => setHeart(0), 250)}
               aria-hidden="true"
             >
-              🔥
+              <Heart className="h-24 w-24 fill-signal text-signal drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)]" strokeWidth={1.2} />
             </motion.span>
           )}
         </AnimatePresence>
@@ -200,141 +195,178 @@ function ImageGrid({ images, onDoubleTap }: { images: string[]; onDoubleTap: () 
   );
 }
 
-/* ───────────── Like Button ───────────── */
+/* ───────────── Card ───────────── */
 
-function LikeButton({ count, active, onClick }: { count: number; active: boolean; onClick: () => void }) {
-  const [bursts, setBursts] = useState<number[]>([]);
+/** "47 min" focused, "3" tasks, "5-day" streak: the proof, set large. */
+function Proof({ recap }: { recap: NonNullable<Post["recap"]> }) {
+  const stats = [
+    { label: "Focused", value: recap.sessionDuration ?? 0, unit: "min", show: recap.sessionDuration != null },
+    { label: "Tasks", value: recap.tasksCompleted ?? 0, unit: "", show: true },
+    { label: "Streak", value: recap.streak ?? 0, unit: recap.streak === 1 ? "day" : "days", show: !!recap.streak }
+  ].filter((s) => s.show);
   return (
-    <motion.button
-      type="button"
-      onClick={() => {
-        if (!active) setBursts((b) => [...b, Date.now()]);
-        onClick();
-      }}
-      whileTap={{ scale: 0.85 }}
-      transition={spring.snap}
-      aria-pressed={active}
-      aria-label={`Like, ${count}`}
-      className={`relative flex h-9 items-center gap-1.5 rounded-sm border px-3 transition-colors ${
-        active ? "border-crimson/60 bg-crimson/10 text-crimson" : "border-line bg-raised text-ink-2 hover:border-ink-3/40 hover:text-ink"
-      }`}
-    >
-      <Heart
-        className={`h-4 w-4 transition-transform ${active ? "fill-crimson text-crimson scale-110" : "text-ink-2"}`}
-        strokeWidth={1.75}
-      />
-      <span className="relative h-4 min-w-[1ch] overflow-hidden text-footnote font-semibold leading-4">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span key={count} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }} transition={{ duration: 0.18 }} className="tabular block">
-            {count}
-          </motion.span>
-        </AnimatePresence>
-      </span>
-      {bursts.map((b) => (
-        <motion.span
-          key={b}
-          className="pointer-events-none absolute left-3 top-0"
-          initial={{ y: 0, opacity: 1, scale: 0.8 }}
-          animate={{ y: -36, opacity: 0, scale: 1.4 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          onAnimationComplete={() => setBursts((all) => all.filter((x) => x !== b))}
-          aria-hidden="true"
-        >
-          <Heart className="h-4 w-4 fill-crimson text-crimson" />
-        </motion.span>
-      ))}
-    </motion.button>
+    <div className="px-4 pt-4 md:px-0">
+      <p className="t-label">Completed{recap.categorySnapshot ? ` · ${recap.categorySnapshot}` : ""}</p>
+      <p className="t-display mt-1.5 line-clamp-2 text-title-1 text-ink">{recap.missionTitle || "Focus session"}</p>
+      <dl className="mt-4 grid border-y border-line" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+        {stats.map((s, i) => (
+          <div key={s.label} className={`py-3 ${i > 0 ? "border-l border-line pl-4" : ""}`}>
+            <dt className="t-label">{s.label}</dt>
+            <dd className="mt-1 flex items-baseline gap-1">
+              <span className={`t-display tabular text-[34px] leading-none ${s.label === "Streak" && s.value >= 2 ? "text-crimson-display" : "text-ink"}`}>{s.value}</span>
+              {s.unit && <span className="text-footnote text-ink-3">{s.unit}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
-/* ───────────── Card ───────────── */
-
-export default function FeedPostCard({ post, currentUserId, onReactionToggle, onCommentsClick, onDeletePost }: FeedPostCardProps) {
+export default function FeedPostCard({ post, currentUserId, onReactionToggle, onCommentsClick, onDeletePost, onOpenProfile }: FeedPostCardProps) {
   const { id, userId, imageUrl, imageUrls, caption, visibility, createdAt, user, recap, commentCount, reactionCounts, userReactions } = post;
   const isOwner = userId === currentUserId;
   const images: string[] = imageUrls && imageUrls.length > 0 ? imageUrls : imageUrl ? [imageUrl] : [];
   const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "??";
-  const VisIcon = visibility === "followers" ? Users : visibility === "college" ? UserCheck : Globe;
   const visLabel = visibility === "followers" ? "Followers" : visibility === "college" ? "Campus" : "Everyone";
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const totalLikes = Object.values(reactionCounts || {}).reduce((a, b) => a + b, 0);
-  const hasLiked = Object.values(userReactions || {}).some(Boolean);
+  const liked = !!userReactions?.["❤️"];
+  const [pop, setPop] = useState(0);
+  // A recap shared without a reflection gets "Completed: <title>" as its caption; the proof block already says that.
+  const autoCaption = !!recap && !!caption && /^(Completed|Crashed): /.test(caption) && caption.endsWith(recap.missionTitle || "");
+  const shownCaption = autoCaption ? "" : caption;
+
+  function like() {
+    if (!liked) setPop((n) => n + 1);
+    onReactionToggle(id, "❤️");
+  }
 
   return (
-    <article className="overflow-hidden rounded-card border border-line bg-surface transition-colors hover:border-ink-3/30">
-      {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3.5 md:px-6 md:py-5">
-        {user?.avatarUrl ? (
-          <img src={user.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />
-        ) : (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-raised font-display text-title-3 font-bold text-ink">{initials}</span>
-        )}
+    <article className="border-b border-line pb-5 pt-4">
+      {/* Who */}
+      <header className="flex items-center gap-3 px-4 md:px-0">
+        <button
+          type="button"
+          onClick={() => user && onOpenProfile?.(user.id)}
+          aria-label={`View ${user?.name || "profile"}`}
+          className="shrink-0 rounded-full"
+        >
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="h-10 w-10 rounded-full border border-line object-cover" />
+          ) : (
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-raised text-footnote font-medium text-ink-2">{initials}</span>
+          )}
+        </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-subhead font-semibold leading-tight text-ink">{user?.name || "Unknown"}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 truncate text-footnote text-ink-3">
-            <span className="truncate">{user?.department || "Student"}</span>
-            <span aria-hidden="true">·</span>
+          <p className="truncate text-subhead leading-tight">
+            <button type="button" onClick={() => user && onOpenProfile?.(user.id)} className="font-medium text-ink hover:underline">
+              {user?.name || "Unknown"}
+            </button>
+            {user?.username && <span className="text-ink-3"> @{user.username}</span>}
+          </p>
+          <p className="mt-0.5 truncate text-footnote text-ink-3">
             <time dateTime={createdAt} title={new Date(createdAt).toLocaleString()}>{timeAgo(createdAt)}</time>
-            <VisIcon className="h-3.5 w-3.5 shrink-0" aria-label={visLabel} />
+            {" · "}
+            {user?.department || "Student"}
+            {" · "}
+            {visLabel}
           </p>
         </div>
         {isOwner && onDeletePost && (
-          <button type="button" onClick={() => onDeletePost(id)} aria-label="Delete post" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-raised hover:text-crimson">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Post options"
+              aria-expanded={menuOpen}
+              className="flex h-11 w-11 items-center justify-center text-ink-3 transition-colors hover:text-ink"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
+                  className="absolute right-0 top-11 z-20 min-w-[160px] border border-line bg-surface py-1 shadow-lift"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDeletePost(id);
+                    }}
+                    className="flex h-11 w-full items-center gap-2.5 px-4 text-left text-subhead text-crimson hover:bg-raised"
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete post
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </header>
 
-      <ImageGrid images={images} onDoubleTap={() => !hasLiked && onReactionToggle(id, "❤️")} />
+      {/* What they did */}
+      {recap && <Proof recap={recap} />}
 
-      {/* Recap */}
-      {recap && (
-        <div className="relative mx-4 mt-4 overflow-hidden rounded-xl border border-line bg-bg p-4 md:mx-6 md:p-6">
-          <p className="t-label relative flex items-center gap-1.5 text-crimson">
-            <Flame className="h-3.5 w-3.5" /> Session recap
-          </p>
-          <p className="t-display relative mt-1.5 line-clamp-2 text-title-2 text-ink md:text-[30px]">{recap.missionTitle || "Focus session"}</p>
-          <div className="relative mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-subhead text-ink-2">
-            {recap.sessionDuration != null && (
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-ink-3" />
-                {recap.sessionDuration} min
-              </span>
-            )}
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-ink-3" />
-              {recap.tasksCompleted ?? 0} {(recap.tasksCompleted ?? 0) === 1 ? "task" : "tasks"}
-            </span>
-            {!!recap.streak && (
-              <span className="flex items-center gap-1.5 text-crimson">
-                <Flame className="h-4 w-4" />
-                {recap.streak}-day streak
-              </span>
-            )}
-            {recap.categorySnapshot && <span className="text-ink-3">{recap.categorySnapshot}</span>}
-          </div>
+      {images.length > 0 && (
+        <div className="mt-4 md:overflow-hidden md:rounded-[4px] md:border md:border-line">
+          <ImageGrid images={images} onDoubleTap={() => !liked && like()} />
         </div>
       )}
 
-      {caption && <p className="px-4 pt-3 text-subhead leading-relaxed text-ink md:px-6 md:pt-4 md:text-[17px]">{caption}</p>}
-
-      {/* Actions */}
-      <footer className="flex items-center gap-2 px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
-        <LikeButton
-          count={totalLikes}
-          active={hasLiked}
-          onClick={() => onReactionToggle(id, "❤️")}
-        />
+      {/* Actions, Instagram order: act first, then counts, then words */}
+      <div className="mt-2 flex items-center px-2 md:-mx-2.5">
+        <motion.button
+          type="button"
+          onClick={like}
+          whileTap={{ scale: 0.85 }}
+          transition={spring.snap}
+          aria-pressed={liked}
+          aria-label={liked ? "Unlike" : "Like"}
+          className="relative flex h-11 w-11 items-center justify-center"
+        >
+          <motion.span key={pop} initial={pop ? { scale: 0.6 } : false} animate={{ scale: 1 }} transition={spring.pop} className="flex">
+            <Heart className={`h-6 w-6 transition-colors ${liked ? "fill-signal text-signal" : "text-ink"}`} strokeWidth={1.6} />
+          </motion.span>
+        </motion.button>
         <button
           type="button"
           onClick={() => onCommentsClick(post)}
-          className="relative ml-auto flex h-11 shrink-0 items-center gap-1.5 rounded-sm px-2 text-subhead text-ink-2 transition-colors hover:bg-raised hover:text-ink"
-          aria-label={`${commentCount} comments`}
+          aria-label={`Comment${commentCount ? `, ${commentCount} comments` : ""}`}
+          className="flex h-11 w-11 items-center justify-center text-ink transition-colors hover:text-ink-2"
         >
-          <MessageCircle className="h-[18px] w-[18px]" />
-          <span className="tabular">{commentCount}</span>
+          <MessageCircle className="h-6 w-6 -scale-x-100" strokeWidth={1.6} />
         </button>
-      </footer>
+      </div>
+
+      <div className="space-y-1 px-4 md:px-0">
+        {totalLikes > 0 && (
+          <p className="tabular text-subhead font-medium text-ink">
+            {totalLikes} {totalLikes === 1 ? "like" : "likes"}
+          </p>
+        )}
+        {shownCaption && (
+          <p className="text-subhead leading-relaxed text-ink-2">
+            <span className="font-medium text-ink">{user?.username || user?.name?.split(" ")[0]}</span> {shownCaption}
+          </p>
+        )}
+        {commentCount > 0 ? (
+          <button type="button" onClick={() => onCommentsClick(post)} className="h-8 text-subhead text-ink-3 transition-colors hover:text-ink-2">
+            {commentCount === 1 ? "View 1 comment" : `View all ${commentCount} comments`}
+          </button>
+        ) : (
+          <button type="button" onClick={() => onCommentsClick(post)} className="h-8 text-subhead text-ink-3 transition-colors hover:text-ink-2">
+            Add a comment…
+          </button>
+        )}
+      </div>
     </article>
   );
 }

@@ -6,7 +6,7 @@ const EMOJIS = ["🔥", "💀", "❤️", "🧠"];
 const VISIBILITIES = ["college", "followers", "everyone"];
 
 // Public-facing author and recap fields. Never select email or auth ids.
-const AUTHOR_SELECT = { id: true, name: true, department: true, college: true, collegeId: true, reputationScore: true, avatarUrl: true };
+const AUTHOR_SELECT = { id: true, name: true, username: true, department: true, college: true, collegeId: true, reputationScore: true, avatarUrl: true };
 const RECAP_SELECT = { id: true, missionTitle: true, categorySnapshot: true, sessionDuration: true, tasksCompleted: true, streak: true, generatedAt: true };
 
 function parseImageUrls(field) {

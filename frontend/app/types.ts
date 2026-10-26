@@ -150,6 +150,7 @@ export interface Post {
   user: {
     id: number;
     name: string;
+    username?: string | null;
     department: string;
     college: string;
     reputationScore: number;

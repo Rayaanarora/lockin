@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, Flame, RefreshCw, Search, WifiOff } from "lucide-react";
+import { Loader2, RefreshCw, Search, WifiOff, ImagePlus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Skeleton } from "./ui/motion";
 import { spring } from "../lib/motion";
@@ -10,6 +10,7 @@ import FeedPostCard from "./FeedPostCard";
 import PostDetailModal from "./PostDetailModal";
 import UserSearchModal from "./UserSearchModal";
 import PublicProfile from "./PublicProfile";
+import PostComposer from "./PostComposer";
 
 interface SocialFeedProps {
   user: User;
@@ -33,6 +34,7 @@ export default function SocialFeed({ user, api }: SocialFeedProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<number | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
 
   // Load feed posts
   const loadFeed = async (reset = false) => {
@@ -146,157 +148,158 @@ export default function SocialFeed({ user, api }: SocialFeedProps) {
   };
 
   return (
-    <section className="mx-auto w-full max-w-md flex-1 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-12">
-      <div className="mb-8 hidden border-b border-line pb-8 md:block">
-        <p className="t-section">Feed · Campus</p>
-        <h1 className="t-display mt-3 text-[48px] leading-none text-ink">Feed</h1>
-        <p className="mt-2 text-subhead text-ink-3">What your campus actually got done.</p>
-      </div>
-      <div className="md:grid md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
-        {/* ── Left rail ── */}
-        <div className="md:sticky md:top-12 md:order-2 md:self-start">
-          <div className="flex items-end justify-between gap-4 md:block">
-            <div>
-              <p className="t-section md:hidden">Feed · Campus</p>
-              <h1 className="t-display mt-3 text-large-title text-ink md:hidden">Feed</h1>
-                          </div>
-            <div className="flex gap-2 md:hidden">
-              <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={() => setIsSearchOpen(true)} aria-label="Search people" className="btn-ghost h-11 w-11 tracking-normal">
-                <Search className="h-[18px] w-[18px]" strokeWidth={1.5} />
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={() => loadFeed(true)} disabled={loading} aria-label="Refresh feed" className="btn-ghost h-11 w-11 tracking-normal">
-                <motion.span animate={loading ? { rotate: 360 } : { rotate: 0 }} transition={loading ? { duration: 0.8, repeat: Infinity, ease: "linear" } : { duration: 0 }} className="flex">
-                  <RefreshCw className="h-[18px] w-[18px]" strokeWidth={1.5} />
-                </motion.span>
-              </motion.button>
-            </div>
-          </div>
-
-          <p className="t-label mt-0 hidden border-b border-line pb-3 md:block">Show</p>
-          <div className="mt-5 flex rounded-sm border border-line p-1 md:mt-0 md:flex-col md:border-0 md:p-0" role="tablist" aria-label="Feed filter">
-            {[
-              { key: "college", label: user.college ? user.college.split(" ").slice(0, 3).join(" ") : "Campus" },
-              { key: "following", label: "Following" }
-            ].map((tab) => {
-              const on = filter === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  onClick={() => setFilter(tab.key as any)}
-                  className={`relative h-10 min-w-0 flex-1 rounded-sm px-3 text-[11px] font-medium uppercase tracking-[0.2em] transition-colors md:flex md:h-14 md:flex-none md:items-center md:justify-between md:border-b md:border-line md:px-0 md:text-left ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
-                >
-                  {on && <motion.span layoutId="feed-filter" className="absolute inset-0 rounded-sm bg-raised shadow-[inset_0_-1px_0_rgb(var(--signal))] md:bg-transparent md:shadow-none" transition={spring.glide} />}
-                  <span className="relative block truncate">{tab.label}</span>
-                  {on && <span className="relative hidden h-px w-8 bg-signal md:block" />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Desktop: people search + refresh live in the rail */}
-          <div className="mt-8 hidden gap-3 md:grid md:grid-cols-[1fr_auto]">
-            <button type="button" onClick={() => setIsSearchOpen(true)} className="btn-ghost h-12 justify-start px-4">
-              <Search className="h-4 w-4" strokeWidth={1.5} /> Find people
-            </button>
-            <button type="button" onClick={() => loadFeed(true)} disabled={loading} aria-label="Refresh feed" className="btn-ghost h-12 w-12 tracking-normal">
-              <motion.span animate={loading ? { rotate: 360 } : { rotate: 0 }} transition={loading ? { duration: 0.8, repeat: Infinity, ease: "linear" } : { duration: 0 }} className="flex">
-                <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
-              </motion.span>
-            </button>
-          </div>
+    <section className="mx-auto w-full max-w-[600px] flex-1 pt-2 md:pt-12">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4 px-5 md:px-0">
+        <div>
+          <p className="t-section">Campus feed</p>
+          <h1 className="t-display mt-3 text-large-title text-ink md:text-[56px] md:leading-none">Feed</h1>
         </div>
+        <div className="flex gap-1">
+          <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={() => setIsSearchOpen(true)} aria-label="Find people" className="flex h-11 w-11 items-center justify-center text-ink-2 transition-colors hover:text-ink">
+            <Search className="h-5 w-5" strokeWidth={1.6} />
+          </motion.button>
+          <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={() => loadFeed(true)} disabled={loading} aria-label="Refresh feed" className="flex h-11 w-11 items-center justify-center text-ink-2 transition-colors hover:text-ink disabled:opacity-50">
+            <motion.span animate={loading ? { rotate: 360 } : { rotate: 0 }} transition={loading ? { duration: 0.8, repeat: Infinity, ease: "linear" } : { duration: 0 }} className="flex">
+              <RefreshCw className="h-5 w-5" strokeWidth={1.6} />
+            </motion.span>
+          </motion.button>
+        </div>
+      </div>
 
-        {/* ── Posts: the hero column ── */}
-        <div className="min-w-0 md:order-1">
-      <div className="mt-5 flex-1 md:mt-0">
+      {/* Whose posts */}
+      <div className="mt-5 flex border-b border-line px-5 md:px-0" role="tablist" aria-label="Feed filter">
+        {[
+          { key: "college", label: user.campus_name || "Campus" },
+          { key: "following", label: "Following" }
+        ].map((tab) => {
+          const on = filter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => setFilter(tab.key as any)}
+              className={`relative h-12 flex-1 truncate px-3 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
+            >
+              {tab.label}
+              {on && <motion.span layoutId="feed-filter" className="absolute inset-x-0 bottom-0 h-px bg-ink" transition={spring.glide} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Share something */}
+      <button
+        type="button"
+        onClick={() => setComposerOpen(true)}
+        className="flex w-full items-center gap-3 border-b border-line px-5 py-4 text-left transition-colors hover:bg-surface md:px-0 md:hover:bg-transparent"
+      >
+        {user.avatar_url ? (
+          <img src={user.avatar_url} alt="" className="h-10 w-10 shrink-0 rounded-full border border-line object-cover" />
+        ) : (
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-raised text-footnote font-medium text-ink-2">
+            {user.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
+          </span>
+        )}
+        <span className="flex-1 text-subhead text-ink-3">What did you get done?</span>
+        <span className="flex h-10 w-10 items-center justify-center text-ink-2" aria-hidden="true">
+          <ImagePlus className="h-5 w-5" strokeWidth={1.6} />
+        </span>
+      </button>
+
+      {/* Posts */}
+      <div>
         {loading ? (
-          <div className="space-y-4">
+          <div>
             {[0, 1].map((i) => (
-              <div key={i} className="space-y-3 rounded-card border border-line bg-surface p-4">
+              <div key={i} className="space-y-3 border-b border-line px-5 py-5 md:px-0">
                 <div className="flex items-center gap-3">
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3.5 w-32" />
-                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3.5 w-40" />
+                    <Skeleton className="h-3 w-24" />
                   </div>
                 </div>
-                <Skeleton className="h-40" />
-                <Skeleton className="h-3.5 w-3/4" />
+                <Skeleton className="h-6 w-2/3" />
+                <Skeleton className="h-16" />
               </div>
             ))}
           </div>
         ) : loadError ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center rounded-card border border-dashed border-line px-8 py-16 text-center">
+          <div className="flex flex-col items-center px-8 py-16 text-center">
             <WifiOff className="h-8 w-8 text-ink-3" />
             <h2 className="t-display mt-4 text-title-1 text-ink">Feed didn&apos;t load</h2>
             <p className="mt-1.5 max-w-[260px] text-subhead text-ink-2">Check your connection and try again.</p>
-            <button
-              type="button"
-              onClick={() => loadFeed(true)}
-              className="mt-6 flex h-12 items-center gap-2 rounded-xl border border-line bg-raised px-5 text-subhead font-semibold text-ink transition-colors hover:bg-overlay"
-            >
+            <button type="button" onClick={() => loadFeed(true)} className="btn-ghost mt-6 h-12 px-6">
               <RefreshCw className="h-4 w-4" /> Retry
             </button>
-          </motion.div>
+          </div>
         ) : posts.length === 0 ? (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center rounded-card border border-dashed border-line px-8 py-16 text-center">
-            <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-              <Flame className="h-9 w-9 text-crimson" />
-            </motion.div>
-            <h2 className="t-display mt-4 text-title-1 text-ink">Quiet so far</h2>
-            <p className="mt-1.5 max-w-[260px] text-subhead text-ink-2">
-              {filter === "following" ? "People you follow haven't posted yet." : "Finish a mission and share the recap. You could be first."}
+          <div className="flex flex-col items-center px-8 py-16 text-center">
+            <h2 className="t-display text-title-1 text-ink">{filter === "following" ? "Nothing from people you follow" : "Quiet so far"}</h2>
+            <p className="mt-2 max-w-[280px] text-subhead text-ink-2">
+              {filter === "following"
+                ? "Follow people from their profiles, or switch back to your campus."
+                : "Finish a mission and share the recap, or post what you got done. You could be first."}
             </p>
-          </motion.div>
+            <button type="button" onClick={() => setComposerOpen(true)} className="btn-primary mt-6 h-12 px-7">
+              New post
+            </button>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <>
             <AnimatePresence initial={false}>
               {posts.map((post, i) => (
                 <motion.div
                   key={post.id}
-                  layout
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 6) * 0.05, duration: 0.45, ease: [0.22, 1, 0.36, 1] } }}
-                  exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.2 } }}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 6) * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
+                  exit={{ opacity: 0, transition: { duration: 0.2 } }}
                 >
-                  <FeedPostCard post={post} currentUserId={user.id} onReactionToggle={handleReactionToggle} onCommentsClick={handleCommentsClick} onDeletePost={handleDeletePost} />
+                  <FeedPostCard
+                    post={post}
+                    currentUserId={user.id}
+                    onReactionToggle={handleReactionToggle}
+                    onCommentsClick={handleCommentsClick}
+                    onDeletePost={handleDeletePost}
+                    onOpenProfile={(id) => {
+                      setSelectedProfileUserId(id);
+                      setIsProfileOpen(true);
+                    }}
+                  />
                 </motion.div>
               ))}
             </AnimatePresence>
 
-            {!hasMore && (
-              <div className="flex items-center gap-4 pb-6 pt-4">
-                <span className="h-px flex-1 bg-line" />
-                <p className="t-label">You&apos;re caught up · {posts.length} {posts.length === 1 ? "post" : "posts"}</p>
-                <span className="h-px flex-1 bg-line" />
-              </div>
-            )}
-            {!hasMore && posts.length < 4 && (
-              <p className="pb-8 text-center text-subhead text-ink-3">Finish a mission and share the recap. It lands here for your campus.</p>
-            )}
-
-            {hasMore && (
-              <div className="pb-4 pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => loadFeed(false)}
-                  disabled={loadingMore}
-                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-line bg-surface px-6 text-subhead font-semibold text-ink-2 transition-colors hover:text-ink disabled:opacity-50"
-                >
+            {hasMore ? (
+              <div className="py-6 text-center">
+                <button type="button" onClick={() => loadFeed(false)} disabled={loadingMore} className="btn-ghost h-12 px-6 disabled:opacity-50">
                   {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {loadingMore ? "Loading" : "Older posts"}
                 </button>
               </div>
+            ) : (
+              <div className="flex items-center gap-4 px-5 pb-8 pt-6 md:px-0">
+                <span className="h-px flex-1 bg-line" />
+                <p className="t-label">You&apos;re caught up</p>
+                <span className="h-px flex-1 bg-line" />
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
-        </div>
-      </div>
+      <PostComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        user={user}
+        api={api}
+        onPosted={(post) => {
+          setPosts((cur) => [post, ...cur.filter((p) => p.id !== post.id)]);
+        }}
+      />
 
       {selectedPostId && (
         <PostDetailModal
