@@ -86,12 +86,10 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [interestCategories, setInterestCategories] = useState<InterestCategory[]>([]);
-  const [devOtp, setDevOtp] = useState("");
   const [detectedCampusId, setDetectedCampusId] = useState<any>("");
   const [detectedCampusName, setDetectedCampusName] = useState("");
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
-  const [verifiedResetCode, setVerifiedResetCode] = useState("");
 
   const [usernameState, setUsernameState] = useState<UsernameState>("idle");
   const [form, setForm] = useState({
@@ -281,12 +279,22 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       if (!supabase) throw new Error("Supabase is not initialized.");
 
       if (mode === "signup") {
-        const otpRes = await api("/auth/send-otp", {
-          method: "POST",
-          body: JSON.stringify({ email: form.email })
+        // Supabase creates the account unconfirmed and emails a 6-digit code.
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: { emailRedirectTo: window.location.origin }
         });
-        if (otpRes.devCode) {
-          setDevOtp(otpRes.devCode);
+        if (signUpErr) throw signUpErr;
+        // An existing, confirmed address comes back with no identities.
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          setMode("login");
+          throw new Error("An account with this email already exists. Log in instead.");
+        }
+        if (data.session) {
+          // Email confirmation is switched off in Supabase: already signed in.
+          await afterSignIn(defaultCampusId, defaultCampusName);
+          return;
         }
         setDirection(1);
         setStep(2);
@@ -296,6 +304,14 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
           password: form.password,
         });
 
+        if (signInErr && (signInErr as any).code === "email_not_confirmed") {
+          // Signed up but never entered the code: send a fresh one.
+          await supabase.auth.resend({ type: "signup", email: form.email });
+          setMode("signup");
+          setDirection(1);
+          setStep(2);
+          return;
+        }
         if (signInErr) throw signInErr;
 
         if (data.session) {
@@ -320,13 +336,11 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
           }
         }
       } else if (mode === "forgot") {
-        const otpRes = await api("/auth/send-otp", {
-          method: "POST",
-          body: JSON.stringify({ email: form.email, purpose: "reset" })
+        // Same screen whether or not the account exists, so emails can't be probed.
+        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(form.email, {
+          redirectTo: `${window.location.origin}/reset-password`
         });
-        if (otpRes.devCode) {
-          setDevOtp(otpRes.devCode);
-        }
+        if (resetErr && (resetErr as any).status === 429) throw resetErr;
         setDirection(1);
         setStep(2);
       }
@@ -337,50 +351,52 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     }
   }
 
+  async function afterSignIn(campusId: any, campusName: string) {
+    const syncRes = await api("/auth/profile", { method: "POST" });
+    const isIncomplete = !syncRes.user.department || !syncRes.user.college;
+    if (isIncomplete) {
+      setTempUserId(syncRes.user.id);
+      setForm((f) => ({
+        ...f,
+        campusId: campusId || syncRes.user.collegeId || "",
+        campusName: campusName || syncRes.user.college || "",
+        college_id: String(campusId || syncRes.user.collegeId || ""),
+        name: syncRes.user.name || f.name
+      }));
+      setDirection(1);
+      setStep(3);
+    } else {
+      localStorage.setItem("lockin_user_id", String(syncRes.user.id));
+      onReady(syncRes.user);
+    }
+  }
+
   async function handleVerifyOtp(code: string) {
     setBusy(true);
     setError("");
     try {
-      const verifyRes = await api("/auth/verify-otp", {
-        method: "POST",
-        body: JSON.stringify({ email: form.email, code })
+      if (!supabase) throw new Error("Supabase is not initialized.");
+      const { data, error: verifyErr } = await supabase.auth.verifyOtp({
+        email: form.email,
+        token: code,
+        type: mode === "forgot" ? "recovery" : "email"
       });
-      if (!verifyRes.success) {
-        throw new Error(verifyRes.error || "Invalid verification code.");
+      if (verifyErr || !data.session) {
+        throw new Error(
+          (verifyErr as any)?.code === "otp_expired"
+            ? "That code is wrong or has expired. Check the latest email, or resend."
+            : verifyErr?.message || "Couldn't verify that code."
+        );
       }
 
       if (mode === "forgot") {
-        setVerifiedResetCode(code);
+        // Signed in for recovery only; the new password is set on the next step.
         setDirection(1);
         setStep(7);
         return;
       }
 
-      if (!supabase) throw new Error("Supabase is not initialized.");
-      const { data, error: signUpErr } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: { emailRedirectTo: window.location.origin }
-      });
-      if (signUpErr) throw signUpErr;
-
-      const syncRes = await api("/auth/profile", { method: "POST" });
-      const isIncomplete = !syncRes.user.department || !syncRes.user.college;
-      if (isIncomplete) {
-        setTempUserId(syncRes.user.id);
-        setForm((f) => ({
-          ...f,
-          campusId: detectedCampusId,
-          campusName: detectedCampusName,
-          college_id: String(detectedCampusId || ""),
-          name: syncRes.user.name || f.name
-        }));
-        setDirection(1);
-        setStep(3);
-      } else {
-        localStorage.setItem("lockin_user_id", String(syncRes.user.id));
-        onReady(syncRes.user);
-      }
+      await afterSignIn(detectedCampusId, detectedCampusName);
     } catch (err: any) {
       setError(err.message || "Verification failed.");
     } finally {
@@ -392,42 +408,13 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     setBusy(true);
     setError("");
     try {
-      const res = await api("/auth/reset-password", {
-        method: "POST",
-        body: JSON.stringify({
-          email: form.email,
-          code: verifiedResetCode,
-          newPassword
-        })
-      });
-      if (!res.success) throw new Error(res.error || "Failed to update password.");
-
       if (!supabase) throw new Error("Supabase is not initialized.");
-      const { data, error: signInErr } = await supabase.auth.signInWithPassword({
-        email: form.email,
-        password: newPassword
-      });
-      if (signInErr) throw signInErr;
-
-      if (data.session) {
-        const syncRes = await api("/auth/profile", { method: "POST" });
-        const isIncomplete = !syncRes.user.department || !syncRes.user.college;
-        if (isIncomplete) {
-          setTempUserId(syncRes.user.id);
-          setForm((f) => ({
-            ...f,
-            campusId: detectedCampusId || syncRes.user.collegeId || "",
-            campusName: detectedCampusName || syncRes.user.college || "",
-            college_id: String(detectedCampusId || syncRes.user.collegeId || ""),
-            name: syncRes.user.name || f.name
-          }));
-          setDirection(1);
-          setStep(3);
-        } else {
-          localStorage.setItem("lockin_user_id", String(syncRes.user.id));
-          onReady(syncRes.user);
-        }
-      }
+      // The recovery session from verifyOtp authorises this change.
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateErr) throw updateErr;
+      // Anyone signed in elsewhere with the old password is signed out.
+      await supabase.auth.signOut({ scope: "others" }).catch(() => {});
+      await afterSignIn(detectedCampusId, detectedCampusName);
     } catch (err: any) {
       setError(err.message || "Could not update password.");
     } finally {
@@ -439,13 +426,12 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
     setBusy(true);
     setError("");
     try {
-      const otpRes = await api("/auth/send-otp", {
-        method: "POST",
-        body: JSON.stringify({ email: form.email, purpose: mode === "forgot" ? "reset" : undefined })
-      });
-      if (otpRes.devCode) {
-        setDevOtp(otpRes.devCode);
-      }
+      if (!supabase) throw new Error("Supabase is not initialized.");
+      const { error: resendErr } =
+        mode === "forgot"
+          ? await supabase.auth.resetPasswordForEmail(form.email, { redirectTo: `${window.location.origin}/reset-password` })
+          : await supabase.auth.resend({ type: "signup", email: form.email });
+      if (resendErr) throw resendErr;
     } catch (err: any) {
       setError(err.message || "Failed to resend code.");
     } finally {
@@ -712,7 +698,6 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
                 setMode={setMode}
                 onVerifyOtp={handleVerifyOtp}
                 onResendOtp={handleResendOtp}
-                devOtp={devOtp}
               />
             )}
             {step === 3 && (
@@ -1214,7 +1199,7 @@ function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode, onD
 }
 
 /* ─── CHECK INBOX & OTP ──────────────────────────────────────────── */
-function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, devOtp }: any) {
+function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy }: any) {
   const [enteredOtp, setEnteredOtp] = useState("");
   const [resendCooldown, setResendCooldown] = useState(30);
 
@@ -1231,7 +1216,7 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
         title="Check your student inbox"
         sub={
           mode === "forgot"
-            ? `We sent a 6-digit recovery code to ${form.email}. Enter it below to reset your password.`
+            ? `If ${form.email} has an account, we sent it a 6-digit code. Enter it below to reset your password.`
             : `We sent a 6-digit code to ${form.email}. Enter it below to verify your student email.`
         }
       />
@@ -1249,16 +1234,11 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
             value={enteredOtp}
             onChange={(e) => setEnteredOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
             placeholder="000000"
+            autoComplete="one-time-code"
             autoFocus
             className="h-16 w-full rounded-xl border border-line bg-raised px-4 text-center font-mono text-3xl font-bold tracking-[0.5em] text-ink focus:border-crimson focus:outline-none"
           />
         </div>
-
-        {devOtp && (
-          <p className="text-center text-xs text-ink-3">
-            Dev code: <span className="font-mono font-bold text-crimson">{devOtp}</span>
-          </p>
-        )}
 
         <PrimaryButton
           onClick={() => onVerifyOtp(enteredOtp)}
