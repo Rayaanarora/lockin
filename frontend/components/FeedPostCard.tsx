@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, Trash2, X, ChevronLeft, ChevronRight, Heart, MoreHorizontal } from "lucide-react";
+import { MessageCircle, Trash2, X, ChevronLeft, ChevronRight, Heart, MoreHorizontal, Timer } from "lucide-react";
 import { Post } from "../app/types";
 import { spring } from "../lib/motion";
 
@@ -195,33 +195,7 @@ function ImageGrid({ images, onDoubleTap }: { images: string[]; onDoubleTap: () 
   );
 }
 
-/* ───────────── Card ───────────── */
-
-/** "47 min" focused, "3" tasks, "5-day" streak: the proof, set large. */
-function Proof({ recap }: { recap: NonNullable<Post["recap"]> }) {
-  const stats = [
-    { label: "Focused", value: recap.sessionDuration ?? 0, unit: "min", show: recap.sessionDuration != null },
-    { label: "Tasks", value: recap.tasksCompleted ?? 0, unit: "", show: true },
-    { label: "Streak", value: recap.streak ?? 0, unit: recap.streak === 1 ? "day" : "days", show: !!recap.streak }
-  ].filter((s) => s.show);
-  return (
-    <div className="px-4 pt-4 md:px-0">
-      <p className="t-label">Completed{recap.categorySnapshot ? ` · ${recap.categorySnapshot}` : ""}</p>
-      <p className="t-display mt-1.5 line-clamp-2 text-title-1 text-ink">{recap.missionTitle || "Focus session"}</p>
-      <dl className="mt-4 grid border-y border-line" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
-        {stats.map((s, i) => (
-          <div key={s.label} className={`py-3 ${i > 0 ? "border-l border-line pl-4" : ""}`}>
-            <dt className="t-label">{s.label}</dt>
-            <dd className="mt-1 flex items-baseline gap-1">
-              <span className={`t-display tabular text-[34px] leading-none ${s.label === "Streak" && s.value >= 2 ? "text-crimson-display" : "text-ink"}`}>{s.value}</span>
-              {s.unit && <span className="text-footnote text-ink-3">{s.unit}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
+/* ───────────── Card (Threads-style) ───────────── */
 
 export default function FeedPostCard({ post, currentUserId, onReactionToggle, onCommentsClick, onDeletePost, onOpenProfile }: FeedPostCardProps) {
   const { id, userId, imageUrl, imageUrls, caption, visibility, createdAt, user, recap, commentCount, reactionCounts, userReactions } = post;
@@ -234,138 +208,134 @@ export default function FeedPostCard({ post, currentUserId, onReactionToggle, on
   const totalLikes = Object.values(reactionCounts || {}).reduce((a, b) => a + b, 0);
   const liked = !!userReactions?.["❤️"];
   const [pop, setPop] = useState(0);
-  // A recap shared without a reflection gets "Completed: <title>" as its caption; the proof block already says that.
+
+  // A recap shared without a reflection gets "Completed: <title>" as its caption; say it in words instead.
   const autoCaption = !!recap && !!caption && /^(Completed|Crashed): /.test(caption) && caption.endsWith(recap.missionTitle || "");
-  const shownCaption = autoCaption ? "" : caption;
+  const autoText = autoCaption || (!caption && !!recap);
+  const text = autoText
+    ? recap
+      ? `Locked in for ${recap.sessionDuration ?? 0} min on ${recap.missionTitle || "a focus session"}.`
+      : ""
+    : caption || "";
+  // When the text already says the minutes and mission, the line adds only the extras.
+  const sessionLine = recap
+    ? [
+        autoText ? null : `${recap.sessionDuration ?? 0} min`,
+        autoText ? null : recap.missionTitle,
+        recap.tasksCompleted ? `${recap.tasksCompleted} ${recap.tasksCompleted === 1 ? "task" : "tasks"}` : null,
+        recap.streak && recap.streak >= 2 ? `${recap.streak}-day streak` : null
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   function like() {
     if (!liked) setPop((n) => n + 1);
     onReactionToggle(id, "❤️");
   }
 
+  const openProfile = () => user && onOpenProfile?.(user.id);
+
   return (
-    <article className="border-b border-line pb-5 pt-4">
-      {/* Who */}
-      <header className="flex items-center gap-3 px-4 md:px-0">
-        <button
-          type="button"
-          onClick={() => user && onOpenProfile?.(user.id)}
-          aria-label={`View ${user?.name || "profile"}`}
-          className="shrink-0 rounded-full"
-        >
-          {user?.avatarUrl ? (
-            <img src={user.avatarUrl} alt="" className="h-10 w-10 rounded-full border border-line object-cover" />
-          ) : (
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-raised text-footnote font-medium text-ink-2">{initials}</span>
-          )}
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-subhead leading-tight">
-            <button type="button" onClick={() => user && onOpenProfile?.(user.id)} className="font-medium text-ink hover:underline">
+    <article className="flex gap-3 border-b border-line px-4 py-4 md:px-0">
+      <button type="button" onClick={openProfile} aria-label={`View ${user?.name || "profile"}`} className="h-10 w-10 shrink-0 rounded-full">
+        {user?.avatarUrl ? (
+          <img src={user.avatarUrl} alt="" className="h-10 w-10 rounded-full border border-line object-cover" />
+        ) : (
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-raised text-footnote font-medium text-ink-2">{initials}</span>
+        )}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          <p className="min-w-0 flex-1 truncate text-subhead leading-snug">
+            <button type="button" onClick={openProfile} className="font-medium text-ink hover:underline">
               {user?.name || "Unknown"}
             </button>
-            {user?.username && <span className="text-ink-3"> @{user.username}</span>}
+            <span className="text-ink-3">
+              {user?.username ? ` @${user.username}` : ""}
+              {" · "}
+              <time dateTime={createdAt} title={`${new Date(createdAt).toLocaleString()} · ${visLabel}`}>{timeAgo(createdAt)}</time>
+            </span>
           </p>
-          <p className="mt-0.5 truncate text-footnote text-ink-3">
-            <time dateTime={createdAt} title={new Date(createdAt).toLocaleString()}>{timeAgo(createdAt)}</time>
-            {" · "}
-            {user?.department || "Student"}
-            {" · "}
-            {visLabel}
-          </p>
-        </div>
-        {isOwner && onDeletePost && (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Post options"
-              aria-expanded={menuOpen}
-              className="flex h-11 w-11 items-center justify-center text-ink-3 transition-colors hover:text-ink"
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </button>
-            <AnimatePresence>
-              {menuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
-                  className="absolute right-0 top-11 z-20 min-w-[160px] border border-line bg-surface py-1 shadow-lift"
-                  role="menu"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDeletePost(id);
-                    }}
-                    className="flex h-11 w-full items-center gap-2.5 px-4 text-left text-subhead text-crimson hover:bg-raised"
+          {isOwner && onDeletePost && (
+            <div className="relative -my-2.5 -mr-2.5">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Post options"
+                aria-expanded={menuOpen}
+                className="flex h-11 w-11 items-center justify-center text-ink-3 transition-colors hover:text-ink"
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+              <AnimatePresence>
+                {menuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
+                    className="absolute right-0 top-11 z-20 min-w-[160px] border border-line bg-surface py-1 shadow-lift"
+                    role="menu"
                   >
-                    <Trash2 className="h-4 w-4" /> Delete post
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onDeletePost(id);
+                      }}
+                      className="flex h-11 w-full items-center gap-2.5 px-4 text-left text-subhead text-crimson hover:bg-raised"
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete post
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+
+        {text && <p className="mt-0.5 whitespace-pre-wrap break-words text-body leading-relaxed text-ink">{text}</p>}
+
+        {sessionLine && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-footnote text-ink-3">
+            <Timer className="h-3.5 w-3.5 shrink-0 text-ink-3" strokeWidth={1.75} aria-hidden="true" />
+            <span className="truncate">{sessionLine}</span>
+          </p>
+        )}
+
+        {images.length > 0 && (
+          <div className="mt-3 overflow-hidden rounded-[10px] border border-line">
+            <ImageGrid images={images} onDoubleTap={() => !liked && like()} />
           </div>
         )}
-      </header>
 
-      {/* What they did */}
-      {recap && <Proof recap={recap} />}
-
-      {images.length > 0 && (
-        <div className="mt-4 md:overflow-hidden md:rounded-[4px] md:border md:border-line">
-          <ImageGrid images={images} onDoubleTap={() => !liked && like()} />
+        <div className="-ml-2.5 mt-1.5 flex items-center gap-1">
+          <motion.button
+            type="button"
+            onClick={like}
+            whileTap={{ scale: 0.85 }}
+            transition={spring.snap}
+            aria-pressed={liked}
+            aria-label={`${liked ? "Unlike" : "Like"}${totalLikes ? `, ${totalLikes} likes` : ""}`}
+            className="flex h-11 min-w-[44px] items-center gap-1.5 px-2.5"
+          >
+            <motion.span key={pop} initial={pop ? { scale: 0.6 } : false} animate={{ scale: 1 }} transition={spring.pop} className="flex">
+              <Heart className={`h-5 w-5 transition-colors ${liked ? "fill-signal text-signal" : "text-ink-2"}`} strokeWidth={1.75} />
+            </motion.span>
+            {totalLikes > 0 && <span className={`tabular text-footnote ${liked ? "text-ink" : "text-ink-2"}`}>{totalLikes}</span>}
+          </motion.button>
+          <button
+            type="button"
+            onClick={() => onCommentsClick(post)}
+            aria-label={`Reply${commentCount ? `, ${commentCount} replies` : ""}`}
+            className="flex h-11 min-w-[44px] items-center gap-1.5 px-2.5 text-ink-2 transition-colors hover:text-ink"
+          >
+            <MessageCircle className="h-5 w-5 -scale-x-100" strokeWidth={1.75} />
+            {commentCount > 0 && <span className="tabular text-footnote">{commentCount}</span>}
+          </button>
         </div>
-      )}
-
-      {/* Actions, Instagram order: act first, then counts, then words */}
-      <div className="mt-2 flex items-center px-2 md:-mx-2.5">
-        <motion.button
-          type="button"
-          onClick={like}
-          whileTap={{ scale: 0.85 }}
-          transition={spring.snap}
-          aria-pressed={liked}
-          aria-label={liked ? "Unlike" : "Like"}
-          className="relative flex h-11 w-11 items-center justify-center"
-        >
-          <motion.span key={pop} initial={pop ? { scale: 0.6 } : false} animate={{ scale: 1 }} transition={spring.pop} className="flex">
-            <Heart className={`h-6 w-6 transition-colors ${liked ? "fill-signal text-signal" : "text-ink"}`} strokeWidth={1.6} />
-          </motion.span>
-        </motion.button>
-        <button
-          type="button"
-          onClick={() => onCommentsClick(post)}
-          aria-label={`Comment${commentCount ? `, ${commentCount} comments` : ""}`}
-          className="flex h-11 w-11 items-center justify-center text-ink transition-colors hover:text-ink-2"
-        >
-          <MessageCircle className="h-6 w-6 -scale-x-100" strokeWidth={1.6} />
-        </button>
-      </div>
-
-      <div className="space-y-1 px-4 md:px-0">
-        {totalLikes > 0 && (
-          <p className="tabular text-subhead font-medium text-ink">
-            {totalLikes} {totalLikes === 1 ? "like" : "likes"}
-          </p>
-        )}
-        {shownCaption && (
-          <p className="text-subhead leading-relaxed text-ink-2">
-            <span className="font-medium text-ink">{user?.username || user?.name?.split(" ")[0]}</span> {shownCaption}
-          </p>
-        )}
-        {commentCount > 0 ? (
-          <button type="button" onClick={() => onCommentsClick(post)} className="h-8 text-subhead text-ink-3 transition-colors hover:text-ink-2">
-            {commentCount === 1 ? "View 1 comment" : `View all ${commentCount} comments`}
-          </button>
-        ) : (
-          <button type="button" onClick={() => onCommentsClick(post)} className="h-8 text-subhead text-ink-3 transition-colors hover:text-ink-2">
-            Add a comment…
-          </button>
-        )}
       </div>
     </article>
   );
