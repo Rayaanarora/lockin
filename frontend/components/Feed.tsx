@@ -442,13 +442,13 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const deck = missions.slice(index + 1, index + 3);
 
   return (
-    <section className="mx-auto w-full max-w-md flex-1 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-12">
+    <section className="mx-auto w-full max-w-md flex-1 px-5 pt-3 md:max-w-[1240px] md:px-12 md:pt-12">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4 border-b border-line pb-4 md:pb-8">
+      <div className="flex items-center justify-between gap-4 border-b border-line pb-3 md:items-end md:pb-8">
         <div>
-          <p className="t-section">Campus · Live</p>
-          <h1 className="t-display mt-3 text-large-title text-ink md:text-[56px] md:leading-none">Missions</h1>
-          <p className="mt-2 text-subhead text-ink-3">
+          <p className="t-section hidden md:block">Campus · Live</p>
+          <h1 className="t-display text-title-1 text-ink md:mt-3 md:text-[56px] md:leading-none">Missions</h1>
+          <p className="mt-2 hidden text-subhead text-ink-3 md:block">
             {loaded ? (remaining > 0 ? `${remaining} waiting on your call` : "You're all caught up") : "Scanning campus…"}
           </p>
         </div>
@@ -458,7 +458,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           whileTap={{ scale: 0.95 }}
           whileHover="hover"
           transition={spring.snap}
-          className="group btn-primary h-11 shrink-0 px-4 md:h-12 md:px-6"
+          className="group btn-primary h-11 shrink-0 px-3.5 md:h-12 md:px-6"
         >
           <motion.span variants={{ hover: { rotate: 90 } }} transition={spring.snap} className="flex">
             <Plus className="h-4 w-4" strokeWidth={1.75} />
@@ -468,7 +468,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       </div>
 
       {/* Categories: 5 Clean Pillars */}
-      <div className="-mx-5 flex gap-1.5 overflow-x-auto border-b border-line px-5 py-2.5 scrollbar-none md:mx-0 md:justify-center md:px-0" role="tablist" aria-label="Mission categories">
+      <div className="-mx-5 flex gap-1.5 overflow-x-auto border-b border-line px-5 py-1 scrollbar-none md:mx-0 md:py-2.5 md:justify-center md:px-0" role="tablist" aria-label="Mission categories">
         {CORE_CATEGORIES.map((c) => {
           const selected = activeCategory === c.id;
           return (
@@ -606,29 +606,29 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
         </AnimatePresence>
 
         {(currentMission || lastPassed) && (
-          <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-20 -mx-5 mt-4 border-t border-line bg-bg/95 px-5 pb-3 pt-3 backdrop-blur md:static md:mx-0 md:mt-6 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+          <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-20 -mx-5 mt-3 border-t border-line bg-bg/95 px-5 pb-2.5 pt-2.5 backdrop-blur md:static md:mx-0 md:mt-6 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
             {locked && currentMission && (
-              <p className="mb-2.5 flex items-center justify-between gap-3 text-footnote text-ink-2">
-                <span className="flex items-center gap-2">
+              <p className="-mt-1 mb-1.5 flex items-center justify-between gap-3 text-footnote text-ink-2">
+                <span className="flex min-w-0 items-center gap-2">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 text-crimson" strokeWidth={1.75} />
-                  Queue full: finish one of your 3 missions first.
+                  <span className="truncate">Queue full<span className="hidden sm:inline">: finish one of your 3 missions first</span></span>
                 </span>
-                <button type="button" onClick={() => setTab?.("active")} className="h-11 shrink-0 text-footnote font-medium text-ink underline-offset-4 hover:underline">
+                <button type="button" onClick={() => setTab?.("active")} className="h-11 shrink-0 text-footnote font-medium text-ink underline underline-offset-4">
                   Open Queue
                 </button>
               </p>
             )}
             {currentMission && (
             <div className="grid grid-cols-[1fr_2fr] gap-3">
-              <motion.button type="button" onClick={() => handleAction("pass")} disabled={busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-ghost h-14 md:h-16">
+              <motion.button type="button" onClick={() => handleAction("pass")} disabled={busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-ghost h-12 md:h-16">
                 <X className="h-4 w-4" strokeWidth={1.75} /> Pass
               </motion.button>
-              <motion.button type="button" onClick={() => handleAction("accept")} disabled={locked || busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-primary h-14 md:h-16">
+              <motion.button type="button" onClick={() => handleAction("accept")} disabled={locked || busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-primary h-12 md:h-16">
                 <Check className="h-4 w-4" strokeWidth={1.75} /> {currentMission.is_event ? (currentMission.require_approval ? "Request to join" : "RSVP") : "Lock in"}
               </motion.button>
             </div>
             )}
-            <div className="mt-2.5 flex min-h-[28px] items-center justify-center md:mt-4" aria-live="polite">
+            <div className={`${lastPassed ? "flex" : "hidden md:flex"} mt-1.5 min-h-[28px] items-center justify-center md:mt-4`} aria-live="polite">
               {lastPassed ? (
                 <p className="flex items-center gap-3 text-footnote text-ink-2">
                   <span className="max-w-[200px] truncate">Passed {lastPassed.title}</span>
@@ -1265,7 +1265,7 @@ function CardBody({ mission }: { mission: Mission }) {
   const crew = mission.locked_in_count ?? 0;
 
   return (
-    <div className="relative flex min-h-[360px] flex-1 flex-col p-5 md:min-h-[560px] md:p-10">
+    <div className="relative flex flex-1 flex-col p-5 md:min-h-[560px] md:p-10">
       <div className="relative flex items-start justify-between gap-3">
         {isSystem ? (
           <div className="flex items-center gap-2">
