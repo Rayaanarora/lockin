@@ -126,7 +126,7 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
               {u.bio && <p className="relative mt-3 max-w-sm text-subhead leading-relaxed text-ink-2">{u.bio}</p>}
 
               <div className="relative mt-4 flex flex-wrap items-center justify-center gap-2">
-                <span className="flex items-center gap-2 rounded-sm border border-line bg-raised py-1.5 pl-2 pr-3.5">
+                <span className="flex h-10 items-center gap-2 rounded-sm border border-line bg-raised pl-3 pr-3.5">
                   <CountUp value={score} className="font-display text-title-3 font-bold text-ink" />
                   <span className="text-micro font-semibold uppercase text-ink-2">{POINTS_NAME}</span>
                 </span>
@@ -142,8 +142,8 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
                 )}
               </div>
 
-              <div className="relative mt-5 flex w-full max-w-sm items-stretch gap-2">
-                <div className="grid flex-1 grid-cols-2 divide-x divide-line rounded-xl border border-line">
+              <div className="relative mt-5 w-full max-w-sm space-y-2">
+                <div className="grid grid-cols-2 divide-x divide-line rounded-xl border border-line">
                   {(
                     [
                       { tab: "followers", n: profileData.followersCount, label: "Followers" },
@@ -157,7 +157,7 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
                         setFollowListInitialTab(f.tab);
                         setIsFollowListOpen(true);
                       }}
-                      className="flex flex-col items-center py-2.5 transition-colors hover:bg-raised"
+                      className="flex min-w-0 flex-col items-center py-2.5 transition-colors hover:bg-raised"
                     >
                       <motion.span key={f.n} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="t-display text-title-2 text-ink">
                         {f.n}
@@ -167,13 +167,14 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
                   ))}
                 </div>
                 {!isSelf && (
+                <div className="grid grid-cols-2 gap-2">
                   <motion.button
                     type="button"
                     onClick={handleFollowAction}
                     disabled={actionLoading}
                     whileTap={{ scale: 0.95 }}
                     transition={spring.snap}
-                    className={`flex w-32 items-center justify-center gap-2 rounded-xl text-subhead font-semibold transition-colors disabled:opacity-60 ${
+                    className={`flex h-12 items-center justify-center gap-2 rounded-xl text-subhead font-semibold transition-colors disabled:opacity-60 ${
                       profileData.isFollowing ? "btn-ghost" : "btn-primary"
                     }`}
                   >
@@ -191,8 +192,6 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
                       </motion.span>
                     </AnimatePresence>
                   </motion.button>
-                )}
-                {!isSelf && (
                   <button
                     type="button"
                     onClick={() => {
@@ -200,10 +199,11 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
                       window.dispatchEvent(new CustomEvent("lockin:open-dm", { detail: { userId } }));
                     }}
                     aria-label={`Message ${u.name}`}
-                    className="btn-ghost flex w-28 items-center justify-center gap-2 text-subhead"
+                    className="btn-ghost flex h-12 items-center justify-center gap-2 text-subhead"
                   >
                     <MessageSquare className="h-4 w-4" strokeWidth={1.5} /> Message
                   </button>
+                </div>
                 )}
               </div>
             </div>
