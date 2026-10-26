@@ -334,9 +334,9 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
             <p className="mt-1 text-subhead text-ink-3">{user.department}</p>
             {user.bio && <p className="mt-3 max-w-[280px] text-subhead leading-relaxed text-ink-2">{user.bio}</p>}
 
-            <div className="mt-4 flex items-center gap-2 rounded-sm border border-gold/30 bg-gold/[0.08] py-1.5 pl-2 pr-3.5">
+            <div className="mt-4 flex items-center gap-2 rounded-sm border border-line bg-raised py-1.5 pl-2 pr-3.5">
               <CountUp value={aura} className="font-display text-title-3 font-bold text-ink" />
-              <span className="text-micro font-semibold uppercase text-gold">{POINTS_NAME} · {tier.name}</span>
+              <span className="text-micro font-semibold uppercase text-ink-2">{POINTS_NAME} · {tier.name}</span>
             </div>
 
             {/* Follow counts */}
@@ -429,7 +429,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                   role="tab"
                   aria-selected={on}
                   onClick={() => setActiveTab(tab)}
-                  className={`relative h-10 flex-1 rounded-sm text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
+                  className={`relative h-11 flex-1 rounded-sm text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${on ? "text-ink" : "text-ink-3 hover:text-ink-2"}`}
                 >
                   {on && <motion.span layoutId="profile-tab" className="absolute inset-0 rounded-lg bg-raised shadow-[inset_0_-2px_0_rgb(var(--signal))]" transition={spring.glide} />}
                   <span className="relative">{tab === "Leaderboard" ? "Ranks" : tab}</span>
@@ -451,7 +451,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                     <p className="text-right text-subhead text-ink-2">
                       {tier.name === "Elite" ? "Top tier" : (
                         <>
-                          <span className="tabular font-semibold text-gold">{Math.max(0, tier.ceil - aura)}</span> to next
+                          <span className="tabular font-semibold text-ink">{Math.max(0, tier.ceil - aura)}</span> to next
                         </>
                       )}
                     </p>
@@ -573,16 +573,16 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                               transition={{ ...spring.pop, delay: 0.1 + (2 - rank) * 0.1 }}
                               className="flex flex-col items-center gap-2 text-center"
                             >
-                              <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-title-3 font-bold ${rank === 0 ? "border-gold bg-gold/15 text-gold" : "border-line bg-raised text-ink"}`}>
+                              <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-title-3 font-bold ${rank === 0 ? "border-signal/70 bg-raised text-crimson" : "border-line bg-raised text-ink"}`}>
                                 {e.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
                               </span>
                               <span className="w-full truncate text-footnote font-medium text-ink">{e.name.split(" ")[0]}</span>
                               <div
                                 className={`flex w-full flex-col items-center justify-start rounded-t-xl border border-b-0 pt-3 ${h} ${
-                                  rank === 0 ? "border-gold/40 bg-gradient-to-b from-gold/20 to-transparent" : "border-line bg-gradient-to-b from-raised to-transparent"
+                                  rank === 0 ? "border-signal/70 bg-raised" : "border-line bg-gradient-to-b from-raised to-transparent"
                                 }`}
                               >
-                                <span className={`t-display text-title-1 ${rank === 0 ? "text-gold" : "text-ink-2"}`}>{rank + 1}</span>
+                                <span className={`t-display text-title-1 ${rank === 0 ? "text-crimson" : "text-ink-2"}`}>{rank + 1}</span>
                                 <span className="tabular text-footnote text-ink-3">{e.reputation_score}</span>
                               </div>
                             </motion.button>
@@ -616,7 +616,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                               </span>
                               <span className="tabular text-subhead font-semibold text-ink">
                                 {entry.reputation_score}
-                                <span className="ml-1 text-caption font-normal text-gold">{POINTS_NAME}</span>
+                                <span className="ml-1 text-caption font-normal text-ink-3">{POINTS_NAME}</span>
                               </span>
                             </button>
                           </Reveal.Item>
@@ -655,7 +655,7 @@ export default function Profile({ user, refreshUser, api }: ProfileProps) {
                               <button
                                 type="button"
                                 onClick={() => handleViewMissionRecap(m.id)}
-                                className="flex h-10 shrink-0 items-center gap-1 rounded-xl border border-line px-3 text-subhead text-ink transition-colors hover:border-gold/50 hover:text-gold"
+                                className="flex h-11 shrink-0 items-center gap-1 rounded-xl border border-line px-3 text-subhead text-ink transition-colors hover:border-ink-3 hover:text-ink"
                               >
                                 Recap <ChevronRight className="h-4 w-4" />
                               </button>

@@ -363,6 +363,18 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     }
   }
 
+  // A rating waits 5 seconds before it's sent, so a mis-tap can be undone.
+  const [pendingRate, setPendingRate] = useState<{ missionId: number; rating: "W" | "L"; name: string } | null>(null);
+  useEffect(() => {
+    if (!pendingRate) return;
+    const t = setTimeout(() => {
+      handleVibeCheck(pendingRate.missionId, pendingRate.rating);
+      setPendingRate(null);
+    }, 5000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRate]);
+
   async function handleVibeCheck(missionId: number, rating: "W" | "L") {
     try {
       await api(`/missions/${missionId}/vibe-check`, {
@@ -600,13 +612,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     return new Date(datetime).getTime() - 15 * 60e3 <= Date.now();
   };
 
+  // "2 min", "1h 5m", "3d 4h": no "0h 2m".
   const timeLeft = (datetime?: string | null) => {
-    if (!datetime) return "Ready";
+    if (!datetime) return "soon";
     const diff = new Date(datetime).getTime() - Date.now();
-    if (diff <= 0) return "Ready";
+    if (diff <= 0) return "now";
     const hours = Math.floor(diff / 3600000);
-    const minutes = Math.floor((diff % 3600000) / 60000);
-    if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+    const minutes = Math.max(1, Math.ceil((diff % 3600000) / 60000));
+    if (hours >= 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+    if (hours === 0) return `${minutes} min`;
     return `${hours}h ${minutes}m`;
   };
 
@@ -637,7 +651,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             // A group host runs no session of their own: their partner checks in and finishes.
             const hostOfGroup = isCreator && !isSolo;
             const myRating = hostOfGroup ? mission.creator_vibe_rating : mission.participant_vibe_rating;
-            const canRate = !isSolo && (executing || mission.status === "Completed") && !myRating;
+            const canRate = !isSolo && mission.status === "Completed" && !myRating;
             const tasks = missionTasks[mission.id] || [];
             const doneTasks = tasks.filter((t) => t.completed).length;
 
@@ -690,13 +704,13 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         <div className="flex items-center gap-2 mt-1.5">
                           <p className="truncate text-subhead text-ink-3">{roleLabel}</p>
                           {mission.is_event && (
-                            <span className="rounded-sm border border-signal/60 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.2em] text-crimson">
+                            <span className="rounded-sm border border-signal/60 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-crimson">
                               Event
                             </span>
                           )}
                         </div>
                       </div>
-                      <span className={`flex h-7 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-[10px] font-medium uppercase tracking-[0.2em] ${status.cls}`}>
+                      <span className={`flex h-8 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-[12px] font-medium uppercase tracking-[0.12em] ${status.cls}`}>
                         {status.live && (
                           <span className="relative flex h-2 w-2">
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75" />
@@ -725,7 +739,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     <div className="flex flex-wrap gap-x-5 gap-y-2 text-subhead text-ink">
                       <span className="flex items-center gap-2">
                         <CalendarClock className="h-4 w-4 text-ink-3" />
-                        {isSolo ? "Start anytime" : due ? "Now" : `In ${timeLeft(mission.datetime)}`}
+                        {mission.status === "Completed" || mission.status === "Missed"
+                          ? mission.datetime
+                            ? new Date(mission.datetime).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })
+                            : "Done"
+                          : isSolo
+                            ? "Start anytime"
+                            : due
+                              ? "Happening now"
+                              : `Starts in ${timeLeft(mission.datetime)}`}
                       </span>
                       <span className="flex min-w-0 items-center gap-2">
                         <MapPin className="h-4 w-4 shrink-0 text-crimson" />
@@ -749,7 +771,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                                   transition={{ ...spring.pop, delay: 0.1 + i * 0.05 }}
                                   whileHover={{ y: -3, zIndex: 10 }}
                                   aria-label={`View ${a.name}`}
-                                  className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-surface bg-raised font-display text-footnote font-bold text-ink"
+                                  className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-surface bg-raised font-display text-footnote font-bold text-ink"
                                 >
                                   {getInitials(a.name)}
                                 </motion.button>
@@ -768,12 +790,12 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                                 setRosterMission(mission);
                                 setRosterTab((mission.roster?.pending?.length ?? 0) > 0 ? "pending" : "going");
                               }}
-                              className="text-caption font-semibold uppercase tracking-wider text-ink-2 hover:text-ink flex items-center gap-1.5"
+                              className="flex h-11 items-center gap-1.5 px-2 text-footnote font-medium uppercase tracking-[0.12em] text-ink-2 hover:text-ink"
                             >
-                              <Users className="h-3.5 w-3.5 text-crimson" />
+                              <Users className="h-4 w-4 text-ink-3" />
                               <span>Roster</span>
                               {(mission.roster?.pending?.length ?? 0) > 0 && (
-                                <span className="rounded-full bg-crimson px-1.5 py-0.2 text-[9px] text-white font-bold">
+                                <span className="tabular rounded-sm bg-signal px-1.5 py-0.5 text-[11px] font-medium text-ink">
                                   {mission.roster!.pending.length}
                                 </span>
                               )}
@@ -791,17 +813,17 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                               >
                                 <span className="text-ink truncate max-w-[100px]">{a.name}</span>
                                 {a.showed_up ? (
-                                  <span className="rounded bg-success/20 px-1 py-0.2 text-[8px] font-bold uppercase tracking-wider text-success">
-                                    Checked In
+                                  <span className="rounded-sm bg-success/20 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-success">
+                                    Checked in
                                   </span>
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={() => handleHostCheckIn(mission.id, a.id)}
                                     disabled={checkingInId === a.id}
-                                    className="rounded border border-signal/60 bg-signal/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-crimson hover:bg-signal/25 disabled:opacity-50"
+                                    className="h-11 rounded-sm border border-ink/40 px-3 text-[12px] font-medium uppercase tracking-[0.12em] text-ink transition-colors hover:bg-ink hover:text-bg disabled:opacity-50"
                                   >
-                                    {checkingInId === a.id ? "..." : "Check In"}
+                                    {checkingInId === a.id ? "Checking…" : "Check in"}
                                   </button>
                                 )}
                               </div>
@@ -815,7 +837,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     {mission.secret_info && (active || executing || isCreator) && (
                       <div className="rounded-xl border border-signal/60 bg-signal/10 p-3.5 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-crimson flex items-center gap-1.5">
+                          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-crimson flex items-center gap-1.5">
                             <span className="h-1.5 w-1.5 rounded-full bg-signal" />
                             Access Details
                           </span>
@@ -893,7 +915,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         </div>
                         {mission.application_note && (
                           <div className="mt-2 rounded-lg border border-line bg-surface p-2.5">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1">
+                            <p className="t-label mb-1">
                               Applicant Response
                             </p>
                             <div className="text-subhead text-ink whitespace-pre-wrap text-xs">
@@ -1149,18 +1171,39 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                       </div>
                     )}
 
-                    {/* Rate the other person: during the session or after it ends */}
-                    {canRate && (
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-line p-3">
-                        <span className="pl-1 text-subhead text-ink-2">
-                          Rate {hostOfGroup ? mission.participant_name : mission.creator_name}
-                        </span>
-                        <div className="flex gap-2">
-                          <VibeButton onClick={() => handleVibeCheck(mission.id, "W")} label="W" sub="+2" good />
-                          <VibeButton onClick={() => handleVibeCheck(mission.id, "L")} label="L" sub="−1" />
+                    {/* Rate the other person once the session is over */}
+                    {canRate && (() => {
+                      const other = (hostOfGroup ? mission.participant_name : mission.creator_name) || "them";
+                      const first = other.split(" ")[0];
+                      const pending = pendingRate && pendingRate.missionId === mission.id ? pendingRate : null;
+                      return (
+                        <div className="space-y-3 border-t border-line pt-4">
+                          {pending ? (
+                            <div className="flex items-center justify-between gap-3" role="status">
+                              <p className="text-subhead text-ink-2">
+                                You rated {first} <span className="font-medium text-ink">{pending.rating}</span>. Sending…
+                              </p>
+                              <button type="button" onClick={() => setPendingRate(null)} className="btn-ghost h-11 shrink-0 px-5">
+                                Undo
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <p className="text-headline text-ink">How did {first} show up?</p>
+                                <p className="mt-1 text-footnote leading-relaxed text-ink-2">
+                                  W means they came and did the work: +2 {POINTS_NAME} for them. L means they didn&apos;t: −1. One rating each, after the session.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <VibeButton onClick={() => setPendingRate({ missionId: mission.id, rating: "W", name: other })} label="W" sub="Showed up" good />
+                                <VibeButton onClick={() => setPendingRate({ missionId: mission.id, rating: "L", name: other })} label="L" sub="Didn't" />
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {!active && errors[mission.id] && (
                       <p role="alert" className="text-center text-subhead font-medium text-crimson">
@@ -1204,7 +1247,9 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         <p className="t-section">Queue</p>
         <h1 className="t-display mt-3 text-large-title text-ink md:mt-6 md:text-[88px] md:leading-[0.92] md:tracking-[-0.045em]">Your missions</h1>
         <p className="mt-1 text-subhead text-ink-3 md:mt-5 md:text-body">
-          {sections.needs.length > 0
+          {loading
+            ? "Loading your missions…"
+            : sections.needs.length > 0
             ? `${sections.needs.length} need${sections.needs.length === 1 ? "s" : ""} you now`
             : sections.live.length > 0
               ? "You're locked in"
@@ -1406,7 +1451,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         <DialogContent className="sm:max-w-xl max-w-full max-h-[85vh] overflow-x-hidden flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <span className="rounded-sm border border-signal/60 bg-signal/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-crimson">
+              <span className="rounded-sm border border-signal/60 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-crimson">
                 {rosterMission?.is_event ? "Event Roster" : "Group Roster"}
               </span>
               <span className="text-caption text-ink-3">#{rosterMission?.id}</span>
@@ -1467,7 +1512,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             >
               <span>Pending Requests</span>
               {(rosterMission?.roster?.pending?.length ?? 0) > 0 && (
-                <span className="rounded-full bg-crimson px-1.5 py-0.2 text-[9px] text-white font-bold">
+                <span className="tabular rounded-sm bg-signal px-1.5 py-0.5 text-[11px] font-medium text-ink">
                   {rosterMission!.roster!.pending.length}
                 </span>
               )}
@@ -1498,7 +1543,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
                     <div className="flex items-center gap-2 shrink-0">
                       {guest.showed_up ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-success/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-success">
+                        <span className="inline-flex items-center gap-1 rounded bg-success/20 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-success">
                           <Check className="h-3 w-3" /> Checked In
                         </span>
                       ) : (
@@ -1544,7 +1589,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
                     {applicant.application_note && (
                       <div className="rounded-lg border border-line bg-raised p-2.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1">
+                        <p className="t-label mb-1">
                           Applicant Response
                         </p>
                         <div className="text-subhead text-ink whitespace-pre-wrap text-xs">
@@ -1627,7 +1672,7 @@ const checkInIsOpen = (m: Mission) => !m.datetime || new Date(m.datetime).getTim
 
 function owesRating(m: Mission) {
   if (isSoloMission(m)) return false;
-  if (m.status !== "Executing" && m.status !== "Completed") return false;
+  if (m.status !== "Completed") return false;
   const hostOfGroup = m.role === "creator";
   return !(hostOfGroup ? m.creator_vibe_rating : m.participant_vibe_rating);
 }
@@ -1646,9 +1691,9 @@ function untilLabel(datetime?: string | null) {
   const diff = new Date(datetime).getTime() - Date.now();
   if (diff <= 0) return "now";
   const h = Math.floor(diff / 3600e3);
-  const min = Math.floor((diff % 3600e3) / 60e3);
+  const min = Math.max(1, Math.ceil((diff % 3600e3) / 60e3));
   if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
-  return h > 0 ? `${h}h ${min}m` : `${min}m`;
+  return h > 0 ? `${h}h ${min}m` : `${min} min`;
 }
 
 /** The one thing to do next on this card, in plain words. */
@@ -1671,7 +1716,7 @@ function nextStep(m: Mission): { text: string; urgent: boolean } {
         ? { text: `Show ${partner} your code when they arrive.`, urgent: true }
         : { text: `Enter ${hostName}'s 4-digit code when you get there.`, urgent: true };
     case "Executing":
-      if (host) return { text: `${partner} is locked in.${owesRating(m) ? " Rate the session when you're done." : ""}`, urgent: false };
+      if (host) return { text: `${partner} is locked in. You'll rate them when they finish.`, urgent: false };
       return { text: "You're locked in. Tap Finish when you're done.", urgent: true };
     case "Completed":
       if (owesRating(m)) return { text: `Rate ${host ? partner : hostName} to close this out.`, urgent: true };
@@ -1722,13 +1767,13 @@ function VibeButton({ onClick, label, sub, good }: { onClick: () => void; label:
       whileTap={{ scale: 0.85 }}
       animate={hit ? { scale: [1, 1.2, 1] } : {}}
       transition={spring.pop}
-      aria-label={`${label} vibe, ${sub} ${POINTS_NAME}`}
-      className={`flex h-11 min-w-[64px] items-center justify-center gap-1 rounded-xl border px-3 font-display text-title-3 font-bold ${
-        good ? "border-signal/60 bg-signal/10 text-crimson" : "border-line bg-raised text-ink-2"
+      aria-label={`Rate ${label}: ${sub}`}
+      className={`flex h-12 items-center justify-center gap-2 rounded-sm border px-3 font-display text-title-3 font-medium ${
+        good ? "border-ink text-ink hover:bg-ink hover:text-bg" : "border-line text-ink-2 hover:border-ink-3 hover:text-ink"
       }`}
     >
       {label}
-      <span className="text-caption font-semibold opacity-70">{sub}</span>
+      <span className="text-footnote font-normal">{sub}</span>
     </motion.button>
   );
 }

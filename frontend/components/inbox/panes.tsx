@@ -142,7 +142,7 @@ export function MissionChatPane({
         <PaneHeader
           onBack={onBack}
           avatar={
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[3px] border border-signal/50 text-crimson">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] border border-line bg-raised text-ink-2">
               <Users className="h-[18px] w-[18px]" strokeWidth={1.5} />
             </span>
           }

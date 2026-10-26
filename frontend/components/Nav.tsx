@@ -48,7 +48,7 @@ export default function Nav({ tab, setTab, unread = 0 }: NavProps) {
                 {key === "inbox" && unread > 0 && <UnreadBadge n={unread} />}
               </span>
               <span
-                className={`text-[10px] font-medium uppercase tracking-[0.2em] transition-colors duration-200 ${
+                className={`text-[11px] font-medium uppercase tracking-[0.14em] transition-colors duration-200 ${
                   isActive ? "text-ink" : "text-ink-3"
                 }`}
               >

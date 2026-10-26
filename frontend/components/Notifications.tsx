@@ -192,7 +192,7 @@ function Row({ n, meId, onOpen }: { n: AppNotification; meId: number; onOpen: ()
       onClick={onOpen}
       disabled={!actionable}
       className={`flex w-full items-center gap-3.5 px-5 py-3 text-left transition-colors hover:bg-surface disabled:cursor-default disabled:hover:bg-transparent ${
-        n.read ? "" : "bg-signal/[0.06]"
+        n.read ? "" : "shadow-[inset_2px_0_0_rgb(var(--signal))]"
       }`}
     >
       <span className="relative shrink-0">

@@ -23,9 +23,10 @@ interface ShellProps {
   user?: User | null;
   unread?: number;
   unreadNotes?: number;
+  onGrit?: () => void;
 }
 
-export default function Shell({ children, tab, setTab, user, unread = 0, unreadNotes = 0 }: ShellProps) {
+export default function Shell({ children, tab, setTab, user, unread = 0, unreadNotes = 0, onGrit }: ShellProps) {
   const isDesktopDashboard = !!user && !!tab && !!setTab;
 
   return (
@@ -97,10 +98,15 @@ export default function Shell({ children, tab, setTab, user, unread = 0, unreadN
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-subhead font-semibold leading-tight text-ink">{user.name}</p>
                   {user.username && <p className="truncate text-footnote text-ink-3">@{user.username}</p>}
-                  <p className="mt-1 flex items-center gap-1.5 text-footnote text-ink">
+                  <button
+                    type="button"
+                    onClick={onGrit}
+                    aria-label={`${user.reputation_score ?? 0} ${POINTS_NAME}. How ${POINTS_NAME} works`}
+                    className="mt-1 flex items-center gap-1.5 text-footnote text-ink"
+                  >
                     <CountUp value={user.reputation_score ?? 0} className="font-semibold" />
-                    <span className="text-ink-3">{POINTS_NAME}</span>
-                  </p>
+                    <span className="text-ink-3 underline decoration-line underline-offset-4 hover:text-ink">{POINTS_NAME}</span>
+                  </button>
                 </div>
               </div>
             </div>

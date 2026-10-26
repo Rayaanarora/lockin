@@ -215,7 +215,7 @@ export default function Inbox({
                   </button>
                 </div>
 
-                <label className="mt-5 flex h-10 items-center gap-2.5 rounded-full bg-raised px-4 focus-within:ring-1 focus-within:ring-ink/30">
+                <label className="mt-5 flex h-11 items-center gap-2.5 rounded-full bg-raised px-4 focus-within:ring-1 focus-within:ring-ink/30">
                   <Search className="h-4 w-4 shrink-0 text-ink-3" aria-hidden="true" />
                   <span className="sr-only">Search messages</span>
                   <input
@@ -341,8 +341,8 @@ function ConversationRow({ c, meId, active, onOpen }: { c: Conversation; meId: n
     preview = c.last_message
       ? `${c.last_message.sender_id === meId ? "You" : c.last_message.sender_name.split(" ")[0]}: ${c.last_message.body}`
       : c.is_host
-        ? "Your mission chat"
-        : "Mission chat";
+        ? "No messages yet"
+        : "No messages yet";
   }
   const tag =
     c.kind === "dm" && c.incoming_request ? "Request · " : c.kind === "dm" && c.outgoing_request ? "Pending · " : c.kind === "mission" ? "Mission · " : "";
@@ -358,7 +358,7 @@ function ConversationRow({ c, meId, active, onOpen }: { c: Conversation; meId: n
       {c.kind === "dm" ? (
         <Avatar name={c.other.name} src={c.other.avatar_url} size={56} round />
       ) : (
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-signal/60 text-crimson">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[4px] border border-line bg-raised text-ink-2">
           <Users className="h-6 w-6" strokeWidth={1.5} />
         </span>
       )}
@@ -441,7 +441,7 @@ function ComposePanel({ api, onBack, onPick }: { api: Api; onBack: () => void; o
         <h2 className="text-headline text-ink">New message</h2>
       </div>
       <div className="px-5 pt-4">
-        <label className="flex h-10 items-center gap-2.5 rounded-full bg-raised px-4 focus-within:ring-1 focus-within:ring-ink/30">
+        <label className="flex h-11 items-center gap-2.5 rounded-full bg-raised px-4 focus-within:ring-1 focus-within:ring-ink/30">
           <Search className="h-4 w-4 shrink-0 text-ink-3" aria-hidden="true" />
           <span className="sr-only">Search people</span>
           <input

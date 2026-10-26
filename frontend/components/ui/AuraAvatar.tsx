@@ -4,7 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { spring } from "../../lib/motion";
 
-/** Avatar wrapped in a gold ring that fills to show progress through the current Aura tier. */
+/** Avatar wrapped in a crimson ring that fills to show progress through the current Aura tier. */
 export function AuraAvatar({ src, initials, progress, size = 112 }: { src?: string | null; initials: string; progress: number; size?: number }) {
   const r = size / 2 - 3;
   const c = 2 * Math.PI * r;
@@ -17,7 +17,7 @@ export function AuraAvatar({ src, initials, progress, size = 112 }: { src?: stri
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgb(var(--gold))"
+          stroke="rgb(var(--signal))"
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={c}

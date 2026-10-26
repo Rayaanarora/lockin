@@ -242,6 +242,20 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   }, []);
 
   const currentMission = missions[Math.min(index, Math.max(0, missions.length - 1))];
+  // The last pass, kept for a few seconds so it can be undone.
+  const [lastPassed, setLastPassed] = useState<Mission | null>(null);
+  useEffect(() => {
+    if (!lastPassed) return;
+    const t = setTimeout(() => setLastPassed(null), 5000);
+    return () => clearTimeout(t);
+  }, [lastPassed]);
+  function undoPass() {
+    if (!lastPassed) return;
+    const m = lastPassed;
+    setLastPassed(null);
+    setExitDir("left");
+    setMissions((ms) => (ms.some((x) => x.id === m.id) ? ms : [m, ...ms]));
+  }
 
   const handleAction = useCallback(async (action: "accept" | "pass") => {
     if (!currentMission || busy) return;
@@ -264,11 +278,13 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
     setMissions((ms) => ms.filter((m) => m.id !== mission.id));
 
     if (action === "pass") {
+      setLastPassed(mission);
       if (mission.id < 9000) {
         api(`/missions/${mission.id}/pass`, { method: "POST" }).catch(() => {});
       }
       return;
     }
+    setLastPassed(null);
 
     setBusy(true);
     setLockedFlash(true);
@@ -352,8 +368,10 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (showCreate || rsvpingMission) return;
-      const t = e.target as HTMLElement;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const t = e.target as HTMLElement | null;
+      // Arrows belong to whatever has focus (tabs, buttons, fields, dialogs) before the deck.
+      if (t && t.closest && t.closest('input, textarea, select, button, a, [role="tab"], [role="dialog"], [contenteditable="true"]')) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       if (e.key === "ArrowLeft") handleAction("pass");
       if (e.key === "ArrowRight") handleAction("accept");
     };
@@ -460,7 +478,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
               role="tab"
               aria-selected={selected}
               onClick={() => { setActiveCategory(c.id); setError(""); }}
-              className={`relative flex h-10 shrink-0 items-center px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors rounded-sm ${selected ? "text-ink bg-raised" : "text-ink-3 hover:text-ink-2 hover:bg-raised/40"}`}
+              className={`relative flex h-11 shrink-0 items-center px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors rounded-sm ${selected ? "text-ink bg-raised" : "text-ink-3 hover:text-ink-2 hover:bg-raised/40"}`}
             >
               {c.name}
               {selected && <motion.span layoutId="cat-active" className="absolute inset-x-3 bottom-0 h-0.5 bg-signal" transition={spring.glide} />}
@@ -471,19 +489,6 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
       {/* The deck: one card, centred, the whole point of the page */}
       <div className="mx-auto mt-4 w-full max-w-[640px] md:mt-10">
-        <AnimatePresence>
-          {locked && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-              <div className="mb-5 flex items-center gap-3 rounded-sm border border-signal/70 p-4">
-                <AlertCircle className="h-4 w-4 shrink-0 text-crimson" strokeWidth={1.5} />
-                <p className="text-subhead text-ink-2">
-                  <span className="text-ink">Queue full.</span> Finish one of your 3 active missions to lock in again.
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <div className="relative perspective-distant">
           {deck.slice().reverse().map((m) => {
             const depth = missions.indexOf(m) - index; // 1 or 2
@@ -597,9 +602,21 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           )}
         </AnimatePresence>
 
-        {currentMission && (
-          <>
-            <div className="mt-4 grid grid-cols-[1fr_2fr] gap-3 md:mt-6">
+        {(currentMission || lastPassed) && (
+          <div className="sticky bottom-[calc(68px+env(safe-area-inset-bottom))] z-20 -mx-5 mt-4 border-t border-line bg-bg/95 px-5 pb-3 pt-3 backdrop-blur md:static md:mx-0 md:mt-6 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+            {locked && currentMission && (
+              <p className="mb-2.5 flex items-center justify-between gap-3 text-footnote text-ink-2">
+                <span className="flex items-center gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-crimson" strokeWidth={1.75} />
+                  Queue full: finish one of your 3 missions first.
+                </span>
+                <button type="button" onClick={() => setTab?.("active")} className="h-11 shrink-0 text-footnote font-medium text-ink underline-offset-4 hover:underline">
+                  Open Queue
+                </button>
+              </p>
+            )}
+            {currentMission && (
+            <div className="grid grid-cols-[1fr_2fr] gap-3">
               <motion.button type="button" onClick={() => handleAction("pass")} disabled={busy} whileTap={{ scale: 0.97 }} transition={spring.snap} className="btn-ghost h-14 md:h-16">
                 <X className="h-4 w-4" strokeWidth={1.75} /> Pass
               </motion.button>
@@ -607,11 +624,23 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                 <Check className="h-4 w-4" strokeWidth={1.75} /> {currentMission.is_event ? (currentMission.require_approval ? "Request to join" : "RSVP") : "Lock in"}
               </motion.button>
             </div>
-            <p className="t-label mt-4 text-center">
-              <span className="md:hidden">Swipe right to lock in · left to pass</span>
-              <span className="hidden md:inline">Swipe, or ← pass · → lock in</span>
-            </p>
-          </>
+            )}
+            <div className="mt-2.5 flex min-h-[28px] items-center justify-center md:mt-4" aria-live="polite">
+              {lastPassed ? (
+                <p className="flex items-center gap-3 text-footnote text-ink-2">
+                  <span className="max-w-[200px] truncate">Passed {lastPassed.title}</span>
+                  <button type="button" onClick={undoPass} className="h-11 px-2 font-medium text-ink underline underline-offset-4">
+                    Undo
+                  </button>
+                </p>
+              ) : (
+                <p className="t-label text-center">
+                  <span className="md:hidden">Swipe right to lock in · left to pass</span>
+                  <span className="hidden md:inline">Swipe, or ← pass · → lock in</span>
+                </p>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
@@ -855,7 +884,7 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                       {secretInfo.trim() && (
                         <>
                           <span className="mx-1.5">·</span>
-                          <span className="text-gold">Private info set</span>
+                          <span className="text-ink-2">Private info set</span>
                         </>
                       )}
                     </div>
@@ -1237,9 +1266,8 @@ function CardBody({ mission }: { mission: Mission }) {
       <div className="relative flex items-start justify-between gap-3">
         {isSystem ? (
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-signal/60 bg-signal/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-crimson">
-              <span className="h-1.5 w-1.5 rounded-full bg-crimson animate-pulse" />
-              Side Quest
+            <span className="inline-flex items-center rounded-sm border border-signal/60 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-crimson">
+              Side quest
             </span>
             <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-3">
               · {mission.category_name || "Side Quest"}
@@ -1247,12 +1275,12 @@ function CardBody({ mission }: { mission: Mission }) {
           </div>
         ) : mission.is_event ? (
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1 rounded-sm border border-gold/60 bg-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+            <span className="inline-flex items-center rounded-sm border border-signal/60 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-crimson">
               Event · RSVP
             </span>
             {mission.require_approval && (
-              <span className="inline-flex items-center rounded-sm border border-line bg-raised px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-3">
-                Vetted
+              <span className="inline-flex items-center rounded-sm border border-line px-2 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-ink-2">
+                Host approves
               </span>
             )}
             <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-3">
@@ -1300,7 +1328,7 @@ function CardBody({ mission }: { mission: Mission }) {
         <div className="flex items-end justify-between gap-4">
           {isSystem ? (
             <div>
-              <p className="t-label text-crimson">Focus session</p>
+              <p className="t-label">Focus session</p>
               <p className="t-display mt-2 text-[34px] leading-none text-ink md:text-[56px]">
                 {mission.focus_duration || 25} <span className="text-[20px] md:text-[28px] font-light text-ink-3">MIN</span>
               </p>
@@ -1316,8 +1344,8 @@ function CardBody({ mission }: { mission: Mission }) {
           <p className="t-label shrink-0 pb-1 text-right">
             {isSystem ? (
               <>
-                <span className="block text-callout normal-case tracking-normal text-crimson font-semibold">Start anytime</span>
-                On demand
+                <span className="block text-callout normal-case tracking-normal text-ink">Start anytime</span>
+                No set time
               </>
             ) : (
               <>
@@ -1332,7 +1360,7 @@ function CardBody({ mission }: { mission: Mission }) {
 
         <div className="relative mt-4 h-px bg-line">
           {isSystem ? (
-            <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-crimson via-signal to-transparent opacity-80" />
+            <div className="absolute inset-y-0 left-0 w-1/3 bg-signal" />
           ) : (
             <motion.div className="absolute inset-y-0 left-0 bg-signal" initial={{ width: 0 }} animate={{ width: `${soon * 100}%` }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} />
           )}
@@ -1344,7 +1372,7 @@ function CardBody({ mission }: { mission: Mission }) {
           </p>
           <p className="t-label truncate">
             {isSystem ? (
-              <span className="text-crimson font-semibold tracking-[0.16em]">LOCKIN PROTOCOL</span>
+              <span>By LOCKIN</span>
             ) : (
               `@${mission.creator_username || handleOf(mission.creator_name || undefined)}`
             )}

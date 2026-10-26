@@ -126,9 +126,9 @@ export default function PublicProfile({ userId, viewerId, isOpen, onClose, api }
               {u.bio && <p className="relative mt-3 max-w-sm text-subhead leading-relaxed text-ink-2">{u.bio}</p>}
 
               <div className="relative mt-4 flex flex-wrap items-center justify-center gap-2">
-                <span className="flex items-center gap-2 rounded-sm border border-gold/30 bg-gold/[0.08] py-1.5 pl-2 pr-3.5">
+                <span className="flex items-center gap-2 rounded-sm border border-line bg-raised py-1.5 pl-2 pr-3.5">
                   <CountUp value={score} className="font-display text-title-3 font-bold text-ink" />
-                  <span className="text-micro font-semibold uppercase text-gold">{POINTS_NAME}</span>
+                  <span className="text-micro font-semibold uppercase text-ink-2">{POINTS_NAME}</span>
                 </span>
                 {u.instagram && (
                   <a href={`https://instagram.com/${u.instagram}`} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink-2 transition-colors hover:text-ink">

@@ -19,6 +19,7 @@ import LoadingScreen from "../components/LoadingScreen";
 import Inbox, { InboxTarget } from "../components/Inbox";
 import ClaimUsername from "../components/ClaimUsername";
 import Notifications from "../components/Notifications";
+import GritGuide from "../components/GritGuide";
 import { DM_EVENT, DmEventDetail } from "../components/inbox/panes";
 
 import { supabase } from "../lib/supabase";
@@ -35,6 +36,7 @@ export default function Home() {
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
   const [unread, setUnread] = useState(0);
   const [unreadNotes, setUnreadNotes] = useState(0);
+  const [showGuide, setShowGuide] = useState(false);
   const [inboxTarget, setInboxTarget] = useState<InboxTarget>(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
@@ -110,6 +112,18 @@ export default function Home() {
 
   const userRef = useRef<User | null>(null);
   userRef.current = user;
+
+  // First visit after signing up: explain Grit once.
+  useEffect(() => {
+    if (!user?.username) return;
+    try {
+      const key = `lockin_guide_seen_${user.id}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+      const t = setTimeout(() => setShowGuide(true), 900);
+      return () => clearTimeout(t);
+    } catch {}
+  }, [user?.id, user?.username]);
 
   // Inbox badge: a cheap count, refreshed quietly in the background.
   useEffect(() => {
@@ -320,8 +334,9 @@ export default function Home() {
   }
 
   return (
-    <Shell tab={tab} setTab={setTab} user={user} unread={unread} unreadNotes={unreadNotes}>
-      <Header user={user} unreadNotes={unreadNotes} onBell={() => setTab("notifications")} active={tab === "notifications"} />
+    <Shell tab={tab} setTab={setTab} user={user} unread={unread} unreadNotes={unreadNotes} onGrit={() => setShowGuide(true)}>
+      <Header user={user} unreadNotes={unreadNotes} onBell={() => setTab("notifications")} active={tab === "notifications"} onGrit={() => setShowGuide(true)} />
+      <GritGuide open={showGuide} onOpenChange={setShowGuide} />
       {/*
         Tab change: the new screen mounts immediately and fades in with CSS.
         (It used to wait for the old screen's exit animation; when that exit
