@@ -156,6 +156,14 @@ export default function Inbox({
 
   const close = () => setSelected(null);
 
+  // Phone overlay: Escape goes back to the list.
+  useEffect(() => {
+    if (desktop || !selected) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSelected(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [desktop, selected]);
+
   const pane =
     selected?.kind === "mission" ? (
       <MissionChatPane
@@ -183,8 +191,8 @@ export default function Inbox({
     ) : null;
 
   return (
-    <section className="mx-auto flex w-full flex-1 md:h-[calc(100dvh-2rem)] md:max-w-[1240px] md:px-8 md:pt-6">
-      <div className="flex w-full flex-1 overflow-hidden md:grid md:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] md:border md:border-line">
+    <section className="mx-auto flex w-full flex-1 md:h-[calc(100dvh-4rem)] md:flex-none md:max-w-[1240px] md:px-8 md:pt-6">
+      <div className="flex w-full flex-1 overflow-hidden md:grid md:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)] md:border md:border-line">
         {/* ── List column ── */}
         <div className="flex min-h-0 w-full flex-col md:border-r md:border-line">
           {composing ? (
@@ -207,7 +215,7 @@ export default function Inbox({
                   </button>
                 </div>
 
-                <label className="mt-5 flex h-11 items-center gap-2.5 rounded-[2px] border border-line bg-surface px-3.5 focus-within:border-ink/40">
+                <label className="mt-5 flex h-10 items-center gap-2.5 rounded-full bg-raised px-4 focus-within:ring-1 focus-within:ring-ink/30">
                   <Search className="h-4 w-4 shrink-0 text-ink-3" aria-hidden="true" />
                   <span className="sr-only">Search messages</span>
                   <input
@@ -264,7 +272,7 @@ export default function Inbox({
                 ) : visible.length === 0 ? (
                   <EmptyList filter={filter} searching={!!query.trim()} onCompose={() => setComposing(true)} />
                 ) : (
-                  <ul>
+                  <ul className="py-2">
                     {visible.map((c) => (
                       <li key={c.key}>
                         <ConversationRow c={c} meId={user.id} active={desktop && isSelected(c)} onOpen={() => open(c)} />
@@ -328,57 +336,48 @@ function ConversationRow({ c, meId, active, onOpen }: { c: Conversation; meId: n
   const name = c.kind === "dm" ? c.other.name : c.title;
   let preview: string;
   if (c.kind === "dm") {
-    preview = c.last_message ? `${c.last_message.sender_id === meId ? "You: " : ""}${c.last_message.body}` : "No messages yet";
+    preview = c.last_message ? `${c.last_message.sender_id === meId ? "You: " : ""}${c.last_message.body}` : "Say hi";
   } else {
     preview = c.last_message
       ? `${c.last_message.sender_id === meId ? "You" : c.last_message.sender_name.split(" ")[0]}: ${c.last_message.body}`
       : c.is_host
-        ? "Your mission chat. Say hi to the crew."
+        ? "Your mission chat"
         : "Mission chat";
   }
+  const tag =
+    c.kind === "dm" && c.incoming_request ? "Request · " : c.kind === "dm" && c.outgoing_request ? "Pending · " : c.kind === "mission" ? "Mission · " : "";
 
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-current={active ? "true" : undefined}
-      className={`relative flex w-full gap-3 border-b border-line px-5 py-4 text-left transition-colors hover:bg-surface ${active ? "bg-surface" : ""}`}
+      aria-label={`${name}${unread ? `, ${c.unread} unread` : ""}`}
+      className={`relative flex w-full items-center gap-3.5 px-5 py-2.5 text-left transition-colors hover:bg-surface ${active ? "bg-surface" : ""}`}
     >
-      {active && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-px bg-signal" />}
       {c.kind === "dm" ? (
-        <Avatar name={c.other.name} src={c.other.avatar_url} size={48} />
+        <Avatar name={c.other.name} src={c.other.avatar_url} size={56} round />
       ) : (
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[3px] border border-signal/50 text-crimson">
-          <Users className="h-5 w-5" strokeWidth={1.5} />
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-signal/60 text-crimson">
+          <Users className="h-6 w-6" strokeWidth={1.5} />
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-3">
-          <span className={`truncate text-subhead ${unread ? "font-medium text-ink" : "text-ink-2"}`}>{name}</span>
+        <span className={`block truncate text-subhead ${unread ? "font-medium text-ink" : "text-ink"}`}>{name}</span>
+        <span className={`mt-0.5 flex min-w-0 text-footnote ${unread ? "font-medium text-ink" : "text-ink-3"}`}>
+          <span className="truncate">
+            {tag && <span className={c.kind === "dm" && c.incoming_request ? "text-crimson" : ""}>{tag}</span>}
+            {preview}
+          </span>
           {c.last_message && (
-            <time dateTime={c.last_at} className={`tabular shrink-0 text-caption ${unread ? "text-ink" : "text-ink-3"}`}>
+            <time dateTime={c.last_at} className="tabular shrink-0 whitespace-pre">
+              {" · "}
               {shortTime(c.last_at)}
             </time>
           )}
         </span>
-        <span className="mt-0.5 flex items-center gap-2">
-          {c.kind === "dm" && c.incoming_request && (
-            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.18em] text-crimson">Request</span>
-          )}
-          {c.kind === "dm" && c.outgoing_request && (
-            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.18em] text-ink-3">Pending</span>
-          )}
-          {c.kind === "mission" && (
-            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.18em] text-ink-3">Mission</span>
-          )}
-          <span className={`min-w-0 flex-1 truncate text-footnote ${unread ? "text-ink-2" : "text-ink-3"}`}>{preview}</span>
-          {unread && (
-            <span className="tabular flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-[2px] bg-signal px-1.5 text-[11px] font-medium text-ink">
-              {c.unread > 99 ? "99+" : c.unread}
-            </span>
-          )}
-        </span>
       </span>
+      {unread && <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full bg-signal" />}
     </button>
   );
 }
@@ -442,7 +441,7 @@ function ComposePanel({ api, onBack, onPick }: { api: Api; onBack: () => void; o
         <h2 className="text-headline text-ink">New message</h2>
       </div>
       <div className="px-5 pt-4">
-        <label className="flex h-11 items-center gap-2.5 rounded-[2px] border border-line bg-surface px-3.5 focus-within:border-ink/40">
+        <label className="flex h-10 items-center gap-2.5 rounded-full bg-raised px-4 focus-within:ring-1 focus-within:ring-ink/30">
           <Search className="h-4 w-4 shrink-0 text-ink-3" aria-hidden="true" />
           <span className="sr-only">Search people</span>
           <input
@@ -468,7 +467,7 @@ function ComposePanel({ api, onBack, onPick }: { api: Api; onBack: () => void; o
               onClick={() => onPick(p)}
               className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-surface"
             >
-              <Avatar name={p.name} src={p.avatar_url} size={40} />
+              <Avatar name={p.name} src={p.avatar_url} size={44} round />
               <span className="min-w-0">
                 <span className="block truncate text-subhead text-ink">{p.name}</span>
                 <span className="block truncate text-footnote text-ink-3">

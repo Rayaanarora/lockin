@@ -1,6 +1,7 @@
 const prisma = require("../config/db");
 const { toId, cleanText, rateLimit } = require("../utils/security");
 const { broadcast } = require("../utils/realtime");
+const { checkAttachment, signPaths, mediaPreview } = require("../utils/media");
 
 // Every handler runs behind getAuthUser(): req.userId is the verified session user.
 //
@@ -29,8 +30,38 @@ function personView(u) {
   return { id: u.id, name: u.name, username: u.username || null, avatar_url: u.avatarUrl || null, department: u.department || null };
 }
 
-function dmMessageView(m) {
-  return { id: m.id, thread_id: m.threadId, sender_id: m.senderId, body: m.body, created_at: m.createdAt };
+/** `signed` maps media paths to short-lived URLs; omit it for list previews. */
+function dmMessageView(m, signed) {
+  return {
+    id: m.id,
+    thread_id: m.threadId,
+    sender_id: m.senderId,
+    kind: m.kind || "text",
+    body: m.body,
+    media_url: m.mediaPath && signed ? signed.get(m.mediaPath) || null : null,
+    media_meta: m.mediaMeta || null,
+    created_at: m.createdAt
+  };
+}
+
+/** Last-message preview for the conversation list. */
+function previewView(m) {
+  const v = dmMessageView(m);
+  return { ...v, body: mediaPreview(v.kind, v.body) };
+}
+
+/** Text, photo or voice message from a request body. */
+function readOutgoing(req) {
+  const b = req.body || {};
+  const kind = b.kind || "text";
+  const body = cleanText(b.body, 2000) || "";
+  if (kind === "text") {
+    if (!body) return { error: "Write a message first." };
+    return { body, kind: "text", mediaPath: null, mediaMeta: null };
+  }
+  const att = checkAttachment(kind, b.media_path, b.media_meta, req.supabaseUser && req.supabaseUser.id);
+  if (att.error) return { error: att.error };
+  return { body: kind === "image" ? body : "", ...att };
 }
 
 function threadView(t, me, unread = 0) {
@@ -43,7 +74,7 @@ function threadView(t, me, unread = 0) {
     incoming_request: t.status === "request" && t.startedBy !== me,
     outgoing_request: t.status === "request" && t.startedBy === me,
     other: personView(otherOf(t, me)),
-    last_message: last ? dmMessageView(last) : null,
+    last_message: last ? previewView(last) : null,
     last_at: (last ? last.createdAt : t.lastMessageAt).toISOString(),
     unread
   };
@@ -139,7 +170,7 @@ async function listInbox(req, res) {
         member_count: 1 + m.participations.filter((p) => p.userId !== m.createdBy).length,
         host: m.creator ? { id: m.creator.id, name: m.creator.name, username: m.creator.username || null } : null,
         last_message: last
-          ? { id: last.id, sender_id: last.senderId, sender_name: last.sender.name, body: last.message, created_at: last.createdAt }
+          ? { id: last.id, sender_id: last.senderId, sender_name: last.sender.name, body: mediaPreview(last.kind, last.message), created_at: last.createdAt }
           : null,
         last_at: (last ? last.createdAt : m.datetime || new Date()).toISOString(),
         unread: missionUnreadBy.get(m.id) || 0
@@ -218,7 +249,9 @@ async function getThread(req, res) {
     take: 51
   });
   const hasMore = page.length > 50;
-  const messages = page.slice(0, 50).reverse().map(dmMessageView);
+  const rows = page.slice(0, 50).reverse();
+  const signed = await signPaths(rows.map((m) => m.mediaPath));
+  const messages = rows.map((m) => dmMessageView(m, signed));
 
   if (!before) await prisma.dmThread.update({ where: { id: t.id }, data: { [readField(t, me)]: new Date() } });
 
@@ -231,7 +264,7 @@ async function getThread(req, res) {
 }
 
 /** Create or append; the request/active rules live here. */
-async function deliver(me, other, threadId, body, res) {
+async function deliver(me, other, threadId, out, res) {
   const rl = rateLimit(`dm:${me}`, 30, 60e3);
   if (!rl.ok) {
     res.setHeader("Retry-After", String(rl.retryAfter));
@@ -279,7 +312,9 @@ async function deliver(me, other, threadId, body, res) {
 
   const now = new Date();
   const [msg] = await prisma.$transaction([
-    prisma.dmMessage.create({ data: { threadId: t.id, senderId: me, body } }),
+    prisma.dmMessage.create({
+      data: { threadId: t.id, senderId: me, body: out.body, kind: out.kind, mediaPath: out.mediaPath, mediaMeta: out.mediaMeta || undefined }
+    }),
     prisma.dmThread.update({
       where: { id: t.id },
       data: { lastMessageAt: now, status, [readField(t, me)]: now }
@@ -288,33 +323,36 @@ async function deliver(me, other, threadId, body, res) {
 
   const recipient = otherOf(t, me);
   const sender = t.userAId === me ? t.userA : t.userB;
+  const signed = await signPaths([msg.mediaPath]);
+  const view = dmMessageView(msg, signed);
   await broadcast(`notifications:${recipient.id}`, "dm", {
     thread_id: t.id,
     status,
     incoming_request: status === "request",
     from: personView(sender),
-    message: dmMessageView(msg)
+    message: view,
+    preview: mediaPreview(view.kind, view.body)
   });
 
-  res.status(201).json({ thread_id: t.id, status, message: dmMessageView(msg) });
+  res.status(201).json({ thread_id: t.id, status, message: view });
 }
 
 // POST /api/inbox/dm  { toUserId, body }  → start (or continue) a conversation
 async function startThread(req, res) {
   const me = req.userId;
-  const body = cleanText(req.body && req.body.body, 2000);
-  if (!body) return res.status(400).json({ error: "Write a message first." });
+  const out = readOutgoing(req);
+  if (out.error) return res.status(400).json({ error: out.error });
   const check = await messageableUser(me, toId(req.body && req.body.toUserId));
   if (check.error) return res.status(check.error[0]).json({ error: check.error[1] });
-  return deliver(me, check.target, null, body, res);
+  return deliver(me, check.target, null, out, res);
 }
 
 // POST /api/inbox/dm/:threadId  { body }
 async function sendToThread(req, res) {
   const me = req.userId;
-  const body = cleanText(req.body && req.body.body, 2000);
-  if (!body) return res.status(400).json({ error: "Write a message first." });
-  return deliver(me, null, toId(req.params.threadId), body, res);
+  const out = readOutgoing(req);
+  if (out.error) return res.status(400).json({ error: out.error });
+  return deliver(me, null, toId(req.params.threadId), out, res);
 }
 
 // POST /api/inbox/dm/:threadId/read
@@ -375,5 +413,6 @@ module.exports = {
   acceptRequest,
   declineRequest,
   markMissionRead,
-  markMissionChatRead
+  markMissionChatRead,
+  readOutgoing
 };

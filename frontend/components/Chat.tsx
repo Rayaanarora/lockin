@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { User, Mission } from "../app/types";
 import { MissionChatPane } from "./inbox/panes";
@@ -17,6 +17,11 @@ interface ChatProps {
 /** Mission chat opened from a Queue card: the same thread as the Inbox, full screen. */
 export default function Chat({ mission, user, onClose, api }: ChatProps) {
   const crew = mission.attendees?.length || mission.locked_in_count || 0;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
     <motion.div
       className="fixed inset-0 z-[995] flex flex-col bg-bg"

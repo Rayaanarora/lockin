@@ -1,9 +1,12 @@
 const prisma = require("../config/db");
 const { isDbUnavailable } = require("../utils/dbFallback");
+const { notify } = require("../utils/notify");
 
 // POST /api/follow
 async function followUser(req, res) {
-  const { followerId, followingId } = req.body;
+  // The follower is always the signed-in user (getAuthUser sets req.userId).
+  const followerId = req.userId || (req.body && req.body.followerId);
+  const { followingId } = req.body || {};
   if (!followerId || !followingId) {
     return res.status(400).json({ error: "followerId and followingId are required." });
   }
@@ -21,6 +24,12 @@ async function followUser(req, res) {
         followerId: numericFollower,
         followingId: numericFollowing
       }
+    });
+    const follower = await prisma.user.findUnique({ where: { id: numericFollower }, select: { name: true } });
+    await notify(numericFollowing, {
+      type: "follow",
+      title: `${follower?.name || "Someone"} started following you`,
+      actorId: numericFollower
     });
     res.status(201).json(follow);
   } catch (error) {

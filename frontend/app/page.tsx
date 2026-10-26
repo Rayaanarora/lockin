@@ -18,6 +18,7 @@ import SocialFeed from "../components/SocialFeed";
 import LoadingScreen from "../components/LoadingScreen";
 import Inbox, { InboxTarget } from "../components/Inbox";
 import ClaimUsername from "../components/ClaimUsername";
+import Notifications from "../components/Notifications";
 import { DM_EVENT, DmEventDetail } from "../components/inbox/panes";
 
 import { supabase } from "../lib/supabase";
@@ -33,6 +34,7 @@ export default function Home() {
   const [bootError, setBootError] = useState(false);
   const [toast, setToast] = useState<{ title: string; message: string; type: string } | null>(null);
   const [unread, setUnread] = useState(0);
+  const [unreadNotes, setUnreadNotes] = useState(0);
   const [inboxTarget, setInboxTarget] = useState<InboxTarget>(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
@@ -42,7 +44,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const queryTab = params.get("tab");
-      if (queryTab && ["missions", "feed", "active", "inbox", "profile"].includes(queryTab)) {
+      if (queryTab && ["missions", "feed", "active", "inbox", "notifications", "profile"].includes(queryTab)) {
         setTab(queryTab);
       }
     }
@@ -64,6 +66,8 @@ export default function Home() {
       "broadcast",
       { event: "push_notification" },
       ({ payload }: { payload: { title: string; message: string; type: string; missionId?: number } }) => {
+        window.dispatchEvent(new CustomEvent("lockin:notification", { detail: payload }));
+        if (tabRef.current !== "notifications") setUnreadNotes((n) => n + 1);
         // 1. Show in-app Toast
         setToast(payload);
         // Auto dismiss after 4 seconds
@@ -87,7 +91,7 @@ export default function Home() {
       window.dispatchEvent(new CustomEvent(DM_EVENT, { detail: payload }));
       if (tabRef.current === "inbox") return;
       setUnread((n) => n + 1);
-      const body = payload.message.body;
+      const body = payload.preview || payload.message.body;
       const toastMsg = body.length > 90 ? `${body.slice(0, 90)}…` : body;
       setToast({
         title: payload.incoming_request ? `Message request from ${payload.from.name}` : payload.from.name,
@@ -111,10 +115,14 @@ export default function Home() {
   useEffect(() => {
     if (!user?.username) return;
     let live = true;
-    const tick = () =>
+    const tick = () => {
       api("/inbox/unread", { background: true })
         .then((r) => live && typeof r.count === "number" && setUnread(r.count))
         .catch(() => {});
+      api("/notifications/unread", { background: true })
+        .then((r) => live && typeof r.count === "number" && setUnreadNotes(r.count))
+        .catch(() => {});
+    };
     tick();
     const t = setInterval(tick, 45000);
     return () => {
@@ -259,6 +267,9 @@ export default function Home() {
         />
       );
     }
+    if (tab === "notifications") {
+      return <Notifications user={user} api={api} setTab={setTab} onUnread={setUnreadNotes} />;
+    }
     if (tab === "profile") {
       return <Profile user={user} refreshUser={refreshUser} api={api} />;
     }
@@ -309,8 +320,8 @@ export default function Home() {
   }
 
   return (
-    <Shell tab={tab} setTab={setTab} user={user} unread={unread}>
-      <Header user={user} />
+    <Shell tab={tab} setTab={setTab} user={user} unread={unread} unreadNotes={unreadNotes}>
+      <Header user={user} unreadNotes={unreadNotes} onBell={() => setTab("notifications")} active={tab === "notifications"} />
       {/*
         Tab change: the new screen mounts immediately and fades in with CSS.
         (It used to wait for the old screen's exit animation; when that exit

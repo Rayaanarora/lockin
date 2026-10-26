@@ -4,7 +4,15 @@ import { motion } from "framer-motion";
 import { User } from "../app/types";
 import { LockinLogo } from "./ui/LockinLogo";
 import { CountUp } from "./ui/motion";
+import { Bell } from "lucide-react";
 import { NAV_ITEMS, UnreadBadge } from "./Nav";
+
+// Desktop has room for Notifications as its own item; phones use the header bell.
+const SIDEBAR_ITEMS = [
+  ...NAV_ITEMS.slice(0, 4),
+  { key: "notifications", label: "Notifications", icon: Bell },
+  ...NAV_ITEMS.slice(4)
+];
 import { spring } from "../lib/motion";
 import { POINTS_NAME } from "../lib/brand";
 
@@ -14,9 +22,10 @@ interface ShellProps {
   setTab?: (tab: string) => void;
   user?: User | null;
   unread?: number;
+  unreadNotes?: number;
 }
 
-export default function Shell({ children, tab, setTab, user, unread = 0 }: ShellProps) {
+export default function Shell({ children, tab, setTab, user, unread = 0, unreadNotes = 0 }: ShellProps) {
   const isDesktopDashboard = !!user && !!tab && !!setTab;
 
   return (
@@ -49,7 +58,7 @@ export default function Shell({ children, tab, setTab, user, unread = 0 }: Shell
               </div>
 
               <nav aria-label="Primary" className="space-y-1">
-                {NAV_ITEMS.map((item) => {
+                {SIDEBAR_ITEMS.map((item) => {
                   const isActive = tab === item.key;
                   const Icon = item.icon;
                   return (
@@ -69,6 +78,7 @@ export default function Shell({ children, tab, setTab, user, unread = 0 }: Shell
                       <Icon className={`relative h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? "text-crimson" : "text-ink-3 group-hover:text-ink-2"}`} />
                       <span className="relative flex-1 text-left">{item.label}</span>
                       {item.key === "inbox" && unread > 0 && <UnreadBadge n={unread} className="relative" />}
+                      {item.key === "notifications" && unreadNotes > 0 && <UnreadBadge n={unreadNotes} className="relative" />}
                     </button>
                   );
                 })}
@@ -87,7 +97,7 @@ export default function Shell({ children, tab, setTab, user, unread = 0 }: Shell
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-subhead font-semibold leading-tight text-ink">{user.name}</p>
                   {user.username && <p className="truncate text-footnote text-ink-3">@{user.username}</p>}
-                  <p className="mt-1 flex items-center gap-1.5 text-footnote text-gold">
+                  <p className="mt-1 flex items-center gap-1.5 text-footnote text-ink">
                     <CountUp value={user.reputation_score ?? 0} className="font-semibold" />
                     <span className="text-ink-3">{POINTS_NAME}</span>
                   </p>

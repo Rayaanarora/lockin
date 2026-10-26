@@ -3,7 +3,7 @@ const prisma = require("../config/db");
 const { runTx } = require("../utils/tx");
 const { isDbUnavailable } = require("../utils/dbFallback");
 const { toId, cleanText, safeImageRef, safeColor, newCheckInCode, rateLimit } = require("../utils/security");
-const { notifyUser } = require("../utils/realtime");
+const { notify } = require("../utils/notify");
 
 // Every handler here runs behind getAuthUser(): req.userId is the verified
 // session user and identity fields in req.body/req.query were overwritten.
@@ -180,10 +180,11 @@ async function acceptMission(req, res) {
     });
 
     if (result.mission.createdBy) {
-      notifyUser(result.mission.createdBy, {
-        title: "New join request",
-        message: `${result.user?.name || "Someone"} wants to join "${result.mission.title}"`,
+      await notify(result.mission.createdBy, {
         type: "join_request",
+        title: `${result.user?.name || "Someone"} wants to join ${result.mission.title}`,
+        body: "Approve them from your Queue.",
+        actorId: userId,
         missionId
       });
     }
@@ -518,13 +519,24 @@ async function submitAttendance(req, res) {
           where: { id: participant.id },
           data: { status: "Executing", workStartedAt: new Date(), workDuration: mission.focusDuration, showedUp: true }
         });
-        return { status: "Executing", workStartedAt: updated.workStartedAt, userId: participantId };
+        return { status: "Executing", workStartedAt: updated.workStartedAt, userId: participantId, mission };
       }
 
       await tx.participation.update({ where: { id: participant.id }, data: { status: "Missed", showedUp: false } });
       await tx.user.update({ where: { id: participantId }, data: { reputationScore: { decrement: 5 } } });
       return { status: "Missed", workStartedAt: null, userId: participantId };
     });
+
+    if (result.status === "Executing" && result.mission && result.mission.missionType !== "solo" && result.mission.createdBy !== result.userId) {
+      const who = await prisma.user.findUnique({ where: { id: result.userId }, select: { name: true } });
+      await notify(result.mission.createdBy, {
+        type: "checked_in",
+        title: `${who?.name || "Your partner"} checked in to ${result.mission.title}`,
+        body: "They're locked in. Rate the session when you're done.",
+        actorId: result.userId,
+        missionId
+      });
+    }
 
     res.json({
       mission_id: missionId,
@@ -569,10 +581,11 @@ async function approveParticipant(req, res) {
     });
 
     const host = await prisma.user.findUnique({ where: { id: creatorId }, select: { name: true } });
-    notifyUser(participantId, {
-      title: "Request approved",
-      message: `${host?.name || "The host"} approved you for "${result.mission.title}"`,
+    await notify(participantId, {
       type: "request_approved",
+      title: `${host?.name || "The host"} approved you for ${result.mission.title}`,
+      body: "You're in. Check in with the host's code when it starts.",
+      actorId: creatorId,
       missionId
     });
 
@@ -709,6 +722,19 @@ async function submitVibeCheck(req, res) {
       return { status, targetUserId, auraDelta: base + delta };
     });
 
+    if (result.targetUserId) {
+      const [rater, m] = await Promise.all([
+        prisma.user.findUnique({ where: { id: raterId }, select: { name: true } }),
+        prisma.mission.findUnique({ where: { id: missionId }, select: { title: true } })
+      ]);
+      await notify(result.targetUserId, {
+        type: "rated",
+        title: `${rater?.name || "Someone"} rated your session ${rating}`,
+        body: `${m?.title || "Mission"} · ${result.auraDelta >= 0 ? "+" : ""}${result.auraDelta} Grit`,
+        actorId: raterId,
+        missionId
+      });
+    }
     res.json({ mission_id: missionId, status: result.status, rated_user_id: result.targetUserId, aura_delta: result.auraDelta });
   } catch (error) {
     const map = {
@@ -772,10 +798,11 @@ async function hostBroadcast(req, res) {
 
     for (const p of mission.participations) {
       if (p.userId === hostId) continue;
-      notifyUser(p.userId, {
-        title: `Update: ${mission.title}`,
-        message: message.trim(),
+      await notify(p.userId, {
         type: "host_broadcast",
+        title: `Update from the host · ${mission.title}`,
+        body: message.trim().slice(0, 500),
+        actorId: hostId,
         missionId
       });
     }

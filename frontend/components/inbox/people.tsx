@@ -18,18 +18,21 @@ export function Avatar({
   name,
   src,
   size = 40,
+  round = false,
   className = ""
 }: {
   name?: string | null;
   src?: string | null;
   size?: number;
+  /** Circular, as in conversations. */
+  round?: boolean;
   className?: string;
 }) {
   return (
     <span
       aria-hidden="true"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-line bg-raised font-medium tracking-[0.04em] text-ink-2 ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden ${round ? "rounded-full" : "rounded-[3px]"} border border-line bg-raised font-medium tracking-[0.04em] text-ink-2 ${className}`}
     >
       {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : initials(name)}
     </span>

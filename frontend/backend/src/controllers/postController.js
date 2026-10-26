@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { notify } = require("../utils/notify");
 const { toId, cleanText, safeImageRef } = require("../utils/security");
 
 const EMOJIS = ["🔥", "💀", "❤️", "🧠"];
@@ -72,7 +73,7 @@ async function canViewPost(post, viewer) {
 }
 
 async function viewerOf(req) {
-  return prisma.user.findUnique({ where: { id: req.userId }, select: { id: true, collegeId: true } });
+  return prisma.user.findUnique({ where: { id: req.userId }, select: { id: true, collegeId: true, name: true } });
 }
 
 async function loadVisiblePost(req, res, include = {}) {
@@ -186,9 +187,20 @@ async function toggleReaction(req, res) {
   const key = { userId_postId_emoji: { userId: viewer.id, postId: post.id, emoji } };
   const existing = await prisma.reaction.findUnique({ where: key });
   if (existing) await prisma.reaction.delete({ where: { id: existing.id } });
-  else await prisma.reaction.create({ data: { userId: viewer.id, postId: post.id, emoji } }).catch((e) => {
-    if (e.code !== "P2002") throw e; // double-tap race: already exists
-  });
+  else {
+    const created = await prisma.reaction.create({ data: { userId: viewer.id, postId: post.id, emoji } }).catch((e) => {
+      if (e.code !== "P2002") throw e; // double-tap race: already exists
+      return null;
+    });
+    if (created) {
+      await notify(post.userId, {
+        type: "reaction",
+        title: `${viewer.name || "Someone"} reacted ${emoji} to your post`,
+        actorId: viewer.id,
+        postId: post.id
+      });
+    }
+  }
 
   const reactions = await prisma.reaction.findMany({ where: { postId: post.id }, select: { userId: true, emoji: true } });
   const r = tally(reactions, viewer.id);
@@ -206,6 +218,13 @@ async function addComment(req, res) {
   const comment = await prisma.comment.create({
     data: { postId: found.post.id, userId: found.viewer.id, text },
     include: { user: { select: { id: true, name: true, department: true } } }
+  });
+  await notify(found.post.userId, {
+    type: "comment",
+    title: `${comment.user.name} commented on your post`,
+    body: text.slice(0, 140),
+    actorId: found.viewer.id,
+    postId: found.post.id
   });
   res.status(201).json(comment);
 }

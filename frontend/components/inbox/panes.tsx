@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, Users } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { User, InboxPerson, DmMessage } from "../../app/types";
-import Thread, { ThreadMessage } from "./Thread";
+import Thread, { Outgoing, ThreadMessage } from "./Thread";
 import { Avatar, Handle } from "./people";
 
 type Api = (path: string, options?: RequestInit) => Promise<any>;
@@ -17,6 +17,8 @@ export interface DmEventDetail {
   incoming_request: boolean;
   from: InboxPerson;
   message: DmMessage;
+  /** "Sent a photo" etc. for notifications. */
+  preview?: string;
 }
 
 function PaneHeader({
@@ -59,7 +61,10 @@ function PaneHeader({
 const fromMission = (m: any): ThreadMessage => ({
   id: m.id,
   sender_id: m.sender_id,
+  kind: m.kind || "text",
   body: m.message,
+  media_url: m.media_url,
+  media_meta: m.media_meta,
   created_at: m.created_at,
   sender_name: m.sender_name,
   sender_username: m.sender_username
@@ -124,8 +129,9 @@ export function MissionChatPane({
       messages={messages}
       setMessages={setMessages}
       loading={loading}
-      onSend={async (body) => {
-        const saved = await api(`/messages/${missionId}`, { method: "POST", body: JSON.stringify({ message: body }) });
+      showNames
+      onSend={async (out: Outgoing) => {
+        const saved = await api(`/messages/${missionId}`, { method: "POST", body: JSON.stringify(out) });
         onActivity?.();
         return fromMission(saved);
       }}
@@ -196,7 +202,10 @@ export function DmPane({
       return {
         id: m.id,
         sender_id: m.sender_id,
+        kind: m.kind || "text",
         body: m.body,
+        media_url: m.media_url,
+        media_meta: m.media_meta,
         created_at: m.created_at,
         sender_name: mine ? user.name : p?.name || "Them",
         sender_username: mine ? user.username : p?.username,
@@ -305,15 +314,15 @@ export function DmPane({
       hasMore={hasMore}
       onLoadMore={loadMore}
       otherLastReadAt={otherRead}
-      onSend={async (body) => {
+      onSend={async (out: Outgoing) => {
         if (threadId) {
-          const r = await api(`/inbox/dm/${threadId}`, { method: "POST", body: JSON.stringify({ body }) });
+          const r = await api(`/inbox/dm/${threadId}`, { method: "POST", body: JSON.stringify(out) });
           setStatus(r.status);
           if (r.status === "active") setIncoming(false);
           onChanged?.();
           return toThread(r.message, other);
         }
-        const r = await api(`/inbox/dm`, { method: "POST", body: JSON.stringify({ toUserId: other?.id, body }) });
+        const r = await api(`/inbox/dm`, { method: "POST", body: JSON.stringify({ ...out, toUserId: other?.id }) });
         setStatus(r.status);
         setOutgoing(r.status === "request");
         onOpened?.(r.thread_id);
@@ -331,7 +340,7 @@ export function DmPane({
       header={
         <PaneHeader
           onBack={onBack}
-          avatar={<Avatar name={other?.name} src={other?.avatar_url} size={40} />}
+          avatar={<Avatar name={other?.name} src={other?.avatar_url} size={40} round />}
           title={name}
           sub={
             <>
@@ -367,7 +376,7 @@ export function DmPane({
       }
       empty={
         <div className="flex max-w-[300px] flex-col items-center text-center">
-          <Avatar name={other?.name} src={other?.avatar_url} size={64} />
+          <Avatar name={other?.name} src={other?.avatar_url} size={88} round />
           <p className="mt-4 text-title-3 text-ink">{name}</p>
           <Handle username={other?.username} className="text-subhead" />
           <p className="mt-4 text-subhead text-ink-2">

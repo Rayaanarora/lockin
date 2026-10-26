@@ -206,7 +206,10 @@ export interface DmMessage {
   id: number;
   thread_id: number;
   sender_id: number;
+  kind: "text" | "image" | "voice";
   body: string;
+  media_url: string | null;
+  media_meta: { width?: number; height?: number; duration?: number; peaks?: number[] } | null;
   created_at: string;
 }
 

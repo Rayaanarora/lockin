@@ -44,6 +44,8 @@ model User {
   dmThreadsStarted DmThread[]      @relation("DmStarter")
   dmMessages       DmMessage[]
   chatReads        MissionChatRead[]
+  notifications    Notification[]  @relation("NotificationFor")
+  notificationsBy  Notification[]  @relation("NotificationBy")
 
   @@map("users")
 }
@@ -111,6 +113,7 @@ model Mission {
   sessionRecaps    SessionRecap[]
   tasks            Task[]
   chatReads        MissionChatRead[]
+  notifications    Notification[]
 
   @@map("mission")
 }
@@ -157,7 +160,10 @@ model Message {
   id        Int      @id @default(autoincrement()) @map("message_id")
   missionId Int      @map("mission_id")
   senderId  Int      @map("sender_id")
-  message   String   @db.Text
+  message   String   @default("") @db.Text
+  kind      String   @default("text") @db.VarChar(10)
+  mediaPath String?  @map("media_path") @db.Text
+  mediaMeta Json?    @map("media_meta")
   createdAt DateTime @default(now()) @map("created_at")
   mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -267,6 +273,8 @@ model Post {
   reactions   Reaction[]
 
   @@index([userId, createdAt])
+  notifications Notification[]
+
   @@map("post")
 }
 
@@ -324,7 +332,10 @@ model DmMessage {
   id        Int      @id @default(autoincrement()) @map("dm_message_id")
   threadId  Int      @map("thread_id")
   senderId  Int      @map("sender_id")
-  body      String   @db.Text
+  body      String   @default("") @db.Text
+  kind      String   @default("text") @db.VarChar(10)
+  mediaPath String?  @map("media_path") @db.Text
+  mediaMeta Json?    @map("media_meta")
   createdAt DateTime @default(now()) @map("created_at")
   thread    DmThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -343,4 +354,26 @@ model MissionChatRead {
 
   @@id([userId, missionId])
   @@map("mission_chat_read")
+}
+
+// Saved notifications (also pushed live); see supabase/notifications.sql.
+model Notification {
+  id        Int       @id @default(autoincrement()) @map("notification_id")
+  userId    Int       @map("user_id")
+  actorId   Int?      @map("actor_id")
+  type      String    @db.VarChar(30)
+  title     String    @db.VarChar(200)
+  body      String?   @db.Text
+  missionId Int?      @map("mission_id")
+  postId    Int?      @map("post_id")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation("NotificationFor", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("NotificationBy", fields: [actorId], references: [id], onDelete: SetNull)
+  mission   Mission?  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notification")
 }

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarClock, MapPin, Check, X, MessageSquare, ShieldAlert, AlertCircle, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Download, Users, Radio, ExternalLink, Copy, ChevronDown } from "lucide-react";
+import { CalendarClock, MapPin, Check, X, MessageSquare, Sparkles, Trophy, Plus, Trash2, Flame, Play, Pause, Calendar, Users, Radio, ExternalLink, Copy, ChevronDown } from "lucide-react";
 import { User, Mission } from "../app/types";
 import { uploadImage } from "../lib/supabase";
 import Chat from "./Chat";
@@ -610,99 +610,22 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     return `${hours}h ${minutes}m`;
   };
 
-  const pendingReviews = missions.filter(
-    (mission) => mission.showed_up === null && isDue(mission.datetime) && mission.status === "Accepted"
-  ).length;
-
-  const pendingRequests = missions.filter((m) => m.role === "creator" && m.status === "Requested").length;
-  const completedCount = missions.filter((m) => m.status === "Completed").length;
-
   const [showPastMissions, setShowPastMissions] = useState(false);
 
-  const { pendingRequestsList, executingList, dueList, upcomingList, pastList } = useMemo(() => {
-    const pendingRequestsList: Mission[] = [];
-    const executingList: Mission[] = [];
-    const dueList: Mission[] = [];
-    const upcomingList: Mission[] = [];
-    const pastList: Mission[] = [];
-
-    for (const m of missions) {
-      if (m.status === "Completed" || m.status === "Missed") {
-        pastList.push(m);
-      } else if (m.status === "Requested" && m.role === "creator") {
-        pendingRequestsList.push(m);
-      } else if (m.status === "Executing") {
-        executingList.push(m);
-      } else if (m.status === "Accepted" && (isDue(m.datetime) || m.mission_type === "solo")) {
-        dueList.push(m);
-      } else {
-        upcomingList.push(m);
-      }
-    }
-
-    return { pendingRequestsList, executingList, dueList, upcomingList, pastList };
+  // Queue sections, by what the user has to do next.
+  const sections = useMemo(() => {
+    const out: Record<SectionKey, Mission[]> = { needs: [], live: [], next: [], history: [] };
+    const byTime = (a: Mission, b: Mission) => new Date(a.datetime || 0).getTime() - new Date(b.datetime || 0).getTime();
+    for (const m of missions) out[sectionOf(m)].push(m);
+    out.needs.sort(byTime);
+    out.next.sort(byTime);
+    out.history.sort((a, b) => -byTime(a, b));
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missions]);
 
-  const sortedActiveMissions = useMemo(() => {
-    return [
-      ...pendingRequestsList,
-      ...executingList,
-      ...dueList,
-      ...upcomingList
-    ];
-  }, [pendingRequestsList, executingList, dueList, upcomingList]);
 
-  return (
-    <section className="mx-auto w-full max-w-md flex-1 space-y-6 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-14 md:space-y-10">
-      {/* Title */}
-      <div>
-        <p className="t-section">Queue</p>
-        <h1 className="t-display mt-3 text-large-title text-ink md:mt-6 md:text-[88px] md:leading-[0.92] md:tracking-[-0.045em]">Your missions</h1>
-        <p className="mt-1 text-subhead text-ink-3 md:mt-5 md:text-body">
-          {missions.length - completedCount} open · <CountUp value={completedCount} className="text-ink-2" /> completed
-        </p>
-      </div>
-
-      {/* Alerts */}
-      <AnimatePresence>
-        {pendingRequests > 0 && (
-          <Alert key="req" icon={AlertCircle} title={`${pendingRequests} join request${pendingRequests > 1 ? "s" : ""} waiting`} body="Approve who locks in with you. They're below." />
-        )}
-        {pendingReviews > 0 && (
-          <Alert
-            key="att"
-            icon={ShieldAlert}
-            title="Check-in needed"
-            body={`${pendingReviews} mission${pendingReviews > 1 ? "s are" : " is"} due. Confirm who showed up.`}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Queue */}
-      {loading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-64 rounded-card" />
-          ))}
-        </div>
-      ) : missions.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center rounded-card border border-dashed border-line bg-surface/50 px-8 py-16 text-center"
-        >
-          <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-            <LockinMark size={56} color="rgb(var(--ink-3))" />
-          </motion.div>
-          <h2 className="t-display mt-6 text-title-1 text-ink">Nothing queued</h2>
-          <p className="mt-2 max-w-[260px] text-subhead leading-relaxed text-ink-2">
-            Lock in to a mission from the deck, or launch your own. It'll show up here.
-          </p>
-        </motion.div>
-      ) : (
-        <div className="space-y-6">
-          <Reveal className="grid grid-cols-1 gap-4 md:grid-cols-2" each={0.06}>
-            {(showPastMissions ? [...sortedActiveMissions, ...pastList] : sortedActiveMissions).map((mission) => {
+  const renderCard = (mission: Mission) => {
             const isSolo = mission.mission_type === "solo";
             const due = isDue(mission.datetime) || isSolo;
             const isCreator = mission.role === "creator" || isSolo;
@@ -721,7 +644,10 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             const status = isRequest
               ? { label: "Requested", cls: "border-line bg-raised text-ink-2" }
               : active
-                ? { label: isSolo ? "Ready" : due ? "Due now" : "Upcoming", cls: due ? "border-signal/70 bg-surface text-crimson" : "border-line bg-raised text-ink" }
+                ? {
+                    label: isSolo ? "Ready" : due ? "Due now" : canCheckIn ? "Check-in open" : "Upcoming",
+                    cls: due || (canCheckIn && !isSolo) ? "border-signal/70 bg-surface text-crimson" : "border-line bg-raised text-ink"
+                  }
                 : executing
                   ? { label: "Locked in", cls: "border-signal text-ink", live: true }
                   : mission.status === "Completed"
@@ -764,7 +690,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         <div className="flex items-center gap-2 mt-1.5">
                           <p className="truncate text-subhead text-ink-3">{roleLabel}</p>
                           {mission.is_event && (
-                            <span className="rounded-sm border border-gold/50 bg-gold/10 px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-[0.2em] text-gold">
+                            <span className="rounded-sm border border-signal/60 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.2em] text-crimson">
                               Event
                             </span>
                           )}
@@ -780,6 +706,20 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                         {status.label}
                       </span>
                     </div>
+
+                    {/* Next step */}
+                    {(() => {
+                      const step = nextStep(mission);
+                      return (
+                        <p className={`flex items-start gap-2.5 text-subhead leading-snug ${step.urgent ? "text-ink" : "text-ink-2"}`}>
+                          <span
+                            aria-hidden="true"
+                            className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${step.urgent ? "bg-signal" : "bg-ink-3"}`}
+                          />
+                          {step.text}
+                        </p>
+                      );
+                    })()}
 
                     {/* Meta */}
                     <div className="flex flex-wrap gap-x-5 gap-y-2 text-subhead text-ink">
@@ -873,10 +813,10 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
                     {/* Access Details (Secret Info) */}
                     {mission.secret_info && (active || executing || isCreator) && (
-                      <div className="rounded-xl border border-gold/30 bg-gold/5 p-3.5 space-y-2">
+                      <div className="rounded-xl border border-signal/60 bg-signal/10 p-3.5 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-crimson flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-signal" />
                             Access Details
                           </span>
                           <button
@@ -888,7 +828,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             }}
                             className="text-caption text-ink-3 hover:text-ink flex items-center gap-1"
                           >
-                            {copiedSecret ? <Check className="h-3 w-3 text-gold" /> : <Copy className="h-3 w-3" />}
+                            {copiedSecret ? <Check className="h-3 w-3 text-crimson" /> : <Copy className="h-3 w-3" />}
                             <span>{copiedSecret ? "Copied" : "Copy"}</span>
                           </button>
                         </div>
@@ -900,7 +840,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             href={mission.secret_info.match(/https?:\/\/[^\s]+/i)![0]}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold hover:underline pt-1"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-crimson hover:underline pt-1"
                           >
                             <ExternalLink className="h-3 w-3" /> Open link
                           </a>
@@ -910,21 +850,24 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
                     {/* Calendar */}
                     {!isSolo && mission.status !== "Completed" && mission.status !== "Missed" && !executing && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap items-center gap-x-1 text-footnote text-ink-3">
+                        <Calendar className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Add to calendar:</span>
                         <a
                           href={getGoogleCalendarUrl(mission)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead text-ink-2 transition-colors hover:border-ink-3/50 hover:text-ink"
+                          className="h-11 px-1.5 leading-[44px] text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline"
                         >
-                          <Calendar className="h-4 w-4" /> Google
+                          Google
                         </a>
+                        <span aria-hidden="true">·</span>
                         <button
                           type="button"
                           onClick={() => downloadICS(mission)}
-                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead text-ink-2 transition-colors hover:border-ink-3/50 hover:text-ink"
+                          className="h-11 px-1.5 text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline"
                         >
-                          <Download className="h-4 w-4" /> Apple / Outlook
+                          Apple / Outlook
                         </button>
                       </div>
                     )}
@@ -944,7 +887,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             <p className="text-headline text-ink">Wants to join</p>
                             <p className="mt-0.5 text-subhead text-ink-3">{mission.participant_department}</p>
                           </div>
-                          <span className="flex items-center gap-1.5 rounded-sm border border-gold/30 bg-gold/10 px-3 py-1 text-footnote font-semibold text-gold">
+                          <span className="flex items-center gap-1.5 rounded-sm border border-line bg-raised px-3 py-1 text-footnote font-medium text-ink-2">
                             <Sparkles className="h-3.5 w-3.5" /> {mission.participant_reputation} {POINTS_NAME}
                           </span>
                         </div>
@@ -1252,23 +1195,112 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                 </motion.article>
               </Reveal.Item>
             );
-          })}
-          </Reveal>
+  };
 
-          {pastList.length > 0 && (
-            <div className="border-t border-line pt-4">
+  return (
+    <section className="mx-auto w-full max-w-md flex-1 space-y-6 px-5 pt-2 md:max-w-[1240px] md:px-12 md:pt-14 md:space-y-10">
+      {/* Title */}
+      <div>
+        <p className="t-section">Queue</p>
+        <h1 className="t-display mt-3 text-large-title text-ink md:mt-6 md:text-[88px] md:leading-[0.92] md:tracking-[-0.045em]">Your missions</h1>
+        <p className="mt-1 text-subhead text-ink-3 md:mt-5 md:text-body">
+          {sections.needs.length > 0
+            ? `${sections.needs.length} need${sections.needs.length === 1 ? "s" : ""} you now`
+            : sections.live.length > 0
+              ? "You're locked in"
+              : "Nothing needs you right now"}
+        </p>
+      </div>
+
+      {/* Summary: what's where, at a glance */}
+      {!loading && missions.length > 0 && (
+        <nav aria-label="Queue sections" className="-mx-5 flex gap-2 overflow-x-auto px-5 scrollbar-none md:mx-0 md:px-0">
+          {SECTION_ORDER.map((key) => {
+            const n = sections[key].length;
+            const urgent = key === "needs" && n > 0;
+            return (
               <button
+                key={key}
                 type="button"
-                onClick={() => setShowPastMissions(!showPastMissions)}
-                className="flex w-full items-center justify-between rounded-xl border border-line bg-surface/60 px-4 py-3.5 text-subhead font-semibold text-ink-2 hover:bg-raised transition-colors"
+                disabled={!n}
+                onClick={() => {
+                  if (key === "history") setShowPastMissions(true);
+                  document.getElementById(`queue-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={`flex h-11 shrink-0 items-center gap-2.5 rounded-[2px] border px-4 text-[11px] font-medium uppercase tracking-[0.18em] transition-colors disabled:opacity-40 ${
+                  urgent ? "border-signal/70 text-ink" : "border-line text-ink-2 hover:border-ink/30 hover:text-ink"
+                }`}
               >
-                <span>Past Missions ({pastList.length})</span>
-                <motion.span animate={{ rotate: showPastMissions ? 180 : 0 }} transition={spring.snap}>
-                  <ChevronDown className="h-4 w-4 text-ink-3" />
-                </motion.span>
+                {urgent && <span className="h-1.5 w-1.5 rounded-full bg-signal" aria-hidden="true" />}
+                {SECTION_META[key].short}
+                <span className={`tabular ${urgent ? "text-crimson" : "text-ink-3"}`}>{n}</span>
               </button>
-            </div>
-          )}
+            );
+          })}
+        </nav>
+      )}
+
+      {/* Queue */}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-64 rounded-card" />
+          ))}
+        </div>
+      ) : missions.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center rounded-card border border-dashed border-line bg-surface/50 px-8 py-16 text-center"
+        >
+          <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+            <LockinMark size={56} color="rgb(var(--ink-3))" />
+          </motion.div>
+          <h2 className="t-display mt-6 text-title-1 text-ink">Nothing queued</h2>
+          <p className="mt-2 max-w-[260px] text-subhead leading-relaxed text-ink-2">
+            Lock in to a mission from the deck, or launch your own. It'll show up here.
+          </p>
+        </motion.div>
+      ) : (
+        <div className="space-y-10">
+          {SECTION_ORDER.map((key) => {
+            const list = sections[key];
+            if (!list.length) return null;
+            const meta = SECTION_META[key];
+            const collapsed = key === "history" && !showPastMissions;
+            return (
+              <section key={key} id={`queue-${key}`} aria-labelledby={`queue-${key}-title`} className="scroll-mt-24">
+                <div className="mb-4 flex items-baseline justify-between gap-4 border-b border-line pb-3">
+                  <div className="flex items-baseline gap-3">
+                    <h2 id={`queue-${key}-title`} className={`t-section ${key === "needs" ? "text-crimson" : "text-ink-2"}`}>
+                      {meta.title}
+                    </h2>
+                    <span className="tabular text-footnote text-ink-3">{list.length}</span>
+                  </div>
+                  {key === "history" ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPastMissions(!showPastMissions)}
+                      aria-expanded={!collapsed}
+                      className="flex h-9 items-center gap-1.5 text-footnote text-ink-3 transition-colors hover:text-ink"
+                    >
+                      {collapsed ? "Show" : "Hide"}
+                      <motion.span animate={{ rotate: collapsed ? 0 : 180 }} transition={spring.snap}>
+                        <ChevronDown className="h-4 w-4" />
+                      </motion.span>
+                    </button>
+                  ) : (
+                    <p className="hidden text-footnote text-ink-3 sm:block">{meta.hint}</p>
+                  )}
+                </div>
+                {!collapsed && (
+                  <Reveal className="grid grid-cols-1 gap-4 md:grid-cols-2" each={0.05}>
+                    {list.map((mission) => renderCard(mission))}
+                  </Reveal>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -1374,7 +1406,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         <DialogContent className="sm:max-w-xl max-w-full max-h-[85vh] overflow-x-hidden flex flex-col">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <span className="rounded-sm border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+              <span className="rounded-sm border border-signal/60 bg-signal/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-crimson">
                 {rosterMission?.is_event ? "Event Roster" : "Group Roster"}
               </span>
               <span className="text-caption text-ink-3">#{rosterMission?.id}</span>
@@ -1505,7 +1537,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           <p className="text-caption text-ink-3 truncate">{applicant.department || "SRM Student"}</p>
                         </div>
                       </div>
-                      <span className="rounded border border-gold/30 bg-gold/10 px-2 py-0.5 text-caption font-semibold text-gold">
+                      <span className="rounded border border-signal/60 bg-signal/10 px-2 py-0.5 text-caption font-semibold text-crimson">
                         {applicant.reputation_points} {POINTS_NAME}
                       </span>
                     </div>
@@ -1576,26 +1608,79 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
 /* ───────────────────────── Pieces ───────────────────────── */
 
-function Alert({ icon: Icon, title, body }: { icon: React.ElementType; title: string; body: string }) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: -10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={spring.glide}
-      className="flex items-start gap-3 rounded-card border border-signal/70 bg-signal/[0.07] p-4"
-    >
-      <span className="relative mt-0.5 flex">
-        <Icon className="h-5 w-5 text-crimson" />
-        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 animate-ping rounded-full bg-signal" />
-      </span>
-      <div>
-        <p className="text-headline text-ink">{title}</p>
-        <p className="mt-0.5 text-subhead leading-snug text-ink-2">{body}</p>
-      </div>
-    </motion.div>
-  );
+
+/* ─── Queue sections & next steps ───────────────────────────────────── */
+
+type SectionKey = "needs" | "live" | "next" | "history";
+const SECTION_ORDER: SectionKey[] = ["needs", "live", "next", "history"];
+const SECTION_META: Record<SectionKey, { title: string; short: string; hint: string }> = {
+  needs: { title: "Needs you", short: "Needs you", hint: "Approve, check in, or rate." },
+  live: { title: "Live now", short: "Live", hint: "Sessions in progress." },
+  next: { title: "Up next", short: "Up next", hint: "Waiting on time or on someone else." },
+  history: { title: "History", short: "Done", hint: "" }
+};
+
+const firstName = (name?: string | null) => (name || "").trim().split(/\s+/)[0] || "them";
+const isSoloMission = (m: Mission) => m.mission_type === "solo";
+const isHostView = (m: Mission) => m.role === "creator" || isSoloMission(m);
+const checkInIsOpen = (m: Mission) => !m.datetime || new Date(m.datetime).getTime() - 15 * 60e3 <= Date.now();
+
+function owesRating(m: Mission) {
+  if (isSoloMission(m)) return false;
+  if (m.status !== "Executing" && m.status !== "Completed") return false;
+  const hostOfGroup = m.role === "creator";
+  return !(hostOfGroup ? m.creator_vibe_rating : m.participant_vibe_rating);
+}
+
+function sectionOf(m: Mission): SectionKey {
+  if (m.status === "Executing") return "live";
+  if (m.status === "Completed") return owesRating(m) ? "needs" : "history";
+  if (m.status === "Missed") return "history";
+  if (m.status === "Requested" && m.role === "creator") return "needs";
+  if (m.status === "Accepted" && !isSoloMission(m) && checkInIsOpen(m)) return "needs";
+  return "next";
+}
+
+function untilLabel(datetime?: string | null) {
+  if (!datetime) return "soon";
+  const diff = new Date(datetime).getTime() - Date.now();
+  if (diff <= 0) return "now";
+  const h = Math.floor(diff / 3600e3);
+  const min = Math.floor((diff % 3600e3) / 60e3);
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+  return h > 0 ? `${h}h ${min}m` : `${min}m`;
+}
+
+/** The one thing to do next on this card, in plain words. */
+function nextStep(m: Mission): { text: string; urgent: boolean } {
+  const solo = isSoloMission(m);
+  const host = isHostView(m) && !solo;
+  const partner = firstName(m.participant_name);
+  const hostName = firstName(m.creator_name);
+  switch (m.status) {
+    case "Pending":
+      return { text: "Live on the deck. Waiting for someone to lock in.", urgent: false };
+    case "Requested":
+      return host
+        ? { text: `${m.participant_name || "Someone"} wants to join. Approve them below.`, urgent: true }
+        : { text: `Waiting for ${hostName} to approve you.`, urgent: false };
+    case "Accepted":
+      if (solo) return { text: "Ready when you are. Start a focus session.", urgent: false };
+      if (!checkInIsOpen(m)) return { text: `Starts in ${untilLabel(m.datetime)}. Check-in opens 15 min before.`, urgent: false };
+      return host
+        ? { text: `Show ${partner} your code when they arrive.`, urgent: true }
+        : { text: `Enter ${hostName}'s 4-digit code when you get there.`, urgent: true };
+    case "Executing":
+      if (host) return { text: `${partner} is locked in.${owesRating(m) ? " Rate the session when you're done." : ""}`, urgent: false };
+      return { text: "You're locked in. Tap Finish when you're done.", urgent: true };
+    case "Completed":
+      if (owesRating(m)) return { text: `Rate ${host ? partner : hostName} to close this out.`, urgent: true };
+      return { text: host ? "Done." : "Done. Your recap is saved.", urgent: false };
+    case "Missed":
+      return { text: "Missed. It happens. Lock in to the next one.", urgent: false };
+    default:
+      return { text: "", urgent: false };
+  }
 }
 
 function Panel({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "muted" }) {
@@ -1639,7 +1724,7 @@ function VibeButton({ onClick, label, sub, good }: { onClick: () => void; label:
       transition={spring.pop}
       aria-label={`${label} vibe, ${sub} ${POINTS_NAME}`}
       className={`flex h-11 min-w-[64px] items-center justify-center gap-1 rounded-xl border px-3 font-display text-title-3 font-bold ${
-        good ? "border-gold/40 bg-gold/10 text-gold" : "border-line bg-raised text-ink-2"
+        good ? "border-signal/60 bg-signal/10 text-crimson" : "border-line bg-raised text-ink-2"
       }`}
     >
       {label}
