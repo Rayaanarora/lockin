@@ -10,7 +10,8 @@
 **LOCKIN** is a mobile-first, college-focused mission and social accountability platform designed to turn student ideas into real-world proof of work.
 
 * **Core Insight:** *"Dost toh sabke paas hote hain. Par karne waale kitne hain?"* (Everyone has friends; how many actually show up?)
-* **Tagline:** **"Stop chatting. Start showing up."**
+* **Tagline:** **"Stop scrolling. Start showing up."**
+* **Engineering & Product Principles:** See [`THINKER.md`](./THINKER.md) for core product philosophy, decision frameworks, and long-term learnings.
 * **The Core Primitive:** **Missions** (15–90 min timed focus sprints, spontaneous build sessions, campus runs, hackathons, or study duels).
 * **The Product Loop:**  
   `Discover (Campus Feed) → Lock In → Execute (Focus Sprint Timer) → OTP Check-In → Vibe Check & Aura → 3D Recap → Campus Leaderboard`
@@ -37,6 +38,8 @@
 ```text
 lockin_final/
 ├── CONTEXT.md                    # This master context file
+├── THINKER.md                    # Product thinking & engineering principles (Living Brain)
+├── AGENTS.md                     # Workspace agent directive enforcing THINKER principles
 ├── LOCKIN_HANDOFF.md             # In-depth PRD & architecture handoff guide
 ├── backend/                      # Node.js backend controllers & Prisma schema
 │   ├── prisma/

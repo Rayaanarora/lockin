@@ -345,10 +345,10 @@ async function getActiveMissions(req, res) {
     };
 
     const acceptedRows = accepted
-      .filter((p) => p.status !== "Rejected")
       .map((p) => {
         if (!p.mission) return null;
         const attendees = buildAttendees(p.mission);
+        const isApproved = ["Accepted", "Executing", "Completed"].includes(p.status);
         return {
           id: p.mission.id,
           creator_id: p.mission.createdBy,
@@ -369,6 +369,12 @@ async function getActiveMissions(req, res) {
           mission_type: p.mission.missionType,
           cover_color: p.mission.coverColor,
           cover_image: p.mission.coverImage,
+          is_event: Boolean(p.mission.isEvent),
+          require_approval: Boolean(p.mission.requireApproval),
+          registration_q: p.mission.registrationQ || null,
+          secret_info: isApproved ? (p.mission.secretInfo || null) : null,
+          max_capacity: p.mission.maxCapacity || null,
+          application_note: p.applicationNote || null,
           locked_in_count: attendees.length,
           attendees: attendees
         };
@@ -405,6 +411,11 @@ async function getActiveMissions(req, res) {
           mission_type: p.mission.missionType,
           cover_color: p.mission.coverColor,
           cover_image: p.mission.coverImage,
+          is_event: Boolean(p.mission.isEvent),
+          require_approval: Boolean(p.mission.requireApproval),
+          registration_q: p.mission.registrationQ || null,
+          secret_info: p.mission.secretInfo || null,
+          max_capacity: p.mission.maxCapacity || null,
           locked_in_count: attendees.length,
           attendees: attendees
         };
@@ -445,12 +456,27 @@ async function getActiveMissions(req, res) {
           mission_type: m.missionType,
           cover_color: m.coverColor,
           cover_image: m.coverImage,
+          is_event: Boolean(m.isEvent),
+          require_approval: Boolean(m.requireApproval),
+          registration_q: m.registrationQ || null,
+          secret_info: m.secretInfo || null,
+          max_capacity: m.maxCapacity || null,
           locked_in_count: attendees.length,
           attendees: attendees
         };
       });
 
-    const rows = [...acceptedRows, ...hostedRows, ...pendingRows];
+    // Deduplicate by mission.id + role so each mission is only listed once in queue
+    const seen = new Set();
+    const rows = [];
+    for (const item of [...acceptedRows, ...hostedRows, ...pendingRows]) {
+      if (!item) continue;
+      const key = `${item.id}-${item.role}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        rows.push(item);
+      }
+    }
 
     // Sort: showed_up = null first, then datetime
     rows.sort((a, b) => {
@@ -814,6 +840,87 @@ async function hostBroadcast(req, res) {
   }
 }
 
+async function cancelMission(req, res) {
+  const missionId = toId(req.params.id);
+  const userId = req.userId || (req.body && toId(req.body.userId));
+
+  if (!missionId) return res.status(400).json({ error: "Invalid mission id." });
+  if (!userId) return res.status(401).json({ error: "Authentication required." });
+
+  try {
+    const mission = await prisma.mission.findUnique({
+      where: { id: missionId },
+      include: {
+        participations: true
+      }
+    });
+
+    if (!mission) {
+      await prisma.participation.deleteMany({
+        where: { missionId, userId }
+      }).catch(() => {});
+      return res.json({ success: true, message: "Mission removed from queue." });
+    }
+
+    const isCreator = mission.createdBy === userId;
+    const userParticipation = mission.participations.find((p) => p.userId === userId);
+
+    if (isCreator) {
+      if (mission.missionType !== "solo") {
+        for (const p of mission.participations) {
+          if (p.userId !== userId && ["Accepted", "Requested"].includes(p.status)) {
+            notifyUser(p.userId, {
+              title: "Mission Cancelled",
+              message: `The host cancelled "${mission.title}".`,
+              type: "mission_cancelled",
+              missionId
+            });
+          }
+        }
+      }
+
+      await prisma.mission.delete({
+        where: { id: missionId }
+      });
+
+      return res.json({ success: true, message: "Mission deleted." });
+    }
+
+    if (userParticipation) {
+      await prisma.participation.delete({
+        where: { id: userParticipation.id }
+      });
+
+      if (mission.createdBy) {
+        const leaver = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true }
+        });
+        notifyUser(mission.createdBy, {
+          title: userParticipation.status === "Requested" ? "Request Withdrawn" : "Participant Left",
+          message: `${leaver?.name || "A participant"} left or withdrew from "${mission.title}".`,
+          type: "participant_left",
+          missionId
+        });
+      }
+
+      return res.json({ success: true, message: "Withdrawn from mission." });
+    }
+
+    await prisma.participation.deleteMany({
+      where: { missionId, userId }
+    }).catch(() => {});
+
+    return res.json({ success: true, message: "Removed from queue." });
+  } catch (error) {
+    if (isDbUnavailable(error)) {
+      return res.json({ success: true, message: "Mission removed." });
+    }
+    console.error("Error cancelling/deleting mission:", error);
+    res.status(500).json({ error: "Failed to remove mission." });
+  }
+}
+
 module.exports = {
   createMission,
   getMissionFeed,
@@ -824,6 +931,7 @@ module.exports = {
   approveParticipant,
   declineParticipant,
   hostBroadcast,
+  cancelMission,
   getCategories,
   getCampuses,
   submitVibeCheck

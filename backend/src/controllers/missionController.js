@@ -649,7 +649,6 @@ async function getActiveMissions(req, res) {
     };
 
     const acceptedRows = accepted
-      .filter((p) => p.status !== "Rejected")
       .map((p) => {
         if (!p.mission) return null;
         const attendees = buildAttendees(p.mission);
@@ -774,7 +773,17 @@ async function getActiveMissions(req, res) {
         };
       });
 
-    const rows = [...acceptedRows, ...hostedRows, ...pendingRows];
+    // Deduplicate by mission.id + role so each mission is only listed once in queue
+    const seen = new Set();
+    const rows = [];
+    for (const item of [...acceptedRows, ...hostedRows, ...pendingRows]) {
+      if (!item) continue;
+      const key = `${item.id}-${item.role}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        rows.push(item);
+      }
+    }
 
     // Sort: showed_up = null first, then datetime
     rows.sort((a, b) => {
@@ -1362,6 +1371,119 @@ async function hostBroadcast(req, res) {
   }
 }
 
+async function cancelMission(req, res) {
+  const missionId = Number(req.params.id);
+  const userId = Number(req.userId || (req.user && req.user.id) || (req.body && req.body.userId));
+
+  if (!missionId || isNaN(missionId)) {
+    return res.status(400).json({ error: "Invalid mission id." });
+  }
+  if (!userId || isNaN(userId)) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
+  try {
+    const mission = await prisma.mission.findUnique({
+      where: { id: missionId },
+      include: {
+        participations: true
+      }
+    });
+
+    if (!mission) {
+      await prisma.participation.deleteMany({
+        where: { missionId, userId }
+      }).catch(() => {});
+      return res.json({ success: true, message: "Mission removed from queue." });
+    }
+
+    const isCreator = mission.createdBy === userId;
+    const userParticipation = mission.participations.find((p) => p.userId === userId);
+
+    if (isCreator) {
+      if (mission.missionType !== "solo") {
+        for (const p of mission.participations) {
+          if (p.userId !== userId && ["Accepted", "Requested"].includes(p.status)) {
+            try {
+              const supabaseClient = require("../config/supabase");
+              if (supabaseClient) {
+                const channel = supabaseClient.channel(`notifications:${p.userId}`);
+                channel.subscribe((status) => {
+                  if (status === "SUBSCRIBED") {
+                    channel.send({
+                      type: "broadcast",
+                      event: "push_notification",
+                      payload: {
+                        title: "Mission Cancelled",
+                        message: `The host cancelled "${mission.title}".`,
+                        type: "mission_cancelled",
+                        missionId
+                      }
+                    }).catch(() => {});
+                  }
+                });
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      await prisma.mission.delete({
+        where: { id: missionId }
+      });
+
+      return res.json({ success: true, message: "Mission deleted." });
+    }
+
+    if (userParticipation) {
+      await prisma.participation.delete({
+        where: { id: userParticipation.id }
+      });
+
+      if (mission.createdBy) {
+        try {
+          const leaver = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true }
+          });
+          const supabaseClient = require("../config/supabase");
+          if (supabaseClient) {
+            const channel = supabaseClient.channel(`notifications:${mission.createdBy}`);
+            channel.subscribe((status) => {
+              if (status === "SUBSCRIBED") {
+                channel.send({
+                  type: "broadcast",
+                  event: "push_notification",
+                  payload: {
+                    title: userParticipation.status === "Requested" ? "Request Withdrawn" : "Participant Left",
+                    message: `${leaver?.name || "A participant"} left or withdrew from "${mission.title}".`,
+                    type: "participant_left",
+                    missionId
+                  }
+                }).catch(() => {});
+              }
+            });
+          }
+        } catch (e) {}
+      }
+
+      return res.json({ success: true, message: "Withdrawn from mission." });
+    }
+
+    await prisma.participation.deleteMany({
+      where: { missionId, userId }
+    }).catch(() => {});
+
+    return res.json({ success: true, message: "Removed from queue." });
+  } catch (error) {
+    if (isDbUnavailable(error)) {
+      return res.json({ success: true, message: "Mission removed (offline mode)." });
+    }
+    console.error("Error cancelling/deleting mission:", error);
+    res.status(500).json({ error: "Failed to remove mission." });
+  }
+}
+
 module.exports = {
   createMission,
   getMissionFeed,
@@ -1373,6 +1495,7 @@ module.exports = {
   declineParticipant,
   hostCheckIn,
   hostBroadcast,
+  cancelMission,
   getCategories,
   getCampuses,
   submitVibeCheck

@@ -14,7 +14,8 @@ const {
   hostBroadcast,
   getCategories,
   getCampuses,
-  submitVibeCheck
+  submitVibeCheck,
+  cancelMission
 } = require("../../../backend/src/controllers/missionController");
 const { finishSession } = require("../../../backend/src/controllers/recapController");
 
@@ -37,6 +38,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!requireSelf(res, seg[1], user.userId)) return;
       setParams(req, { userId: seg[1] });
       return await getActiveMissions(req, res);
+    }
+
+    if (seg[0] && (req.method === "DELETE" || (req.method === "POST" && (seg[1] === "cancel" || seg[1] === "delete")))) {
+      setParams(req, { id: seg[0] });
+      return await cancelMission(req, res);
     }
 
     if (seg[0] && req.method === "POST") {

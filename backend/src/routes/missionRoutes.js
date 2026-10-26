@@ -11,6 +11,7 @@ const {
   declineParticipant,
   hostCheckIn,
   hostBroadcast,
+  cancelMission,
   getCategories,
   getCampuses,
   submitVibeCheck
@@ -34,6 +35,8 @@ router.post("/:id/approve-participant", requireAuth, asyncHandler(approvePartici
 router.post("/:id/decline-participant", requireAuth, asyncHandler(declineParticipant));
 router.post("/:id/check-in", requireAuth, asyncHandler(hostCheckIn));
 router.post("/:id/broadcast", requireAuth, asyncHandler(hostBroadcast));
+router.post("/:id/cancel", requireAuth, asyncHandler(cancelMission));
+router.delete("/:id", requireAuth, asyncHandler(cancelMission));
 
 module.exports = router;
 

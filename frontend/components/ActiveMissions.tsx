@@ -68,6 +68,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Exact target timestamp refs to survive background tab throttling
   const endTimeRef = useRef<number | null>(null);
@@ -438,6 +439,38 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     }
   }
 
+  async function handleDeleteMission(mission: Mission) {
+    const isSolo = mission.mission_type === "solo";
+    const isCreator = mission.role === "creator" || isSolo;
+    const isRequest = mission.status === "Requested";
+    const isRejected = mission.status === "Rejected";
+    const actionLabel = isCreator
+      ? "delete this mission"
+      : isRequest
+        ? "withdraw your join request"
+        : isRejected
+          ? "dismiss this declined request"
+          : "give up this mission";
+
+    const confirmed = window.confirm(`Are you sure you want to ${actionLabel}? It will be removed from your queue.`);
+    if (!confirmed) return;
+
+    setDeletingId(mission.id);
+    try {
+      await api(`/missions/${mission.id}/cancel`, { method: "POST" });
+      setMissions((prev) => prev.filter((m) => m.id !== mission.id));
+      if (activeFocusMission?.id === mission.id) {
+        setActiveFocusMission(null);
+        setTimerRunning(false);
+      }
+      await refreshUser();
+    } catch (err: any) {
+      alert(err.message || "Failed to remove mission.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   async function handleHostCheckIn(missionId: number, participantId: number) {
     setCheckingInId(participantId);
     try {
@@ -644,6 +677,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             const due = isDue(mission.datetime) || isSolo;
             const isCreator = mission.role === "creator" || isSolo;
             const isRequest = mission.status === "Requested";
+            const isRejected = mission.status === "Rejected";
             const active = mission.status === "Accepted";
             const executing = mission.status === "Executing";
             const needsReview = mission.showed_up === null && due && active && !isSolo;
@@ -657,18 +691,20 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
             const status = isRequest
               ? { label: "Requested", cls: "border-line bg-raised text-ink-2" }
-              : active
-                ? {
-                    label: isSolo ? "Ready" : due ? "Due now" : canCheckIn ? "Check-in open" : "Upcoming",
-                    cls: due || (canCheckIn && !isSolo) ? "border-signal/70 bg-surface text-crimson" : "border-line bg-raised text-ink"
-                  }
-                : executing
-                  ? { label: "Locked in", cls: "border-signal text-ink", live: true }
-                  : mission.status === "Completed"
-                    ? { label: "Completed", cls: "border-success/40 bg-success/10 text-success" }
-                    : mission.status === "Missed"
-                      ? { label: "Missed", cls: "border-line bg-raised text-ink-3 line-through" }
-                      : { label: mission.status || "Pending", cls: "border-line bg-raised text-ink-2" };
+              : isRejected
+                ? { label: "Declined", cls: "border-crimson/40 bg-crimson/10 text-crimson" }
+                : active
+                  ? {
+                      label: isSolo ? "Ready" : due ? "Due now" : canCheckIn ? "Check-in open" : "Upcoming",
+                      cls: due || (canCheckIn && !isSolo) ? "border-signal/70 bg-surface text-crimson" : "border-line bg-raised text-ink"
+                    }
+                  : executing
+                    ? { label: "Locked in", cls: "border-signal text-ink", live: true }
+                    : mission.status === "Completed"
+                      ? { label: "Completed", cls: "border-success/40 bg-success/10 text-success" }
+                      : mission.status === "Missed"
+                        ? { label: "Missed", cls: "border-line bg-raised text-ink-3 line-through" }
+                        : { label: mission.status || "Pending", cls: "border-line bg-raised text-ink-2" };
 
             const roleLabel = isSolo
               ? "Solo"
@@ -710,15 +746,29 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           )}
                         </div>
                       </div>
-                      <span className={`flex h-8 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-[12px] font-medium uppercase tracking-[0.12em] ${status.cls}`}>
-                        {status.live && (
-                          <span className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
-                          </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`flex h-8 shrink-0 items-center gap-1.5 rounded-sm border px-2.5 text-[12px] font-medium uppercase tracking-[0.12em] ${status.cls}`}>
+                          {status.live && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
+                            </span>
+                          )}
+                          {status.label}
+                        </span>
+                        {!executing && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMission(mission)}
+                            disabled={deletingId === mission.id}
+                            title={isCreator ? "Delete mission" : isRequest ? "Withdraw request / Give up" : "Give up"}
+                            aria-label={isCreator ? "Delete mission" : "Give up"}
+                            className="flex h-8 w-8 items-center justify-center rounded-sm border border-line bg-raised text-ink-3 transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         )}
-                        {status.label}
-                      </span>
+                      </div>
                     </div>
 
                     {/* Next step */}
@@ -897,7 +947,18 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     {/* Host: nobody yet */}
                     {mission.status === "Pending" && (
                       <Panel tone="muted">
-                        <p className="text-subhead text-ink-2">Live on the deck. You'll see join requests here.</p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-subhead text-ink-2">Live on the deck. You'll see join requests here.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMission(mission)}
+                            disabled={deletingId === mission.id}
+                            className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-caption font-semibold text-ink-3 transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>{deletingId === mission.id ? "Deleting..." : "Delete"}</span>
+                          </button>
+                        </div>
                       </Panel>
                     )}
 
@@ -944,13 +1005,51 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     {/* Participant: waiting */}
                     {!isCreator && isRequest && (
                       <Panel tone="muted">
-                        <div className="flex items-center gap-3">
-                          <motion.span
-                            className="h-2 w-2 shrink-0 rounded-full bg-ink-3"
-                            animate={{ opacity: [1, 0.3, 1] }}
-                            transition={{ duration: 1.6, repeat: Infinity }}
-                          />
-                          <p className="text-subhead text-ink-2">Waiting for {mission.creator_name} to approve you.</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <motion.span
+                              className="h-2 w-2 shrink-0 rounded-full bg-signal"
+                              animate={{ opacity: [1, 0.3, 1] }}
+                              transition={{ duration: 1.6, repeat: Infinity }}
+                            />
+                            <div>
+                              <p className="text-subhead font-medium text-ink">Join request pending</p>
+                              <p className="text-footnote text-ink-3">Waiting for {mission.creator_name} to review and approve.</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMission(mission)}
+                            disabled={deletingId === mission.id}
+                            className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-caption font-semibold text-ink-2 transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-crimson" />
+                            <span>{deletingId === mission.id ? "Withdrawing..." : "Withdraw request"}</span>
+                          </button>
+                        </div>
+                      </Panel>
+                    )}
+
+                    {/* Participant: request declined */}
+                    {!isCreator && isRejected && (
+                      <Panel tone="muted">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <X className="h-4 w-4 text-crimson shrink-0" />
+                            <div>
+                              <p className="text-subhead font-medium text-crimson">Join request declined</p>
+                              <p className="text-footnote text-ink-3">{mission.creator_name} could not accept this request.</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMission(mission)}
+                            disabled={deletingId === mission.id}
+                            className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-caption font-semibold text-ink-2 transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-crimson" />
+                            <span>{deletingId === mission.id ? "Removing..." : "Dismiss from queue"}</span>
+                          </button>
                         </div>
                       </Panel>
                     )}
@@ -1206,28 +1305,96 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                     )}
 
                     {/* Footer */}
-                    {!isRequest && ((!isSolo && mission.status !== "Pending") || (mission.status === "Completed" && !hostOfGroup)) && (
-                      <div className="flex gap-2 border-t border-line pt-4">
-                        {!isSolo && mission.status !== "Pending" && (
-                          <button
-                            type="button"
-                            onClick={() => setChatMission(mission)}
-                            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead font-medium text-ink transition-colors hover:bg-raised"
-                          >
-                            <MessageSquare className="h-4 w-4 text-ink-3" /> Chat
-                          </button>
-                        )}
-                        {mission.status === "Completed" && !hostOfGroup && (
-                          <button
-                            type="button"
-                            onClick={() => handleViewMissionRecap(mission.id)}
-                            className="btn-primary h-11 flex-1"
-                          >
-                            <Trophy className="h-4 w-4" /> Recap
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+                      {/* Participant: Withdraw pending join request */}
+                      {isRequest && !isCreator && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMission(mission)}
+                          disabled={deletingId === mission.id}
+                          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-raised text-subhead font-medium text-ink transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4 text-crimson" />
+                          <span>{deletingId === mission.id ? "Withdrawing..." : "Withdraw request"}</span>
+                        </button>
+                      )}
+
+                      {/* Participant: Dismiss declined request */}
+                      {isRejected && !isCreator && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMission(mission)}
+                          disabled={deletingId === mission.id}
+                          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-raised text-subhead font-medium text-ink transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4 text-crimson" />
+                          <span>{deletingId === mission.id ? "Removing..." : "Dismiss from queue"}</span>
+                        </button>
+                      )}
+
+                      {/* Host: Delete pending unstarted mission */}
+                      {mission.status === "Pending" && isCreator && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMission(mission)}
+                          disabled={deletingId === mission.id}
+                          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-raised text-subhead font-medium text-ink transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4 text-crimson" />
+                          <span>{deletingId === mission.id ? "Deleting..." : "Delete mission"}</span>
+                        </button>
+                      )}
+
+                      {/* Chat for active group missions */}
+                      {!isSolo && !isRequest && !isRejected && mission.status !== "Pending" && (
+                        <button
+                          type="button"
+                          onClick={() => setChatMission(mission)}
+                          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-subhead font-medium text-ink transition-colors hover:bg-raised"
+                        >
+                          <MessageSquare className="h-4 w-4 text-ink-3" /> Chat
+                        </button>
+                      )}
+
+                      {/* Solo unstarted mission: Delete option */}
+                      {isSolo && !executing && mission.status !== "Completed" && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMission(mission)}
+                          disabled={deletingId === mission.id}
+                          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-line px-4 text-subhead font-medium text-ink-3 transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson disabled:opacity-50"
+                          title="Delete mission"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete</span>
+                        </button>
+                      )}
+
+                      {/* Active group mission before execution: Give up / Cancel */}
+                      {active && !executing && !isSolo && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMission(mission)}
+                          disabled={deletingId === mission.id}
+                          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-line px-4 text-subhead font-medium text-ink-3 transition-colors hover:border-crimson/50 hover:bg-crimson/10 hover:text-crimson disabled:opacity-50"
+                          title={isCreator ? "Cancel mission" : "Leave mission"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>{isCreator ? "Cancel" : "Give up"}</span>
+                        </button>
+                      )}
+
+                      {/* Completed mission: Recap */}
+                      {mission.status === "Completed" && !hostOfGroup && (
+                        <button
+                          type="button"
+                          onClick={() => handleViewMissionRecap(mission.id)}
+                          className="btn-primary h-11 flex-1"
+                        >
+                          <Trophy className="h-4 w-4" /> Recap
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </motion.article>
               </Reveal.Item>
@@ -1675,7 +1842,8 @@ function sectionOf(m: Mission): SectionKey {
   if (m.status === "Executing") return "live";
   if (m.status === "Completed") return owesRating(m) ? "needs" : "history";
   if (m.status === "Missed") return "history";
-  if (m.status === "Requested" && m.role === "creator") return "needs";
+  if (m.status === "Requested") return "needs";
+  if (m.status === "Rejected") return "needs";
   if (m.status === "Accepted" && !isSoloMission(m) && checkInIsOpen(m)) return "needs";
   return "next";
 }
@@ -1702,7 +1870,9 @@ function nextStep(m: Mission): { text: string; urgent: boolean } {
     case "Requested":
       return host
         ? { text: `${m.participant_name || "Someone"} wants to join. Approve them below.`, urgent: true }
-        : { text: `Waiting for ${hostName} to approve you.`, urgent: false };
+        : { text: `Waiting for ${hostName} to approve you. Withdraw below if you changed your mind.`, urgent: false };
+    case "Rejected":
+      return { text: "Join request was declined.", urgent: false };
     case "Accepted":
       if (solo) return { text: "Ready when you are. Start a focus session.", urgent: false };
       if (!checkInIsOpen(m)) return { text: `Starts in ${untilLabel(m.datetime)}. Check-in opens 15 min before.`, urgent: false };

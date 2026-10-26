@@ -11,3 +11,8 @@ build/
 .prisma/
 backend/prisma/migrations/
 db_data/
+*.mp4
+hyperframes/
+lockin-group-chat/
+lockin-teaser/
+video-lockin-teaser/
