@@ -1,0 +1,658 @@
+<!doctype html>
+<html>
+<head>
+
+    <meta charset="UTF-8" />
+    <title>lockin — vision deck for builders</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      @page {
+        size: 1920px 1080px;
+        margin: 0;
+      }
+
+      :root {
+        --bg: #050505;
+        --surface: #0c0c0c;
+        --raised: #141414;
+        --line: #202020;
+        --line-light: #2c2c2c;
+        --ink: #f4f2ee;
+        --ink-dim: #908e8a;
+        --ink-dark: #666663;
+        --signal: #b11226;
+        --crimson: #e92a42;
+        --green: #10b981;
+      }
+
+      html, body {
+        width: 1920px;
+        background-color: var(--bg);
+        color: var(--ink);
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      .slide {
+        width: 1920px;
+        height: 1080px;
+        position: relative;
+        background: var(--bg);
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 80px 100px;
+      }
+
+      /* Subtle Grid Texture */
+      .slide-bg-grid {
+        position: absolute;
+        inset: 0;
+        background-image: 
+          linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+        background-size: 80px 80px;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .slide > * {
+        position: relative;
+        z-index: 2;
+      }
+
+      /* Chrome Header */
+      .slide-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+        color: var(--ink-dark);
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .header-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--crimson);
+        box-shadow: 0 0 10px var(--crimson);
+      }
+
+      .header-right {
+        color: var(--ink-dark);
+      }
+
+      /* Chrome Footer */
+      .slide-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        border-top: 1px solid var(--line);
+        padding-top: 24px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: var(--ink-dark);
+      }
+
+      .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink-dim);
+      }
+
+      .footer-tagline {
+        color: var(--crimson);
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+         SLIDE 1: THE POSSIBILITY
+         ───────────────────────────────────────────────────────────── */
+      .s1-center {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-width: 1500px;
+        margin: auto 0;
+      }
+
+      .s1-headline {
+        font-size: 88px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+        color: var(--ink);
+      }
+
+      .s1-subhead {
+        font-size: 52px;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        color: var(--ink-dim);
+        margin-top: 36px;
+        line-height: 1.2;
+      }
+
+      .s1-accent-line {
+        width: 220px;
+        height: 2px;
+        background: var(--crimson);
+        margin-top: 50px;
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+         SLIDE 2: THE PROBLEM
+         ───────────────────────────────────────────────────────────── */
+      .s2-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 60px;
+        margin: auto 0;
+      }
+
+      .s2-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .s2-headline {
+        font-size: 68px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        color: var(--ink);
+      }
+
+      .s2-kicker {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 20px;
+        letter-spacing: 0.12em;
+        color: var(--crimson);
+      }
+
+      .s2-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        width: 100%;
+      }
+
+      .friction-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 32px 36px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .friction-num {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: var(--crimson);
+        letter-spacing: 0.15em;
+      }
+
+      .friction-text {
+        font-size: 26px;
+        font-weight: 600;
+        color: var(--ink);
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+      }
+
+      .friction-detail {
+        font-size: 17px;
+        color: var(--ink-dim);
+        line-height: 1.5;
+      }
+
+      .s2-bottom-bar {
+        background: #0d0708;
+        border: 1px solid rgba(233, 42, 66, 0.25);
+        border-radius: 12px;
+        padding: 20px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 17px;
+        color: var(--ink-dim);
+      }
+
+      .s2-bottom-bar b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+         SLIDE 3: THE VISION
+         ───────────────────────────────────────────────────────────── */
+      .s3-layout {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        margin: auto 0;
+        gap: 48px;
+        max-width: 1540px;
+        align-self: center;
+      }
+
+      .s3-brand-hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .s3-mark {
+        width: 110px;
+        height: 92px;
+      }
+
+      .s3-headline {
+        font-size: 104px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1.0;
+        color: var(--ink);
+      }
+
+      .s3-subcopy {
+        font-size: 32px;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        color: var(--ink-dim);
+        max-width: 1100px;
+        line-height: 1.45;
+      }
+
+      /* Mental model box */
+      .s3-model-container {
+        width: 100%;
+        max-width: 1380px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 32px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        text-align: left;
+      }
+
+      .s3-model-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 16px;
+      }
+
+      .s3-model-title {
+        color: var(--crimson);
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+
+      .s3-model-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 32px;
+      }
+
+      .model-col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .model-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        color: var(--ink-dark);
+        letter-spacing: 0.1em;
+      }
+
+      .model-heading {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .model-desc {
+        font-size: 15px;
+        color: var(--ink-dim);
+        line-height: 1.5;
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+         SLIDE 4: THE PRODUCT
+         ───────────────────────────────────────────────────────────── */
+      .s4-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+        margin: auto 0;
+      }
+
+      .s4-header-block {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+
+      .s4-headline {
+        font-size: 64px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+        line-height: 1.05;
+      }
+
+      .s4-lead-pill {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        color: var(--crimson);
+        background: rgba(233, 42, 66, 0.1);
+        border: 1px solid rgba(233, 42, 66, 0.25);
+        padding: 8px 18px;
+        border-radius: 999px;
+      }
+
+      .s4-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 40px;
+        align-items: center;
+      }
+
+      .s4-col {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .s4-label-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .s4-step-num {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: var(--crimson);
+        letter-spacing: 0.15em;
+      }
+
+      .s4-step-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+
+      .s4-step-desc {
+        font-size: 15px;
+        color: var(--ink-dim);
+        line-height: 1.45;
+      }
+
+      .s4-screen-wrap {
+        width: 100%;
+        max-width: 480px;
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        overflow: hidden;
+        background: #000;
+      }
+
+      .s4-screen-wrap img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      /* ─────────────────────────────────────────────────────────────
+         SLIDE 5: WHAT LOCKIN COULD BECOME
+         ───────────────────────────────────────────────────────────── */
+      .s5-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 50px;
+        margin: auto 0;
+      }
+
+      .s5-header-block {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .s5-headline {
+        font-size: 68px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+        color: var(--ink);
+      }
+
+      .s5-subhead {
+        font-size: 34px;
+        font-weight: 400;
+        color: var(--ink-dim);
+        letter-spacing: -0.01em;
+      }
+
+      .s5-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+      }
+
+      .horizon-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 36px 32px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 280px;
+      }
+
+      .horizon-top {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .horizon-idx {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        color: var(--crimson);
+        letter-spacing: 0.15em;
+      }
+
+      .horizon-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+      }
+
+      .horizon-desc {
+        font-size: 16px;
+        color: var(--ink-dim);
+        line-height: 1.5;
+      }
+
+      .horizon-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 24px;
+      }
+
+      .horizon-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: var(--raised);
+        border: 1px solid var(--line-light);
+        color: var(--ink-dark);
+      }
+
+      .s5-invitation-bar {
+        background: #090909;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 24px 36px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .invitation-left {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .invitation-mark {
+        width: 44px;
+        height: 38px;
+      }
+
+      .invitation-text-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .invitation-lead {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .invitation-sub {
+        font-size: 15px;
+        color: var(--ink-dim);
+      }
+
+      .invitation-cta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .url-box {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        color: var(--crimson);
+        background: rgba(233, 42, 66, 0.1);
+        border: 1px solid rgba(233, 42, 66, 0.3);
+        padding: 8px 20px;
+        border-radius: 999px;
+      }
+    </style>
+  
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body style="width: 1920px; height: 1080px; margin: 0; padding: 0;">
+<section class="slide" id="slide-2">
+      <div class="slide-bg-grid"></div>
+
+      <header class="slide-header">
+        <div class="header-left">
+          <div class="header-dot"></div>
+          <span>lockin // vision deck 02</span>
+        </div>
+        <div class="header-right">[ the student friction ]</div>
+      </header>
+
+      <div class="s2-layout">
+        <div class="s2-title-group">
+          <span class="s2-kicker">● root cause diagnosis</span>
+          <h1 class="s2-headline">good ideas rarely happen on their own.</h1>
+        </div>
+
+        <div class="s2-grid">
+          <div class="friction-card">
+            <span class="friction-num">01 / talk vs execution</span>
+            <div class="friction-text">the project you keep talking about but never start</div>
+            <div class="friction-detail">hackathon ideas and side builds that stall in group chats with 87 messages and zero lines of code.</div>
+          </div>
+
+          <div class="friction-card">
+            <span class="friction-num">02 / social isolation</span>
+            <div class="friction-text">the people you want to meet but never quite find</div>
+            <div class="friction-detail">knowing 50 classmates in large lectures is not the same as having someone on your exact creative wavelength.</div>
+          </div>
+
+          <div class="friction-card">
+            <span class="friction-num">03 / accountability vacuum</span>
+            <div class="friction-text">the study session that keeps getting postponed</div>
+            <div class="friction-detail">promising to study alone in a dorm room, then losing five hours to passive scrolling and fragmented attention.</div>
+          </div>
+
+          <div class="friction-card">
+            <span class="friction-num">04 / coordination fatigue</span>
+            <div class="friction-text">the things you want to try but don't want to do alone</div>
+            <div class="friction-detail">gym workouts, 5km track runs, paper submissions, and side quests that fade without a concrete partner.</div>
+          </div>
+        </div>
+
+        <div class="s2-bottom-bar">
+          <span><b>the barrier isn't ambition:</b> discovery, compatibility, and follow-through are fragmented across dead group chats, stale dms, and disconnected feeds.</span>
+          <span style="font-family: 'JetBrains Mono', monospace; color: var(--crimson);">[ 0% output ]</span>
+        </div>
+      </div>
+
+      <footer class="slide-footer">
+        <div class="footer-brand">
+          <span>friction audit · university life 2026</span>
+        </div>
+        <div class="footer-tagline">find your people.</div>
+      </footer>
+    </section>
+</body>
+</html>

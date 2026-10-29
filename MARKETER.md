@@ -234,6 +234,27 @@ Every hook before scripting must pass the **Four Failures Check**:
 
 ---
 
+### [2026-10-30] Builder Vision Deck: "Find Your People" (5-Slide Executive & Builder Narrative)
+* **Deliverables:** 
+  - `lockin_vision_deck.pptx` (16:9 widescreen editable presentation with embedded speaker notes)
+  - `lockin_vision_deck.pdf` (vector-grade 5-page PDF export)
+  - `SPEAKER_NOTES.md` (natural spoken script, pacing cues, and builder Q&A playbook)
+  - `deck_research_appendix.md` (competitive teardown: StudyFetch, Strava, Matiks, Discord, Partiful, Tinder, LinkedIn + 6 campus flywheels)
+* **Audience:** Student builders, hackathon teams, campus community leads, technical founders.
+* **Core Brand Anchor:** `find your people.`
+* **Core Tagline:** `stop scrolling. start showing up.`
+* **Strategic Metaphor:** `tinder × linkedin — but for college life.` (zero-awkwardness discovery + capability/skill context, terminating in physical offline execution rather than an infinite chat thread).
+* **Narrative Arc (5 Slides):**
+  1. `the possibility` ("college is full of possibilities. but how much of it do we actually do?")
+  2. `the problem` (coordination collapse: talk vs execution, social isolation, accountability vacuum, coordination fatigue)
+  3. `the vision` ("find your people. lockin helps you find things to do, people to do them with, and the momentum to actually get started.")
+  4. `the product` (authentic live application screens from lockin.top: discover → solo or together → show up)
+  5. `what lockin could become` (3 horizons: grind, community, missions + builder invitation)
+* **Creative Restraint:** 100% strictly lowercase typography throughout. Void black (`#050505`), dark surface (`#0c0c0c`), signal crimson (`#e92a42`), and ink off-white (`#f4f2ee`). Real production screenshots, zero startup illustrations or generic 3D fluff.
+* **Status:** **DELIVERED.**
+
+---
+
 ### [Next in Queue] Campaign 03: "Productive Procrastination / The Plan Paradox" (Video 03)
 * **Status:** **QUEUED**
 * **Territory:** Productivity & Over-planning

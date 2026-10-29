@@ -50,6 +50,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
   const [activeTimerDuration, setActiveTimerDuration] = useState<number>(1500); // default 25 min
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(1500);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
+  const [focusOverlayOpen, setFocusOverlayOpen] = useState<boolean>(false);
   const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);
 
   // Timer Tick Effect

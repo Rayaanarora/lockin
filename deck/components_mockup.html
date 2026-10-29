@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>LOCKIN UI Screens for Vision Deck</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: transparent;
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #f4f2ee;
+        display: flex;
+        gap: 60px;
+        padding: 40px;
+      }
+
+      .mobile-frame {
+        width: 440px;
+        height: 920px;
+        background: #050505;
+        border: 2px solid #262626;
+        border-radius: 48px;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      /* iOS Chrome */
+      .status-bar {
+        height: 48px;
+        padding: 14px 28px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        color: #908e8a;
+      }
+
+      .dynamic-island {
+        width: 100px;
+        height: 24px;
+        background: #111;
+        border-radius: 12px;
+      }
+
+      .app-header {
+        height: 56px;
+        padding: 0 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #1a1a1a;
+      }
+
+      .logo-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .logo-mark {
+        width: 22px;
+        height: 20px;
+      }
+
+      .logo-word {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        color: #f4f2ee;
+      }
+
+      .logo-word span {
+        color: #e92a42;
+      }
+
+      .grit-badge {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        color: #908e8a;
+      }
+
+      .grit-badge b {
+        color: #f4f2ee;
+        font-weight: 600;
+      }
+
+      /* Scroll Content */
+      .app-content {
+        flex: 1;
+        padding: 20px 20px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow: hidden;
+      }
+
+      /* Category Pills */
+      .pills-row {
+        display: flex;
+        gap: 8px;
+        overflow: hidden;
+      }
+
+      .pill {
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid #222;
+        background: #0c0c0c;
+        font-size: 12px;
+        color: #908e8a;
+        white-space: nowrap;
+      }
+
+      .pill.active {
+        border-color: #e92a42;
+        color: #f4f2ee;
+        background: rgba(233, 42, 66, 0.1);
+      }
+
+      /* Mission Card (from ActiveMissions.tsx / Feed.tsx) */
+      .mission-card {
+        background: #0c0c0c;
+        border: 1px solid #222;
+        border-radius: 20px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card-strip {
+        height: 6px;
+        background: linear-gradient(90deg, #b11226, #e92a42);
+      }
+
+      .card-body {
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .card-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #908e8a;
+      }
+
+      .tag-grind {
+        color: #e92a42;
+        background: rgba(233, 42, 66, 0.12);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .card-title {
+        font-size: 19px;
+        font-weight: 700;
+        line-height: 1.25;
+        color: #f4f2ee;
+      }
+
+      .card-loc {
+        font-size: 13px;
+        color: #908e8a;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .task-list {
+        background: #111;
+        border: 1px solid #1c1c1c;
+        border-radius: 12px;
+        padding: 10px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .task-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #c0beba;
+      }
+
+      .check-box {
+        width: 14px;
+        height: 14px;
+        border: 1px solid #333;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: #10b981;
+      }
+
+      .check-box.checked {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.15);
+      }
+
+      .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 6px;
+      }
+
+      .action-btn {
+        background: #b11226;
+        border: 1px solid #e92a42;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        text-align: center;
+      }
+
+      .roster-avatars {
+        display: flex;
+        align-items: center;
+      }
+
+      .avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #222;
+        border: 2px solid #0c0c0c;
+        font-size: 10px;
+        font-family: 'JetBrains Mono', monospace;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        margin-left: -8px;
+      }
+
+      .avatar:first-child {
+        margin-left: 0;
+        background: #b11226;
+      }
+
+      /* Screen 2: Solo / Group Creator UI */
+      .segmented-control {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 10px;
+        padding: 3px;
+      }
+
+      .seg-item {
+        text-align: center;
+        padding: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 8px;
+        color: #908e8a;
+      }
+
+      .seg-item.active {
+        background: #e92a42;
+        color: #fff;
+      }
+
+      .roster-panel {
+        background: #0c0c0c;
+        border: 1px solid #222;
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .roster-header {
+        display: flex;
+        justify-content: space-between;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #908e8a;
+      }
+
+      .roster-slot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #141414;
+        border: 1px solid #1f1f1f;
+        font-size: 12px;
+      }
+
+      .slot-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .slot-badge {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      .badge-confirmed {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+      }
+
+      .badge-open {
+        background: rgba(255, 255, 255, 0.08);
+        color: #888;
+      }
+
+      /* Screen 3: Sprint Execution UI */
+      .timer-display-box {
+        background: #0c0c0c;
+        border: 1px solid #2a1114;
+        border-radius: 20px;
+        padding: 24px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .timer-digits {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 64px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1.0;
+        color: #e92a42;
+      }
+
+      .timer-status {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: #908e8a;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #e92a42;
+        box-shadow: 0 0 10px #e92a42;
+      }
+
+      .verification-pill {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 12px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #10b981;
+      }
+
+      /* Bottom Nav Bar (from Nav.tsx) */
+      .nav-bar {
+        height: 64px;
+        border-top: 1px solid #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 0 8px;
+        background: rgba(10, 10, 10, 0.95);
+      }
+
+      .nav-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        color: #666663;
+        position: relative;
+        padding: 8px 12px;
+      }
+
+      .nav-tab.active {
+        color: #f4f2ee;
+      }
+
+      .nav-tab.active::before {
+        content: '';
+        position: absolute;
+        top: -8px;
+        left: 20%;
+        right: 20%;
+        height: 2px;
+        background: #e92a42;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Screen 1: Discover -->
+    <div class="mobile-frame" id="frame-discover">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="dynamic-island"></div>
+        <span>5g</span>
+      </div>
+
+      <div class="app-header">
+        <div class="logo-group">
+          <svg class="logo-mark" viewBox="230 260 620 520" fill="none">
+            <path d="M540 515 L540 768" stroke="#f4f2ee" stroke-width="28" stroke-linecap="round"/>
+            <path d="M540 515 C532 450 470 375 247 315" stroke="#f4f2ee" stroke-width="28" stroke-linecap="round"/>
+            <path d="M540 515 C548 450 610 375 833 315" stroke="#f4f2ee" stroke-width="28" stroke-linecap="round"/>
+            <polygon points="540,286 530,322 550,322" fill="#e92a42"/>
+          </svg>
+          <div class="logo-word">l<span>o</span>ckin</div>
+        </div>
+        <div class="grit-badge"><b>1,240</b> grit</div>
+      </div>
+
+      <div class="app-content">
+        <div class="pills-row">
+          <div class="pill active">all</div>
+          <div class="pill">study</div>
+          <div class="pill">grind</div>
+          <div class="pill">fitness</div>
+          <div class="pill">discipline</div>
+        </div>
+
+        <div class="mission-card">
+          <div class="card-strip"></div>
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="tag-grind">study · grind</span>
+              <span>60m sprint</span>
+            </div>
+            <div class="card-title">fluid dynamics: 10 problem sets</div>
+            <div class="card-loc">📍 central library · 2nd floor quiet zone</div>
+
+            <div class="task-list">
+              <div class="task-item">
+                <div class="check-box checked">✓</div>
+                <span>navier-stokes derivation review</span>
+              </div>
+              <div class="task-item">
+                <div class="check-box"></div>
+                <span>problems 4.1 through 4.5</span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="roster-avatars">
+                <div class="avatar">f</div>
+                <div class="avatar">a</div>
+                <div class="avatar">r</div>
+              </div>
+              <div class="action-btn">lock in · +80 grit</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mission-card" style="opacity: 0.65;">
+          <div class="card-strip" style="background: #333;"></div>
+          <div class="card-body" style="padding: 14px;">
+            <div class="card-meta">
+              <span style="color: #10b981;">fitness · solo</span>
+              <span>35m</span>
+            </div>
+            <div style="font-size: 15px; font-weight: 700;">5 km campus paced run</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <div class="nav-tab active">missions</div>
+        <div class="nav-tab">feed</div>
+        <div class="nav-tab">queue</div>
+        <div class="nav-tab">profile</div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Solo or Together -->
+    <div class="mobile-frame" id="frame-collaborate">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="dynamic-island"></div>
+        <span>5g</span>
+      </div>
+
+      <div class="app-header">
+        <div class="logo-group">
+          <div class="logo-word" style="font-size: 14px;">launch mission</div>
+        </div>
+        <div class="grit-badge">[ iitd campus ]</div>
+      </div>
+
+      <div class="app-content">
+        <div class="segmented-control">
+          <div class="seg-item">solo</div>
+          <div class="seg-item active">group squad</div>
+        </div>
+
+        <div class="mission-card">
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="tag-grind">project · hackathon</span>
+              <span>target: 90m</span>
+            </div>
+            <div class="card-title">ship v1 prototype: auth & database schema</div>
+            <div class="card-loc">📍 hostel 7 common room · desk 4</div>
+          </div>
+        </div>
+
+        <div class="roster-panel">
+          <div class="roster-header">
+            <span>builder squad</span>
+            <span style="color: #e92a42;">3 of 4 locked in</span>
+          </div>
+
+          <div class="roster-slot">
+            <div class="slot-info">
+              <div class="avatar" style="margin: 0; background: #b11226;">a</div>
+              <span>alex (host)</span>
+            </div>
+            <span class="slot-badge badge-confirmed">confirmed</span>
+          </div>
+
+          <div class="roster-slot">
+            <div class="slot-info">
+              <div class="avatar" style="margin: 0; background: #333;">p</div>
+              <span>priya (frontend)</span>
+            </div>
+            <span class="slot-badge badge-confirmed">confirmed</span>
+          </div>
+
+          <div class="roster-slot">
+            <div class="slot-info">
+              <div class="avatar" style="margin: 0; background: #333;">r</div>
+              <span>rohan (backend)</span>
+            </div>
+            <span class="slot-badge badge-confirmed">confirmed</span>
+          </div>
+
+          <div class="roster-slot" style="border-style: dashed; border-color: #333; background: transparent;">
+            <div class="slot-info">
+              <div class="avatar" style="margin: 0; background: transparent; border-style: dashed; color: #666;">+</div>
+              <span style="color: #777;">open slot (designer / dev)</span>
+            </div>
+            <span class="slot-badge badge-open">open</span>
+          </div>
+        </div>
+
+        <div class="action-btn" style="padding: 14px; font-size: 14px;">launch sprint · +120 grit</div>
+      </div>
+
+      <div class="nav-bar">
+        <div class="nav-tab">missions</div>
+        <div class="nav-tab">feed</div>
+        <div class="nav-tab active">queue</div>
+        <div class="nav-tab">profile</div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Show Up / Execute -->
+    <div class="mobile-frame" id="frame-execute">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="dynamic-island"></div>
+        <span>5g</span>
+      </div>
+
+      <div class="app-header">
+        <div class="logo-group">
+          <div class="logo-word" style="font-size: 14px;">active session</div>
+        </div>
+        <div class="grit-badge" style="color: #e92a42;">● sprint lock</div>
+      </div>
+
+      <div class="app-content">
+        <div class="timer-display-box">
+          <div class="timer-status">
+            <div class="pulse-dot"></div>
+            <span>60:00 focus sprint in progress</span>
+          </div>
+          <div class="timer-digits">54:21</div>
+          <div style="font-size: 12px; color: #908e8a;">distractions blocked · proof active</div>
+        </div>
+
+        <div class="verification-pill">
+          <span>✓ on-site check-in verified</span>
+          <span>host check: ok</span>
+        </div>
+
+        <div class="mission-card">
+          <div class="card-body">
+            <div class="card-meta">
+              <span>deliverables checklist</span>
+              <span style="color: #10b981;">2 / 3 complete</span>
+            </div>
+
+            <div class="task-list" style="background: transparent; border: none; padding: 0;">
+              <div class="task-item">
+                <div class="check-box checked">✓</div>
+                <span style="text-decoration: line-through; color: #777;">scaffold supabase tables & rls</span>
+              </div>
+              <div class="task-item">
+                <div class="check-box checked">✓</div>
+                <span style="text-decoration: line-through; color: #777;">connect session auth middleware</span>
+              </div>
+              <div class="task-item">
+                <div class="check-box"></div>
+                <span style="color: #f4f2ee;">verify live sync on local network</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-btn" style="background: #10b981; border-color: #34d399; margin-top: auto; padding: 14px;">
+          complete mission & log proof
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <div class="nav-tab">missions</div>
+        <div class="nav-tab">feed</div>
+        <div class="nav-tab active">queue</div>
+        <div class="nav-tab">profile</div>
+      </div>
+    </div>
+  </body>
+</html>

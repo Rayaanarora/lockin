@@ -174,96 +174,146 @@ export default function LockinRecapCard({
 
   // Calculate tier details
   let tier = "bronze";
-  let tierName = "Bronze";
-  let tierColor = "rgb(var(--ink-3))"; // Bronze/Copper
-  let cardBg = "rgb(var(--surface))";
-  let accentColor = "text-ink-3";
-  let borderStyle = "border-line";
-  let glowColor = "transparent";
-  let badgeBg = "bg-surface border-line text-ink-2";
+  let tierName = "Bronze Tier";
+  let tierPill = "BRONZE";
+  let tierColor = "#CD7F32"; // Rich metallic bronze/copper
+  let cardBg = "linear-gradient(155deg, #22140A 0%, #140C06 45%, #080402 100%)";
+  let glowColor = "rgba(205, 127, 50, 0.28)";
+  let accentColor = "text-[#E8A36E]";
+  let borderStyle = "border-[#CD7F32]/50 shadow-[0_0_35px_rgba(205,127,50,0.18)]";
+  let badgeBg = "bg-[#CD7F32]/20 border-[#CD7F32]/40 text-[#E8A36E]";
 
   if (isFailed) {
     tier = "crashed";
-    tierName = "Crashed";
-    tierColor = "rgb(var(--crimson-text))"; // Red
-    cardBg = "rgb(var(--surface))";
-    accentColor = "text-crimson";
-    borderStyle = "border-signal/70";
-    glowColor = "transparent";
-    badgeBg = "bg-surface border-signal/70 text-ink";
+    tierName = "Runway Crashed";
+    tierPill = "CRASHED";
+    tierColor = "#EF4444";
+    cardBg = "linear-gradient(155deg, #1C0508 0%, #0E0204 45%, #050002 100%)";
+    glowColor = "rgba(239, 68, 68, 0.30)";
+    accentColor = "text-red-400";
+    borderStyle = "border-red-600/60 shadow-[0_0_35px_rgba(239,68,68,0.22)]";
+    badgeBg = "bg-red-950/60 border-red-500/50 text-red-400";
   } else if (recapType === "session") {
-    if (sessionDuration >= 120) {
-      tier = "legendary";
-      tierName = "Legendary";
-      tierColor = "rgb(var(--crimson-text))"; // Red
-      cardBg = "rgb(var(--surface))";
-      accentColor = "text-crimson";
-      borderStyle = "border-signal/70";
-      glowColor = "transparent";
-      badgeBg = "bg-surface border-signal/70 text-ink";
-    } else if (sessionDuration >= 60) {
+    if (sessionDuration > 90) {
+      // > 90 min: Crimson Tier (Hyper-focus)
+      tier = "crimson";
+      tierName = "Crimson Tier";
+      tierPill = "CRIMSON";
+      tierColor = "#FF1E46";
+      cardBg = "linear-gradient(155deg, #2E030B 0%, #170105 45%, #080002 100%)";
+      glowColor = "rgba(255, 30, 70, 0.38)";
+      accentColor = "text-[#FF4D6D]";
+      borderStyle = "border-[#FF1E46]/60 shadow-[0_0_45px_rgba(255,30,70,0.28)]";
+      badgeBg = "bg-[#FF1E46]/20 border-[#FF1E46]/50 text-[#FFA0B0]";
+    } else if (sessionDuration >= 75) {
+      // 75-90 min: Gold Tier (Radiant 24K gold)
       tier = "gold";
-      tierName = "Gold";
-      tierColor = "rgb(var(--gold))"; // Gold
-      cardBg = "rgb(var(--surface))";
-      accentColor = "text-gold";
-      borderStyle = "border-ink/40";
-      glowColor = "transparent";
-      badgeBg = "bg-gold/15 border-gold/30 text-ink";
-    } else if (sessionDuration >= 30) {
+      tierName = "Gold Tier";
+      tierPill = "GOLD";
+      tierColor = "#F59E0B";
+      cardBg = "linear-gradient(155deg, #261B05 0%, #161003 45%, #080501 100%)";
+      glowColor = "rgba(245, 158, 11, 0.32)";
+      accentColor = "text-amber-300";
+      borderStyle = "border-amber-400/55 shadow-[0_0_40px_rgba(245,158,11,0.22)]";
+      badgeBg = "bg-amber-400/20 border-amber-400/45 text-amber-200";
+    } else if (sessionDuration >= 45) {
+      // 45-74 min: Silver Tier (Cyber chrome / iced platinum)
       tier = "silver";
-      tierName = "Silver";
-      tierColor = "rgb(var(--ink-2))"; // Silver
-      cardBg = "rgb(var(--surface))";
-      accentColor = "text-ink-2";
-      borderStyle = "border-ink-2/30";
-      glowColor = "transparent";
-      badgeBg = "bg-ink-2/10 border-ink-2/25 text-ink";
+      tierName = "Silver Tier";
+      tierPill = "SILVER";
+      tierColor = "#E2E8F0";
+      cardBg = "linear-gradient(155deg, #181D26 0%, #0E1218 45%, #06080C 100%)";
+      glowColor = "rgba(226, 232, 240, 0.24)";
+      accentColor = "text-slate-200";
+      borderStyle = "border-slate-300/45 shadow-[0_0_35px_rgba(226,232,240,0.18)]";
+      badgeBg = "bg-slate-300/15 border-slate-300/40 text-slate-100";
+    } else {
+      // < 45 min (~25 min Pomodoro): Bronze Tier
+      tier = "bronze";
+      tierName = "Bronze Tier";
+      tierPill = "BRONZE";
+      tierColor = "#CD7F32";
+      cardBg = "linear-gradient(155deg, #22140A 0%, #140C06 45%, #080402 100%)";
+      glowColor = "rgba(205, 127, 50, 0.28)";
+      accentColor = "text-[#E8A36E]";
+      borderStyle = "border-[#CD7F32]/50 shadow-[0_0_35px_rgba(205,127,50,0.18)]";
+      badgeBg = "bg-[#CD7F32]/20 border-[#CD7F32]/40 text-[#E8A36E]";
     }
   } else {
     // Wrapped types logic
     if (recapType === "weekly") {
       const focusHrs = sessionDuration / 60;
-      if (focusHrs >= 10) {
+      if (focusHrs >= 15) {
+        tier = "crimson";
+        tierName = "Crimson Tier";
+        tierPill = "CRIMSON";
+        tierColor = "#FF1E46";
+        cardBg = "linear-gradient(155deg, #2E030B 0%, #170105 45%, #080002 100%)";
+        glowColor = "rgba(255, 30, 70, 0.38)";
+        accentColor = "text-[#FF4D6D]";
+        borderStyle = "border-[#FF1E46]/60 shadow-[0_0_45px_rgba(255,30,70,0.28)]";
+        badgeBg = "bg-[#FF1E46]/20 border-[#FF1E46]/50 text-[#FFA0B0]";
+      } else if (focusHrs >= 8) {
         tier = "gold";
-        tierName = "Gold";
-        tierColor = "rgb(var(--gold))";
-        cardBg = "rgb(var(--surface))";
-        accentColor = "text-gold";
-        borderStyle = "border-ink/40";
-        glowColor = "transparent";
-        badgeBg = "bg-gold/15 border-gold/30 text-ink";
+        tierName = "Gold Tier";
+        tierPill = "GOLD";
+        tierColor = "#F59E0B";
+        cardBg = "linear-gradient(155deg, #261B05 0%, #161003 45%, #080501 100%)";
+        glowColor = "rgba(245, 158, 11, 0.32)";
+        accentColor = "text-amber-300";
+        borderStyle = "border-amber-400/55 shadow-[0_0_40px_rgba(245,158,11,0.22)]";
+        badgeBg = "bg-amber-400/20 border-amber-400/45 text-amber-200";
       } else {
         tier = "silver";
-        tierName = "Silver";
-        tierColor = "rgb(var(--ink-2))";
-        cardBg = "rgb(var(--surface))";
-        accentColor = "text-ink-2";
-        borderStyle = "border-ink-2/30";
-        glowColor = "transparent";
-        badgeBg = "bg-ink-2/10 border-ink-2/25 text-ink";
+        tierName = "Silver Tier";
+        tierPill = "SILVER";
+        tierColor = "#E2E8F0";
+        cardBg = "linear-gradient(155deg, #181D26 0%, #0E1218 45%, #06080C 100%)";
+        glowColor = "rgba(226, 232, 240, 0.24)";
+        accentColor = "text-slate-200";
+        borderStyle = "border-slate-300/45 shadow-[0_0_35px_rgba(226,232,240,0.18)]";
+        badgeBg = "bg-slate-300/15 border-slate-300/40 text-slate-100";
       }
     } else if (recapType === "monthly") {
-      tier = "gold";
-      tierName = "Gold";
-      tierColor = "rgb(var(--gold))";
-      cardBg = "rgb(var(--surface))";
-      accentColor = "text-gold";
-      borderStyle = "border-ink/40";
-      glowColor = "transparent";
-      badgeBg = "bg-gold/15 border-gold/30 text-ink";
+      const focusHrs = sessionDuration / 60;
+      if (focusHrs >= 40) {
+        tier = "crimson";
+        tierName = "Crimson Tier";
+        tierPill = "CRIMSON";
+        tierColor = "#FF1E46";
+        cardBg = "linear-gradient(155deg, #2E030B 0%, #170105 45%, #080002 100%)";
+        glowColor = "rgba(255, 30, 70, 0.38)";
+        accentColor = "text-[#FF4D6D]";
+        borderStyle = "border-[#FF1E46]/60 shadow-[0_0_45px_rgba(255,30,70,0.28)]";
+        badgeBg = "bg-[#FF1E46]/20 border-[#FF1E46]/50 text-[#FFA0B0]";
+      } else {
+        tier = "gold";
+        tierName = "Gold Tier";
+        tierPill = "GOLD";
+        tierColor = "#F59E0B";
+        cardBg = "linear-gradient(155deg, #261B05 0%, #161003 45%, #080501 100%)";
+        glowColor = "rgba(245, 158, 11, 0.32)";
+        accentColor = "text-amber-300";
+        borderStyle = "border-amber-400/55 shadow-[0_0_40px_rgba(245,158,11,0.22)]";
+        badgeBg = "bg-amber-400/20 border-amber-400/45 text-amber-200";
+      }
     } else {
       // yearly or team
-      tier = "legendary";
-      tierName = "Legendary";
-      tierColor = "rgb(var(--crimson-text))";
-      cardBg = "rgb(var(--surface))";
-      accentColor = "text-crimson";
-      borderStyle = "border-signal/70";
-      glowColor = "transparent";
-      badgeBg = "bg-surface border-signal/70 text-ink";
+      tier = "crimson";
+      tierName = "Crimson Tier";
+      tierPill = "CRIMSON";
+      tierColor = "#FF1E46";
+      cardBg = "linear-gradient(155deg, #2E030B 0%, #170105 45%, #080002 100%)";
+      glowColor = "rgba(255, 30, 70, 0.38)";
+      accentColor = "text-[#FF4D6D]";
+      borderStyle = "border-[#FF1E46]/60 shadow-[0_0_45px_rgba(255,30,70,0.28)]";
+      badgeBg = "bg-[#FF1E46]/20 border-[#FF1E46]/50 text-[#FFA0B0]";
     }
   }
+
+  const pointsDelta = recapData.metadata?.gritDelta !== undefined
+    ? Number(recapData.metadata.gritDelta)
+    : (isFailed ? -5 : 10);
 
   // Handle export (we force capturing the Front card flat)
   const handleSave = useCallback(async () => {
@@ -449,6 +499,13 @@ export default function LockinRecapCard({
                   className={`relative flex flex-col justify-between overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
                   style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(!isFlipped) }}
                 >
+                  {/* Ambient radiant metallic glow */}
+                  <div
+                    className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
+                    style={{ background: glowColor }}
+                    aria-hidden="true"
+                  />
+
                   {/* Strava Photo Layer */}
                   {screenshot && (
                     <>
@@ -510,17 +567,28 @@ export default function LockinRecapCard({
                       <LockinMark size={22} color="rgb(var(--ink))" />
                       <LockinWordmark size="sm" />
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-caption font-semibold" style={{ color: tierColor }}>
-                        {statusText}
-                      </span>
-                      <span className="text-caption text-ink-3">{date}</span>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${badgeBg}`}>
+                          {tierPill}
+                        </span>
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular ${
+                            pointsDelta >= 0
+                              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                              : "border-red-500/40 bg-red-500/15 text-red-300"
+                          }`}
+                        >
+                          {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-ink-3 tabular">{date}</span>
                     </div>
                   </div>
 
                   {/* Hero */}
                   <div className="relative z-10">
-                    <div className="t-display flex items-baseline leading-none text-ink">
+                    <div className="t-display flex items-baseline leading-none text-ink drop-shadow-[0_4px_16px_rgba(0,0,0,0.6)]">
                       {hours > 0 && (
                         <>
                           <CountUp value={hours} className="text-[88px] sm:text-[100px]" duration={1.2} />
@@ -534,10 +602,18 @@ export default function LockinRecapCard({
                         </>
                       )}
                     </div>
-                    <div className="mt-2 text-footnote font-semibold" style={{ color: tierColor }}>
-                      {tierName} tier
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-footnote font-semibold tracking-wide uppercase" style={{ color: tierColor }}>
+                        {tierName}
+                      </span>
+                      <span className="text-ink-4">·</span>
+                      <span className="text-footnote font-medium text-ink-2">
+                        {statusText}
+                      </span>
                     </div>
-                    <div className="t-display mt-1 line-clamp-2 text-title-2 text-ink-2">{isPeriod ? "Your summary" : subtitleText}</div>
+                    <div className="t-display mt-1.5 line-clamp-2 text-title-2 font-bold text-ink">
+                      {isPeriod ? "Your summary" : subtitleText}
+                    </div>
                   </div>
 
                   {/* Stats */}
@@ -549,8 +625,12 @@ export default function LockinRecapCard({
                       <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
                     </div>
                     <div className="flex items-center justify-between border-t border-white/10 pt-3 text-caption text-ink-3">
-                      <span>lockin.top</span>
-                      <span>Tap to flip</span>
+                      <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
+                        <span>lockin.top</span>
+                        <span className="text-ink-4">/</span>
+                        <span className="text-[11px] text-ink-3">Stop scrolling. Start executing.</span>
+                      </div>
+                      <span className="text-[11px] text-ink-3">Tap to flip</span>
                     </div>
                   </div>
 
@@ -569,6 +649,12 @@ export default function LockinRecapCard({
                   className={`relative flex flex-col overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
                   style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(isFlipped), transform: "rotateY(180deg)" }}
                 >
+                  {/* Ambient radiant metallic glow */}
+                  <div
+                    className="pointer-events-none absolute -left-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-75"
+                    style={{ background: glowColor }}
+                    aria-hidden="true"
+                  />
                   <div className="relative z-10 flex items-start justify-between">
                     <span className="text-footnote font-semibold text-ink">Reflection</span>
                     <span className="rounded-sm border px-2.5 py-0.5 text-[11px] font-semibold" style={{ borderColor: tierColor, color: tierColor }}>
@@ -625,8 +711,12 @@ export default function LockinRecapCard({
                   </div>
 
                   <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-3 text-caption text-ink-3">
-                    <span className="tabular">#{recapData.shareId ? recapData.shareId.slice(0, 8) : "lockin"}</span>
-                    <span>Tap to flip</span>
+                    <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
+                      <span>lockin.top</span>
+                      <span className="text-ink-4">/</span>
+                      <span className="tabular text-[11px] text-ink-3">#{recapData.shareId ? recapData.shareId.slice(0, 8) : "lockin"}</span>
+                    </div>
+                    <span className="text-[11px] text-ink-3">Tap to flip</span>
                   </div>
                   <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundBack, opacity: 0.4 }} />
                 </div>

@@ -247,3 +247,27 @@ When the founder introduces a new product principle, architectural constraint, u
   - **Participants:** Dedicated "Give up" button on pending join requests + header trash icon (`<Trash2 />`). Frees their active mission slot immediately and notifies the host.
   - **Hosts:** Dedicated "Delete" button on pending unstarted missions + header trash icon (`<Trash2 />`). Deletes the mission, cascades cleanly, and notifies attendees.
   - **API Contract:** Handled via `POST /api/missions/:id/cancel` and `DELETE /api/missions/:id` with optimistic UI updates in `ActiveMissions.tsx`.
+
+### [2026-10-30] Strategic Positioning: Campus Execution Engine & Builder Operating System
+* **Context:** Authoring the 5-slide Apple-grade builder vision deck (`lockin_vision_deck.pptx` / `lockin_vision_deck.pdf`).
+* **The Mission as Atomic Unit:** Every interaction on LOCKIN centers around an active mission. The sequence is: `Discover → Commit (Solo or Squad) → Show Up & Sprint → Log Proof & Stack Motion`.
+* **Activity-First Social Graph:** Social bonds in college form through shared struggle and co-presence (body-doubling), not through profile feeds or chat channels.
+* **The Tinder × LinkedIn Synthesis:** 
+  - Low-friction discovery without social awkwardness (Tinder model).
+  - Ambition, project, and skill alignment (LinkedIn model).
+  - Terminating in physical, offline execution with verified proof of work rather than infinite screen engagement.
+* **Reputation Standard:** Motion cannot be bought or farmed via idle engagement; it is strictly earned through verified on-site check-ins, sprint execution, and completed deliverables.
+
+### [2026-10-30] Motion Rename, Focus Timer Persistence & Minute-Based Recap Card Tiers
+* **Points Renamed to "Motion":** Replaced "Grit" across the application with "Motion" (`POINTS_NAME = "Motion"` in `frontend/lib/brand.ts`). "Motion" represents real physical progress, momentum, and active execution on campus.
+* **Focus Timer Minimize & Mode Preservation:**
+  - **Root Cause:** Minimizing the `FocusOverlay` previously nulled `activeFocusMission`. Upon clicking "Continue focus", the component treated the mission as a new session, resetting `activeTimerDuration` and `timeLeftSeconds` to 0, mutating a Pomodoro countdown into a stopwatch.
+  - **Fix:** Introduced separate `focusOverlayOpen` state in `ActiveMissions.tsx`. Minimizing only hides the overlay (`focusOverlayOpen = false`) while retaining the target duration, active mission, and running countdown timer. Re-opening preserves the exact seconds and Pomodoro mode.
+* **Viral Instagram Stories Recap Card Tiers:**
+  - Distinct luxury gradients based on focus session duration:
+    - **Bronze Tier (< 45 min, ~25m Pomodoro):** Deep metallic copper/bronze gradient (`#22140A` -> `#140C06`) with warm amber glow.
+    - **Silver Tier (45–74 min, ~50m deep work):** Cyber platinum/iced silver gradient (`#181D26` -> `#0E1218`) with icy luminescence.
+    - **Gold Tier (75–90 min, ~90m deep work):** Obsidian with 24K radiant gold gradient (`#261B05` -> `#161003`) and warm gold flare.
+    - **Crimson Tier (> 90 min, marathon hyper-focus):** Bleeding cyberpunk crimson neon gradient (`#2E030B` -> `#170105`) and crimson flare.
+    - **Runway Crashed (Early exit / failed):** Shattered abyssal red gradient (`#1C0508` -> `#0E0204`) with `-5 Motion`.
+  - **Story Optimization:** Prominent `+10 Motion` pill, clean date stamp, massive display counter, mission title, stat grid, and `lockin.top / Stop scrolling. Start executing.` editorial watermark. Strictly zero emojis.

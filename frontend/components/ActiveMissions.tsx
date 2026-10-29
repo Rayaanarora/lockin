@@ -58,6 +58,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [activeTimerDuration, setActiveTimerDuration] = useState<number>(1500); // default 25 min
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(1500);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
+  const [focusOverlayOpen, setFocusOverlayOpen] = useState<boolean>(false);
   const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);
 
   // Event & Roster states
@@ -305,6 +306,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     setIsFailedRun(failed);
     setActiveReflectionMission(mission);
     setActiveFocusMission(null);
+    setFocusOverlayOpen(false);
     setTimerRunning(false);
     setReflectionText("");
     setLessonsLearned("");
@@ -510,7 +512,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     }
   }
 
-  async function handleAttendance(missionId: number, showedUp: boolean, targetParticipantId?: number) {
+  async function handleAttendance(missionId: number, showedUp: boolean, targetParticipantId?: number, chosenDuration?: number) {
     const code = inputCodes[missionId] || "";
 
     setErrors((prev) => ({ ...prev, [missionId]: "" }));
@@ -530,13 +532,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         const currentM = updatedList.find((m: any) => m.id === missionId);
         if (currentM && currentM.status === "Executing") {
           setActiveFocusMission(currentM);
-          if (showTimerSelector === missionId) {
-            setTimerRunning(true);
-          } else {
-            setActiveTimerDuration(0);
-            setTimeLeftSeconds(0);
-            setTimerRunning(true);
+          setFocusOverlayOpen(true);
+          if (typeof chosenDuration === "number") {
+            setActiveTimerDuration(chosenDuration);
+            setTimeLeftSeconds(chosenDuration);
+          } else if (activeTimerDuration === 0 && timeLeftSeconds === 0) {
+            setActiveTimerDuration(1500);
+            setTimeLeftSeconds(1500);
           }
+          setTimerRunning(true);
         }
       }
     } catch (err: any) {
@@ -1078,10 +1082,11 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                                         transition={{ ...spring.pop, delay: i * 0.04 }}
                                         whileTap={{ scale: 0.94 }}
                                         onClick={async () => {
-                                          setActiveTimerDuration(opt.value * 60);
-                                          setTimeLeftSeconds(opt.value * 60);
+                                          const chosenSecs = opt.value * 60;
+                                          setActiveTimerDuration(chosenSecs);
+                                          setTimeLeftSeconds(chosenSecs);
                                           setShowTimerSelector(null);
-                                          await handleAttendance(mission.id, true);
+                                          await handleAttendance(mission.id, true, undefined, chosenSecs);
                                         }}
                                         className="h-14 rounded-xl border border-line bg-raised text-title-3 font-semibold text-ink transition-colors hover:border-signal hover:bg-surface"
                                       >
@@ -1185,10 +1190,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                           type="button"
                           whileTap={{ scale: 0.98 }}
                           onClick={() => {
-                            setActiveFocusMission(mission);
-                            if (activeFocusMission?.id !== mission.id) {
-                              setActiveTimerDuration(0);
-                              setTimeLeftSeconds(0);
+                            if (activeFocusMission?.id === mission.id) {
+                              setFocusOverlayOpen(true);
+                            } else {
+                              setActiveFocusMission(mission);
+                              setFocusOverlayOpen(true);
+                              if (activeTimerDuration === 0 && timeLeftSeconds === 0) {
+                                setActiveTimerDuration(1500); // 25 min default
+                                setTimeLeftSeconds(1500);
+                              }
                               setTimerRunning(true);
                             }
                           }}
@@ -1786,7 +1796,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       {/* Fullscreen focus */}
       <Portal>
       <AnimatePresence>
-        {activeFocusMission && (
+        {activeFocusMission && focusOverlayOpen && (
           <FocusOverlay
             mission={activeFocusMission}
             time={formatTime(timeLeftSeconds)}
@@ -1794,7 +1804,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
             countdown={activeTimerDuration > 0}
             running={timerRunning}
             onToggle={() => setTimerRunning(!timerRunning)}
-            onMinimize={() => setActiveFocusMission(null)}
+            onMinimize={() => setFocusOverlayOpen(false)}
             onFinish={() => initiateFinishSession(activeFocusMission)}
           >
             <TaskList
