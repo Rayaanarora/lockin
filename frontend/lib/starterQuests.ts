@@ -3,7 +3,8 @@ export interface StarterQuest {
   title: string;
   shortTitle: string;
   description: string;
-  pillar: "Physical" | "Grind" | "Discipline" | "Social";
+  pillar: "Physical" | "Grind" | "Discipline" | "Social" | "Academics" | "Research";
+  groupTag?: "SRM & Campus Academics" | "Computer Science & Engineering" | "App Research & Internet Trends" | "Physical & Vitality" | "Discipline & Focus" | "Social & Collaboration" | string;
   categoryId: number;
   categoryName: string;
   missionType: "solo" | "group";
@@ -429,10 +430,352 @@ export const STARTER_QUESTS: StarterQuest[] = [
     coverColor: "#0ea5e9",
     coverImage: "linear-gradient(135deg, #091e2b 0%, #050505 100%)",
     badge: "CALM"
+  },
+
+  // ─── PILLAR: SRM & CAMPUS ACADEMICS (CTS, LABS, PLACEMENTS) ─────────
+  {
+    id: "srm-ct-crunch",
+    title: "Cycle Test (CT) 2-Unit Crunch — High-Yield Lock-In",
+    shortTitle: "CT 2-Unit Prep",
+    description: "50-minute focused revision of 2 high-yield units. Past 3 years questions, derivation summaries, formula cheat sheets. Zero phones.",
+    pillar: "Academics",
+    groupTag: "SRM & Campus Academics",
+    categoryId: 9,
+    categoryName: "Study Sessions",
+    missionType: "solo",
+    focusDuration: 50,
+    defaultLocation: "SRM KTR Central Library 2nd Floor",
+    tasks: [
+      "Summarize Unit 1 key theorems & derivations (20 min)",
+      "Solve 3 previous year CT question papers (20 min)",
+      "Blind recall self-quiz on Unit 2 edge cases (10 min)"
+    ],
+    coverColor: "#f59e0b",
+    coverImage: "linear-gradient(135deg, #261b05 0%, #050505 100%)",
+    badge: "CT GRIND"
+  },
+  {
+    id: "srm-lab-fat-viva",
+    title: "Lab FAT & Viva Code Sprint — Raw Terminal Trial",
+    shortTitle: "Lab FAT / Viva",
+    description: "Simulate the strict lab exam environment. Write and debug C++/Java/Python algorithms from scratch in raw terminal with zero AI autocompletion.",
+    pillar: "Academics",
+    groupTag: "SRM & Campus Academics",
+    categoryId: 1,
+    categoryName: "Coding",
+    missionType: "solo",
+    focusDuration: 45,
+    defaultLocation: "SRM KTR Tech Park Lab",
+    tasks: [
+      "Implement primary lab exercise on raw compiler (20 min)",
+      "Debug segmentation faults & memory edge cases (15 min)",
+      "Oral defense / viva rapid-fire recall (10 min)"
+    ],
+    coverColor: "#e11d48",
+    coverImage: "linear-gradient(135deg, #26050e 0%, #050505 100%)",
+    badge: "LAB FAT"
+  },
+  {
+    id: "srm-tech-park-lockin",
+    title: "Tech Park 90-Min Academic Deep Lock-In",
+    shortTitle: "Tech Park Lock-In",
+    description: "No-distraction study lock-in at Tech Park. Head down, noise-canceling headphones, knocking out textbook chapters before tomorrow's 8 AM.",
+    pillar: "Academics",
+    groupTag: "SRM & Campus Academics",
+    categoryId: 9,
+    categoryName: "Study Sessions",
+    missionType: "group",
+    focusDuration: 90,
+    defaultLocation: "SRM KTR Tech Park 5th Floor",
+    tasks: [
+      "Setup workspace with water & silenced phone",
+      "Deep Block Part 1: Heavy theoretical concepts (45 min)",
+      "Deep Block Part 2: Numerical problems & assignment finish (45 min)"
+    ],
+    coverColor: "#6366f1",
+    coverImage: "linear-gradient(135deg, #121430 0%, #050505 100%)",
+    badge: "90M STUDY"
+  },
+  {
+    id: "placement-oa-trial",
+    title: "Placement OA Mock — 60-Minute Timed Test",
+    shortTitle: "Placement OA",
+    description: "Timed campus recruitment test simulation (TCS/CTS/Amazon patterns). 2 medium DSA problems, 10 core CS questions, strict 60m timer.",
+    pillar: "Academics",
+    groupTag: "SRM & Campus Academics",
+    categoryId: 11,
+    categoryName: "Placements",
+    missionType: "solo",
+    focusDuration: 60,
+    defaultLocation: "SRM KTR Tech Park",
+    tasks: [
+      "Solve DSA Problem 1: Array/Map pattern in 20 min",
+      "Solve DSA Problem 2: Tree/Graph BFS in 25 min",
+      "Review 10 Core CS aptitude & OS/DBMS MCQs (15 min)"
+    ],
+    coverColor: "#e11d48",
+    coverImage: "linear-gradient(135deg, #2c0710 0%, #050505 100%)",
+    badge: "OA TRIAL"
+  },
+
+  // ─── PILLAR: COMPUTER SCIENCE & ENGINEERING ────────────────────────
+  {
+    id: "cs-os-concurrency",
+    title: "OS Deep Dive: Processes, Threads & Semaphores",
+    shortTitle: "OS & Concurrency",
+    description: "Mastering operating systems fundamentals: process synchronization, deadlock avoidance (Banker's Algorithm), and virtual memory paging.",
+    pillar: "Grind",
+    groupTag: "Computer Science & Engineering",
+    categoryId: 9,
+    categoryName: "Study Sessions",
+    missionType: "solo",
+    focusDuration: 45,
+    defaultLocation: "Hostel Desk / Library",
+    tasks: [
+      "Diagram thread race condition & mutex lock solution (15 min)",
+      "Trace paging & LRU cache page fault replacement (15 min)",
+      "Implement producer-consumer problem with semaphores (15 min)"
+    ],
+    coverColor: "#3b82f6",
+    coverImage: "linear-gradient(135deg, #081735 0%, #050505 100%)",
+    badge: "CORE OS"
+  },
+  {
+    id: "cs-dbms-sql",
+    title: "DBMS Engine: Indexing & Complex SQL Joins",
+    shortTitle: "DBMS & SQL",
+    description: "Deep dive into database internal mechanics: B+ Trees, query explain plans, normalization (1NF to BCNF), and ACID transaction isolations.",
+    pillar: "Grind",
+    groupTag: "Computer Science & Engineering",
+    categoryId: 1,
+    categoryName: "Coding",
+    missionType: "solo",
+    focusDuration: 40,
+    defaultLocation: "Campus Central Library",
+    tasks: [
+      "Write 5 multi-table INNER/LEFT joins with window functions (15 min)",
+      "Analyze EXPLAIN ANALYZE index scan vs seq scan (15 min)",
+      "Normalize unorganized schema up to 3NF/BCNF (10 min)"
+    ],
+    coverColor: "#0ea5e9",
+    coverImage: "linear-gradient(135deg, #071f30 0%, #050505 100%)",
+    badge: "SQL & DB"
+  },
+  {
+    id: "cs-networks-trace",
+    title: "Computer Networks: Handshakes & Packet Sniffing",
+    shortTitle: "Networks Trace",
+    description: "Wireshark packet inspection and protocol breakdown: TCP 3-way handshake, TLS 1.3 key exchange, DNS resolution hierarchy, and UDP vs TCP.",
+    pillar: "Grind",
+    groupTag: "Computer Science & Engineering",
+    categoryId: 1,
+    categoryName: "Coding",
+    missionType: "solo",
+    focusDuration: 35,
+    defaultLocation: "Tech Park",
+    tasks: [
+      "Capture & inspect TCP handshake in Wireshark/cURL (10 min)",
+      "Trace DNS recursive lookup steps for a real domain (10 min)",
+      "Compare HTTP/1.1 pipelining vs HTTP/2 multiplexing vs QUIC (15 min)"
+    ],
+    coverColor: "#10b981",
+    coverImage: "linear-gradient(135deg, #062319 0%, #050505 100%)",
+    badge: "NETWORKS"
+  },
+  {
+    id: "system-design-teardown",
+    title: "System Design: Scalable URL Shortener / Feed Engine",
+    shortTitle: "System Design",
+    description: "Designing a distributed system from first principles: capacity estimation, Redis cache layer, database sharding, and CDN edge termination.",
+    pillar: "Grind",
+    groupTag: "Computer Science & Engineering",
+    categoryId: 16,
+    categoryName: "Projects",
+    missionType: "solo",
+    focusDuration: 50,
+    defaultLocation: "SRM KTR UB Block",
+    tasks: [
+      "Calculate QPS, storage bandwidth, and read/write ratio (15 min)",
+      "Draft high-level architecture diagram with Redis & Postgres (20 min)",
+      "Address single point of failure & cache eviction strategy (15 min)"
+    ],
+    coverColor: "#8b5cf6",
+    coverImage: "linear-gradient(135deg, #1b0c33 0%, #050505 100%)",
+    badge: "SYS DESIGN"
+  },
+
+  // ─── PILLAR: APP RESEARCH & INTERNET TRENDS ────────────────────────
+  {
+    id: "app-teardown-aura",
+    title: "Viral App Breakdown: Aura & Consumer Gamification",
+    shortTitle: "Aura Teardown",
+    description: "Deconstruct what made apps like Aura, Strava, and Lapse explode on campus. Analyze first-minute onboarding friction, status gamification, and retention mechanics.",
+    pillar: "Research",
+    groupTag: "App Research & Internet Trends",
+    categoryId: 10,
+    categoryName: "Research",
+    missionType: "solo",
+    focusDuration: 40,
+    defaultLocation: "Java Canteen / Room",
+    tasks: [
+      "Screen-record & map first-time user onboarding steps (15 min)",
+      "Deconstruct core dopamine loop & status signaling mechanics (15 min)",
+      "Write 3 key product takeaways applicable to campus products (10 min)"
+    ],
+    coverColor: "#ec4899",
+    coverImage: "linear-gradient(135deg, #2b081c 0%, #050505 100%)",
+    badge: "AURA APP"
+  },
+  {
+    id: "api-reverse-engineer",
+    title: "Network Reverse-Engineering: Hidden Endpoints & Auth",
+    shortTitle: "API Reverse Eng",
+    description: "Inspect network traffic of popular web applications via DevTools/Proxies. Uncover undocumented JSON payloads, authentication schemes, and rate limiting.",
+    pillar: "Research",
+    groupTag: "App Research & Internet Trends",
+    categoryId: 1,
+    categoryName: "Coding",
+    missionType: "solo",
+    focusDuration: 45,
+    defaultLocation: "Hostel Room",
+    tasks: [
+      "Inspect Network tab on target app & identify private endpoints (15 min)",
+      "Replicate authorized API request in cURL or Postman (15 min)",
+      "Document payload schema and auth session token handling (15 min)"
+    ],
+    coverColor: "#3b82f6",
+    coverImage: "linear-gradient(135deg, #091a38 0%, #050505 100%)",
+    badge: "DEVTOOLS"
+  },
+  {
+    id: "internet-trends-radar",
+    title: "Internet Trend Radar: GitHub Trending & Social Meta",
+    shortTitle: "Trends Radar",
+    description: "Audit current viral consumer narratives across Tech Twitter, TikTok/Reels, and GitHub Trending. Extract actionable mechanics for student distribution.",
+    pillar: "Research",
+    groupTag: "App Research & Internet Trends",
+    categoryId: 7,
+    categoryName: "Content Creation",
+    missionType: "solo",
+    focusDuration: 30,
+    defaultLocation: "Anywhere",
+    tasks: [
+      "Audit top 5 trending open-source GitHub repos this week (10 min)",
+      "Identify 3 dominant audio/video editing formats on Instagram (10 min)",
+      "Draft 1 viral hook script or product meme format (10 min)"
+    ],
+    coverColor: "#f97316",
+    coverImage: "linear-gradient(135deg, #2b1106 0%, #050505 100%)",
+    badge: "TREND RADAR"
+  },
+  {
+    id: "tactile-ui-prototype",
+    title: "Tactile UI Prototype: Fluid Micro-Interactions",
+    shortTitle: "Tactile UI Craft",
+    description: "Build a luxury tactile interaction in Tailwind CSS & Framer Motion: metallic button press, spring physics sheet, or gesture swipe card.",
+    pillar: "Research",
+    groupTag: "App Research & Internet Trends",
+    categoryId: 6,
+    categoryName: "Design",
+    missionType: "solo",
+    focusDuration: 50,
+    defaultLocation: "SRM KTR Tech Park",
+    tasks: [
+      "Design component state machine & spring physics curve (15 min)",
+      "Code responsive dark-mode container with Tailwind (20 min)",
+      "Tune Framer Motion tactile spring stiffness & damping (15 min)"
+    ],
+    coverColor: "#d946ef",
+    coverImage: "linear-gradient(135deg, #26072b 0%, #050505 100%)",
+    badge: "UI CRAFT"
+  },
+
+  // ─── PILLAR: SOCIAL & CAMPUS COLLABORATION ─────────────────────────
+  {
+    id: "srm-midnight-chai-code",
+    title: "Midnight Chai & Code Review — Java Canteen",
+    shortTitle: "Chai & Code",
+    description: "Late night debugging session over hot cutting chai and Maggi at Java Canteen. Bring laptops, active pull requests, and tough compiler bugs to squash together.",
+    pillar: "Social",
+    groupTag: "Social & Collaboration",
+    categoryId: 1,
+    categoryName: "Coding",
+    missionType: "group",
+    focusDuration: 45,
+    defaultLocation: "SRM KTR Java Canteen",
+    tasks: [
+      "Grab hot chai & table at Java Canteen (5 min)",
+      "Walkthrough pending PR code logic and edge cases (25 min)",
+      "Fix breaking tests, squash commits, and merge (15 min)"
+    ],
+    coverColor: "#f59e0b",
+    coverImage: "linear-gradient(135deg, #281804 0%, #050505 100%)",
+    badge: "CHAI & CODE"
+  },
+  {
+    id: "resume-portfolio-roast",
+    title: "Resume & GitHub Portfolio Brutal Roast",
+    shortTitle: "Resume Roast",
+    description: "Peer-review 2 technical resumes and GitHub profiles. Flag fluff, audit ATS keyword density, verify live project demos, and tighten bullet points.",
+    pillar: "Social",
+    groupTag: "Social & Collaboration",
+    categoryId: 15,
+    categoryName: "Career",
+    missionType: "group",
+    focusDuration: 35,
+    defaultLocation: "Central Library",
+    tasks: [
+      "Audit resume layout against single-column ATS standards (10 min)",
+      "Verify live project deployment links & GitHub README quality (15 min)",
+      "Rewrite 3 weak bullet points using action-verb impact metrics (10 min)"
+    ],
+    coverColor: "#64748b",
+    coverImage: "linear-gradient(135deg, #101621 0%, #050505 100%)",
+    badge: "RESUME ROAST"
   }
 ];
 
 export function getStarterQuestsByPillar(pillar?: string) {
   if (!pillar || pillar === "All") return STARTER_QUESTS;
+  if (pillar === "Academics") return STARTER_QUESTS.filter((q) => q.pillar === "Academics");
+  if (pillar === "CS Grind" || pillar === "Grind") return STARTER_QUESTS.filter((q) => q.pillar === "Grind");
+  if (pillar === "App Research" || pillar === "Research") return STARTER_QUESTS.filter((q) => q.pillar === "Research");
+  if (pillar === "Physical") return STARTER_QUESTS.filter((q) => q.pillar === "Physical");
+  if (pillar === "Discipline") return STARTER_QUESTS.filter((q) => q.pillar === "Discipline");
+  if (pillar === "Social") return STARTER_QUESTS.filter((q) => q.pillar === "Social");
   return STARTER_QUESTS.filter((q) => q.pillar === pillar);
+}
+
+export function getStarterQuestGroups(): { label: string; quests: StarterQuest[] }[] {
+  const groupOrder = [
+    "SRM & Campus Academics",
+    "Computer Science & Engineering",
+    "App Research & Internet Trends",
+    "Physical & Vitality",
+    "Discipline & Focus",
+    "Social & Collaboration"
+  ];
+
+  const groups: { [key: string]: StarterQuest[] } = {};
+  for (const label of groupOrder) {
+    groups[label] = [];
+  }
+
+  for (const q of STARTER_QUESTS) {
+    let tag = q.groupTag;
+    if (!tag) {
+      if (q.pillar === "Academics") tag = "SRM & Campus Academics";
+      else if (q.pillar === "Research") tag = "App Research & Internet Trends";
+      else if (q.pillar === "Physical") tag = "Physical & Vitality";
+      else if (q.pillar === "Discipline") tag = "Discipline & Focus";
+      else if (q.pillar === "Social") tag = "Social & Collaboration";
+      else tag = "Computer Science & Engineering";
+    }
+    if (!groups[tag]) groups[tag] = [];
+    groups[tag].push(q);
+  }
+
+  return groupOrder
+    .filter((label) => groups[label] && groups[label].length > 0)
+    .map((label) => ({ label, quests: groups[label] }));
 }

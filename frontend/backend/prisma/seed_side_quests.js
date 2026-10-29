@@ -82,6 +82,66 @@ async function seedSideQuests() {
       collegeId: ktr.id,
       creatorId: hosts[5]?.id || defaultHost.id,
       tasks: ["Assemble at Main Gate (6 AM)", "Ascent to summit viewpoint", "Summit group snapshot & breakfast"]
+    },
+    {
+      title: "Cycle Test (CT) 2-Unit Crunch — High-Yield Lock-In",
+      description: "50-minute focused revision of 2 high-yield units. Past 3 years questions, derivation summaries, formula cheat sheets. Zero phones.",
+      location: "SRM KTR Central Library 2nd Floor",
+      datetime: new Date(now + 14 * 60 * 60 * 1000),
+      categoryId: 9, // Study Sessions
+      collegeId: ktr.id,
+      creatorId: hosts[0]?.id || defaultHost.id,
+      tasks: ["Summarize Unit 1 key theorems & derivations (20 min)", "Solve 3 previous year CT question papers (20 min)", "Blind recall self-quiz on Unit 2 edge cases (10 min)"]
+    },
+    {
+      title: "Lab FAT & Viva Code Sprint — Raw Terminal Trial",
+      description: "Simulate the strict lab exam environment. Write and debug C++/Java/Python algorithms from scratch in raw terminal with zero AI autocompletion.",
+      location: "SRM KTR Tech Park Lab 3",
+      datetime: new Date(now + 26 * 60 * 60 * 1000),
+      categoryId: 1, // Coding
+      collegeId: ktr.id,
+      creatorId: hosts[1]?.id || defaultHost.id,
+      tasks: ["Implement primary lab exercise on raw compiler (20 min)", "Debug segmentation faults & memory edge cases (15 min)", "Oral defense / viva rapid-fire recall (10 min)"]
+    },
+    {
+      title: "Placement OA Mock — 60-Minute Timed Test",
+      description: "Timed campus recruitment test simulation (TCS/CTS/Amazon patterns). 2 medium DSA problems, 10 core CS questions, strict 60m timer.",
+      location: "SRM KTR Tech Park 5th Floor",
+      datetime: new Date(now + 2 * day),
+      categoryId: 11, // Placements
+      collegeId: ktr.id,
+      creatorId: hosts[2]?.id || defaultHost.id,
+      tasks: ["Solve DSA Problem 1: Array/Map pattern in 20 min", "Solve DSA Problem 2: Tree/Graph BFS in 25 min", "Review 10 Core CS aptitude & OS/DBMS MCQs (15 min)"]
+    },
+    {
+      title: "Viral App Breakdown: Aura & Consumer Gamification",
+      description: "Deconstruct what made apps like Aura, Strava, and Lapse explode on campus. Analyze first-minute onboarding friction, status gamification, and retention mechanics.",
+      location: "SRM KTR Java Canteen",
+      datetime: new Date(now + 30 * 60 * 60 * 1000),
+      categoryId: 10, // Research
+      collegeId: ktr.id,
+      creatorId: hosts[3]?.id || defaultHost.id,
+      tasks: ["Screen-record & map first-time user onboarding steps (15 min)", "Deconstruct core dopamine loop & status signaling mechanics (15 min)", "Write 3 key product takeaways applicable to campus products (10 min)"]
+    },
+    {
+      title: "System Design: Scalable URL Shortener / Feed Engine",
+      description: "Designing a distributed system from first principles: capacity estimation, Redis cache layer, database sharding, and CDN edge termination.",
+      location: "SRM KTR UB Block Study Lounge",
+      datetime: new Date(now + 3 * day),
+      categoryId: 16, // Projects
+      collegeId: ktr.id,
+      creatorId: hosts[4]?.id || defaultHost.id,
+      tasks: ["Calculate QPS, storage bandwidth, and read/write ratio (15 min)", "Draft high-level architecture diagram with Redis & Postgres (20 min)", "Address single point of failure & cache eviction strategy (15 min)"]
+    },
+    {
+      title: "Resume & GitHub Portfolio Brutal Roast",
+      description: "Peer-review 2 technical resumes and GitHub profiles. Flag fluff, audit ATS keyword density, verify live project demos, and tighten bullet points.",
+      location: "SRM KTR Central Library",
+      datetime: new Date(now + 4 * day),
+      categoryId: 15, // Career
+      collegeId: ktr.id,
+      creatorId: hosts[5]?.id || defaultHost.id,
+      tasks: ["Audit resume layout against single-column ATS standards (10 min)", "Verify live project deployment links & GitHub README quality (15 min)", "Rewrite 3 weak bullet points using action-verb impact metrics (10 min)"]
     }
   ];
 

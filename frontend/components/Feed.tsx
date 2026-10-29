@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { X, Check, Plus, AlertCircle, Share2, RefreshCw, ImagePlus, Trash2 } from "lucide-react";
+import { X, Check, Plus, AlertCircle, Share2, RefreshCw, ImagePlus, Trash2, ChevronDown } from "lucide-react";
 import { LockinMark } from "./ui/LockinLogo";
 import { uploadImage } from "../lib/supabase";
 import { User, Mission } from "../app/types";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input, fieldClass } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { spring } from "../lib/motion";
-import { STARTER_QUESTS, StarterQuest, getStarterQuestsByPillar } from "../lib/starterQuests";
+import { STARTER_QUESTS, StarterQuest, getStarterQuestsByPillar, getStarterQuestGroups } from "../lib/starterQuests";
 
 const SWIPE_THRESHOLD = 120;
 
@@ -174,12 +174,12 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           catId === "all"
             ? STARTER_QUESTS
             : catId === "1"
-            ? STARTER_QUESTS.filter((q) => q.pillar === "Grind")
+            ? STARTER_QUESTS.filter((q) => q.pillar === "Grind" || q.categoryId === 1)
             : catId === "8"
-            ? STARTER_QUESTS.filter((q) => q.pillar === "Physical")
+            ? STARTER_QUESTS.filter((q) => q.pillar === "Physical" || q.categoryId === 8)
             : catId === "9"
-            ? STARTER_QUESTS.filter((q) => q.pillar === "Grind" || q.pillar === "Social")
-            : STARTER_QUESTS.filter((q) => q.pillar === "Discipline");
+            ? STARTER_QUESTS.filter((q) => q.pillar === "Academics" || q.categoryId === 9 || q.pillar === "Grind")
+            : STARTER_QUESTS.filter((q) => q.pillar === "Discipline" || q.pillar === "Research");
 
         missionList = filteredQuests.map((q, idx) => ({
           id: 9000 + idx,
@@ -676,16 +676,48 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
                       setCoverColor("");
                       setCoverImage("");
                     }}
-                    className="text-caption font-medium uppercase tracking-wider text-ink-3 hover:text-ink"
+                    className="text-caption font-medium uppercase tracking-wider text-crimson hover:text-ink transition-colors"
                   >
-                    Clear
+                    Clear template
                   </button>
                 )}
               </div>
 
+              {/* Side Quest Dropdown Selector */}
+              <div className="relative w-full">
+                <select
+                  id="side-quest-dropdown"
+                  value={selectedQuestId || ""}
+                  onChange={(e) => {
+                    const qId = e.target.value;
+                    if (!qId) {
+                      setSelectedQuestId(null);
+                      return;
+                    }
+                    const found = STARTER_QUESTS.find((q) => q.id === qId);
+                    if (found) applyStarterQuest(found);
+                  }}
+                  className={`${fieldClass} h-11 appearance-none pr-9 text-subhead bg-surface/90 border-line text-ink cursor-pointer focus:border-crimson`}
+                >
+                  <option value="" className="bg-surface text-ink-3">
+                    Choose a Side Quest template (1-Tap Fill)...
+                  </option>
+                  {getStarterQuestGroups().map((group) => (
+                    <optgroup key={group.label} label={group.label} className="bg-surface text-ink font-semibold">
+                      {group.quests.map((q) => (
+                        <option key={q.id} value={q.id} className="bg-surface text-ink-2 font-normal">
+                          {q.shortTitle} · {q.badge} ({q.focusDuration}m {q.missionType})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-3" />
+              </div>
+
               {/* Pillar filters */}
               <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5 w-full min-w-0">
-                {["All", "Physical", "Grind", "Discipline", "Social"].map((pillar) => (
+                {["All", "Academics", "CS Grind", "App Research", "Physical", "Discipline", "Social"].map((pillar) => (
                   <button
                     key={pillar}
                     type="button"

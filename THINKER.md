@@ -271,3 +271,17 @@ When the founder introduces a new product principle, architectural constraint, u
     - **Crimson Tier (> 90 min, marathon hyper-focus):** Bleeding cyberpunk crimson neon gradient (`#2E030B` -> `#170105`) and crimson flare.
     - **Runway Crashed (Early exit / failed):** Shattered abyssal red gradient (`#1C0508` -> `#0E0204`) with `-5 Motion`.
   - **Story Optimization:** Prominent `+10 Motion` pill, clean date stamp, massive display counter, mission title, stat grid, and `lockin.top / Stop scrolling. Start executing.` editorial watermark. Strictly zero emojis.
+
+### [2026-10-30] Side Quest Expansion & Dropdown Selector Architecture
+* **Context:** Expanding side quests to mirror authentic Indian engineering college reality (SRM KTR CTs, Lab exams, placement tests) alongside Computer Science core study and builder/app research (viral product breakdowns, reverse engineering).
+* **Side Quest Dropdown Selector (`Feed.tsx`):**
+  - **Problem:** When 20+ side quests are available, horizontal-only card carousels in a modal dialog become high-friction and hard to browse on mobile.
+  - **Solution:** Integrated a sleek, categorized `<select id="side-quest-dropdown">` selector with `<optgroup>` hierarchies:
+    1. *SRM & Campus Academics* (CTs, Lab FAT, Placement OA, Tech Park Lock-In)
+    2. *Computer Science & Engineering* (Operating Systems, DBMS & SQL, Networks Trace, System Design, LeetCode)
+    3. *App Research & Internet Trends* (Aura/Consumer Gamification Teardowns, API Reverse Engineering, Trend Radar, Tactile UI)
+    4. *Physical & Vitality* (5km Sunrise Loop, 100 Pushups, Sunlight Walk, 3L Hydration)
+    5. *Discipline & Focus* (Zero Doomscroll, Desktop Zero, Night Blueprint, Deep Work 60m)
+    6. *Social & Collaboration* (Java Canteen Midnight Chai & Code, Resume & Portfolio Roast, Mentor Ping)
+  - **1-Tap Fill Contract:** Selecting an option immediately populates title, description, category, default location, duration, and specific task checklist, with an instant "Clear template" reset.
+* **Campus Realism Over Generic Hustle:** Tailored missions to real academic milestones (Cycle Tests, lab FAT viva, TCS/CTS/Amazon placement rounds) that students actually care about right now, eliminating synthetic fluff.
