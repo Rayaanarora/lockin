@@ -33,14 +33,42 @@ export class ApiError extends Error {
 const RETRYABLE = new Set([0, 502, 503, 504]);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+let activeRefresh: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!supabase) return null;
+  if (!activeRefresh) {
+    activeRefresh = (async () => {
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn("[api] Token refresh error:", error.message);
+          const { data: s } = await supabase.auth.getSession();
+          return s.session?.access_token ?? null;
+        }
+        return data.session?.access_token ?? null;
+      } catch (err) {
+        console.warn("[api] Token refresh exception:", err);
+        return null;
+      } finally {
+        activeRefresh = null;
+      }
+    })();
+  }
+  return activeRefresh;
+}
+
 async function accessToken(forceRefresh = false): Promise<string | null> {
   if (!supabase) return null;
-  if (forceRefresh) {
-    const { data } = await supabase.auth.refreshSession();
-    return data.session?.access_token ?? null;
-  }
+  if (forceRefresh) return refreshAccessToken();
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  const session = data?.session;
+  if (!session) return null;
+  // If the JWT expires within 90 seconds, proactively refresh it using the singleton promise
+  if (session.expires_at && session.expires_at * 1000 - Date.now() < 90_000) {
+    return refreshAccessToken();
+  }
+  return session.access_token ?? null;
 }
 
 async function send(path: string, options: RequestInit, token: string | null) {
@@ -124,12 +152,14 @@ async function request(path: string, options: RequestInit) {
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined" && !signingOut) {
-      // Session is really gone: drop it and return to sign-in.
-      signingOut = true;
-      if (demo) clearDemoSession();
-      else if (supabase) await supabase.auth.signOut().catch(() => {});
-      localStorage.removeItem("lockin_user_id");
-      window.location.reload();
+      // Only sign out if the Supabase session is definitively gone/revoked from storage
+      const check = await supabase?.auth.getSession().catch(() => null);
+      if (!check?.data?.session && !demo) {
+        signingOut = true;
+        localStorage.removeItem("lockin_user_id");
+        localStorage.removeItem("lockin_user_profile");
+        window.location.reload();
+      }
     }
     throw new ApiError(res.data?.error || "Something went wrong. Please try again.", res.status);
   }

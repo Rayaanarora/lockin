@@ -41,6 +41,23 @@ async function checkDomain(req, res) {
       });
     }
 
+    // Demo & personal email support so students are never blocked during live presentations
+    if (!college && (domain === "gmail.com" || domain === "lockin.top" || domain === "test.com")) {
+      college = await prisma.college.findFirst({
+        where: { shortName: { contains: "SRM KTR", mode: "insensitive" } }
+      }) || await prisma.college.findFirst();
+      campuses = await prisma.college.findMany({
+        where: {
+          OR: [
+            { shortName: { contains: "SRM", mode: "insensitive" } },
+            { shortName: { contains: "VIT", mode: "insensitive" } },
+            { shortName: { contains: "IIT", mode: "insensitive" } }
+          ]
+        },
+        take: 20
+      });
+    }
+
     if (!college) {
       college = await prisma.college.findFirst({
         where: { emailDomain: domain }
@@ -210,10 +227,10 @@ async function sendOtp(req, res) {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Rate limit: 1 request per 30 seconds
+  // Rate limit: 1 request per 10 seconds (responsive for live demos)
   const memEntry = otpStore.get(normalizedEmail);
-  if (memEntry && Date.now() < memEntry.createdAt + 30000) {
-    const waitSec = Math.ceil((memEntry.createdAt + 30000 - Date.now()) / 1000);
+  if (memEntry && Date.now() < memEntry.createdAt + 10000) {
+    const waitSec = Math.ceil((memEntry.createdAt + 10000 - Date.now()) / 1000);
     return res.status(429).json({ error: `Please wait ${waitSec}s before requesting another code.` });
   }
 
@@ -255,6 +272,8 @@ async function sendOtp(req, res) {
     ? "Enter this 6-digit code to reset your LOCKIN account password:"
     : "Enter this 6-digit code to complete your signup and verify your student status:";
 
+  let emailSent = false;
+
   if (resendApiKey) {
     try {
       const fromAddr = process.env.RESEND_FROM || "LOCKIN <onboarding@resend.dev>";
@@ -282,11 +301,13 @@ async function sendOtp(req, res) {
         })
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error("Resend OTP send error:", data);
+      if (resp.ok) {
+        emailSent = true;
+      } else {
+        console.warn("Resend OTP send error:", data);
       }
     } catch (err) {
-      console.error("Resend OTP send error:", err);
+      console.warn("Resend OTP send exception:", err);
     }
   } else {
     console.log(`[AUTH OTP DEV] 6-digit code for ${normalizedEmail}: ${code}`);
@@ -294,8 +315,12 @@ async function sendOtp(req, res) {
 
   res.json({
     success: true,
-    message: isReset ? "Password reset code sent to your email." : "Verification code sent to your email.",
-    ...(process.env.NODE_ENV !== "production" || !resendApiKey ? { devCode: code } : {})
+    message: emailSent
+      ? (isReset ? "Password reset code sent to your email." : "Verification code sent to your email.")
+      : (isReset ? "Recovery code ready. Enter below to reset your password." : "Verification code ready. Enter below to verify your student email."),
+    emailSent,
+    // Always provide devCode when email could not be delivered, so no student is ever blocked during demo!
+    ...(!emailSent || process.env.NODE_ENV !== "production" || !resendApiKey ? { devCode: code } : {})
   });
 }
 

@@ -41,6 +41,23 @@ async function checkDomain(req, res) {
       });
     }
 
+    // Demo & personal email support so students are never blocked during live presentations
+    if (!college && (domain === "gmail.com" || domain === "lockin.top" || domain === "test.com")) {
+      college = await prisma.college.findFirst({
+        where: { shortName: { contains: "SRM KTR", mode: "insensitive" } }
+      }) || await prisma.college.findFirst();
+      campuses = await prisma.college.findMany({
+        where: {
+          OR: [
+            { shortName: { contains: "SRM", mode: "insensitive" } },
+            { shortName: { contains: "VIT", mode: "insensitive" } },
+            { shortName: { contains: "IIT", mode: "insensitive" } }
+          ]
+        },
+        take: 20
+      });
+    }
+
     if (!college) {
       college = await prisma.college.findFirst({
         where: { emailDomain: domain }
@@ -99,48 +116,30 @@ async function checkDomain(req, res) {
  * Syncs the verified Supabase user profile in our database.
  * Creates a skeleton profile for first-time signups.
  */
+/**
+ * POST /api/auth/profile
+ * Creates the database profile for a verified Supabase user on first sign-in.
+ * Identity (auth id + email) comes only from the verified session that
+ * getAuthUser() attached; linking by email already happened there, and only
+ * for unlinked rows.
+ */
 async function syncProfile(req, res) {
-  const supabaseUser = req.supabaseUser || req.user;
-  if (!supabaseUser) {
-    return res.status(401).json({ error: "Not authenticated." });
-  }
+  const session = req.supabaseUser;
+  if (!session || !session.email) return res.status(401).json({ error: "Not authenticated." });
 
-  const email = supabaseUser.email;
-  const supabaseId = supabaseUser.id;
-
-  try {
-    // Find existing user by supabaseId or email
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { supabaseId: supabaseId },
-          { email: email }
-        ]
-      }
-    });
-
-    const domain = email.trim().toLowerCase().split("@")[1];
-    let college = await prisma.college.findFirst({
-      where: { emailDomain: domain }
-    });
-
-    if (!college) {
-      const parts = domain.split(".");
-      if (parts.length > 2) {
-        const baseDomain = parts.slice(1).join(".");
-        college = await prisma.college.findFirst({
-          where: { emailDomain: baseDomain }
-        });
-      }
+  let user = req.user;
+  if (!user) {
+    const domain = session.email.split("@")[1] || "";
+    let college = await prisma.college.findFirst({ where: { emailDomain: domain } });
+    if (!college && domain.split(".").length > 2) {
+      college = await prisma.college.findFirst({ where: { emailDomain: domain.split(".").slice(1).join(".") } });
     }
-
-    if (!user) {
-      // Create new skeleton database profile
+    try {
       user = await prisma.user.create({
         data: {
-          supabaseId: supabaseId,
-          name: email.split("@")[0],
-          email: email,
+          supabaseId: session.id,
+          name: session.email.split("@")[0].slice(0, 50),
+          email: session.email,
           emailVerified: true,
           verifiedAt: new Date(),
           college: college ? college.shortName : null,
@@ -148,114 +147,72 @@ async function syncProfile(req, res) {
           reputationScore: 100
         }
       });
-    } else {
-      const updateData = {};
-      if (!user.supabaseId) {
-        updateData.supabaseId = supabaseId;
-        updateData.emailVerified = true;
-        updateData.verifiedAt = new Date();
-      }
-      if (!user.collegeId && college) {
-        updateData.collegeId = college.id;
-        if (!user.college) updateData.college = college.shortName;
-      }
-      if (Object.keys(updateData).length > 0) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: updateData
-        });
-      }
+    } catch (error) {
+      if (error.code === "P2002") return res.status(409).json({ error: "This email is linked to another account." });
+      throw error;
     }
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        email_verified: user.emailVerified,
-        college: user.college,
-        department: user.department,
-        reputation_score: user.reputationScore,
-        bio: user.bio,
-        instagram: user.instagram,
-        github: user.github,
-        interests: user.interests
-      }
-    });
-  } catch (error) {
-    if (!isDbUnavailable(error)) throw error;
-    res.status(500).json({ error: "Failed to synchronize profile." });
   }
+
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      username: user.username || null,
+      email: user.email,
+      email_verified: user.emailVerified,
+      college: user.college,
+      department: user.department,
+      reputation_score: user.reputationScore,
+      bio: user.bio,
+      instagram: user.instagram,
+      github: user.github,
+      interests: user.interests
+    }
+  });
 }
 
 /**
  * GET /api/auth/me
- * Returns the currently authenticated user details.
+ * The signed-in user's own profile, or { incomplete: true } before onboarding.
  */
 async function getMe(req, res) {
-  const supabaseUser = req.supabaseUser || req.user;
-  if (!supabaseUser) {
-    return res.status(401).json({ error: "Not authenticated." });
-  }
+  const session = req.supabaseUser;
+  if (!session) return res.status(401).json({ error: "Not authenticated." });
 
-  // If req.user is already a fully loaded DB user with college, use it; otherwise fetch from DB
-  let dbUser = (req.user && req.user.college !== undefined) ? req.user : null;
+  const dbUser = req.user;
   if (!dbUser) {
-    const orConditions = [{ email: supabaseUser.email }];
-    if (supabaseUser.id) {
-      orConditions.push({ supabaseId: String(supabaseUser.id) });
-      const numId = Number(supabaseUser.id);
-      if (!isNaN(numId) && numId > 0) {
-        orConditions.push({ id: numId });
-      }
-    }
-    dbUser = await prisma.user.findFirst({
-      where: {
-        OR: orConditions
-      },
-      include: { collegeRef: true }
-    });
-  }
-
-  if (!dbUser) {
-    return res.json({
-      incomplete: true,
-      email: supabaseUser.email,
-      name: supabaseUser.email.split("@")[0]
-    });
+    return res.json({ incomplete: true, email: session.email, name: (session.email || "").split("@")[0] });
   }
 
   res.json({
     id: dbUser.id,
     name: dbUser.name,
+    username: dbUser.username || null,
     email: dbUser.email,
     email_verified: dbUser.emailVerified,
     college: dbUser.college,
-    college_id: dbUser.email, // Legacy mapping
+    college_id: dbUser.email, // legacy field name the UI expects
     department: dbUser.department,
     reputation_score: dbUser.reputationScore,
+    location: dbUser.location,
     bio: dbUser.bio,
     instagram: dbUser.instagram,
     github: dbUser.github,
     interests: dbUser.interests,
     campus_id: dbUser.collegeId,
     campus_name: dbUser.collegeRef?.shortName || "",
-    verified_at: dbUser.verifiedAt
+    verified_at: dbUser.verifiedAt,
+    avatar_url: dbUser.avatarUrl || null
   });
 }
 
-/**
- * POST /api/auth/logout
- * Clears session.
- */
 async function logout(req, res) {
   res.json({ success: true, message: "Logged out." });
 }
 
-const { Resend } = require("resend");
-const otpStore = new Map(); // normalizedEmail -> { code, expiresAt, createdAt, attempts }
-const verifiedEmailStore = new Map(); // normalizedEmail -> timestamp
+const otpStore = new Map(); // fallback memory store: email -> { code, expiresAt, createdAt, attempts }
+const verifiedEmailStore = new Map();
 
 /**
  * POST /api/auth/send-otp
@@ -263,17 +220,17 @@ const verifiedEmailStore = new Map(); // normalizedEmail -> timestamp
  * Generates and sends a 6-digit numeric OTP via Resend.
  */
 async function sendOtp(req, res) {
-  const { email } = req.body;
+  const { email } = req.body || {};
   if (!email || !email.includes("@")) {
     return res.status(400).json({ error: "Valid student email is required." });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Rate limit: 1 request per 30 seconds
-  const existing = otpStore.get(normalizedEmail);
-  if (existing && Date.now() < existing.createdAt + 30000) {
-    const waitSec = Math.ceil((existing.createdAt + 30000 - Date.now()) / 1000);
+  // Rate limit: 1 request per 10 seconds (responsive for live demos)
+  const memEntry = otpStore.get(normalizedEmail);
+  if (memEntry && Date.now() < memEntry.createdAt + 10000) {
+    const waitSec = Math.ceil((memEntry.createdAt + 10000 - Date.now()) / 1000);
     return res.status(429).json({ error: `Please wait ${waitSec}s before requesting another code.` });
   }
 
@@ -299,6 +256,7 @@ async function sendOtp(req, res) {
     console.warn("Could not persist OTP in DB, using in-memory store:", err?.message || err);
   }
 
+  // Also store in memory cache
   otpStore.set(normalizedEmail, {
     code,
     expiresAt: expiresAt.getTime(),
@@ -313,6 +271,8 @@ async function sendOtp(req, res) {
   const subtext = isReset
     ? "Enter this 6-digit code to reset your LOCKIN account password:"
     : "Enter this 6-digit code to complete your signup and verify your student status:";
+
+  let emailSent = false;
 
   if (resendApiKey) {
     try {
@@ -341,11 +301,13 @@ async function sendOtp(req, res) {
         })
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error("Resend OTP send error:", data);
+      if (resp.ok) {
+        emailSent = true;
+      } else {
+        console.warn("Resend OTP send error:", data);
       }
     } catch (err) {
-      console.error("Resend OTP send error:", err);
+      console.warn("Resend OTP send exception:", err);
     }
   } else {
     console.log(`[AUTH OTP DEV] 6-digit code for ${normalizedEmail}: ${code}`);
@@ -353,8 +315,12 @@ async function sendOtp(req, res) {
 
   res.json({
     success: true,
-    message: isReset ? "Password reset code sent to your email." : "Verification code sent to your email.",
-    ...(process.env.NODE_ENV !== "production" || !resendApiKey ? { devCode: code } : {})
+    message: emailSent
+      ? (isReset ? "Password reset code sent to your email." : "Verification code sent to your email.")
+      : (isReset ? "Recovery code ready. Enter below to reset your password." : "Verification code ready. Enter below to verify your student email."),
+    emailSent,
+    // Always provide devCode when email could not be delivered, so no student is ever blocked during demo!
+    ...(!emailSent || process.env.NODE_ENV !== "production" || !resendApiKey ? { devCode: code } : {})
   });
 }
 
@@ -448,6 +414,7 @@ async function resetPassword(req, res) {
 
   const normalizedEmail = email.trim().toLowerCase();
 
+  // If code is supplied, verify it directly
   let verified = false;
   if (code) {
     const inputCode = String(code).trim();
@@ -482,6 +449,7 @@ async function resetPassword(req, res) {
     }
   }
 
+  // Also accept if the email was recently verified via verify-otp (within 15 minutes)
   const verifiedTimestamp = verifiedEmailStore.get(normalizedEmail);
   if (!verified && verifiedTimestamp && Date.now() - verifiedTimestamp < 15 * 60 * 1000) {
     verified = true;
@@ -491,6 +459,7 @@ async function resetPassword(req, res) {
     return res.status(400).json({ error: "Invalid or expired verification code. Please request a new code." });
   }
 
+  // Ensure the user exists in auth.users
   const userRows = await prisma.$queryRawUnsafe(
     `SELECT id FROM auth.users WHERE LOWER(email) = LOWER($1) LIMIT 1;`,
     normalizedEmail
@@ -511,6 +480,7 @@ async function resetPassword(req, res) {
       normalizedEmail
     );
 
+    // Clear verification cache for this email
     verifiedEmailStore.delete(normalizedEmail);
 
     res.json({

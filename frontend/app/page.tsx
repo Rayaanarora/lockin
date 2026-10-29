@@ -167,10 +167,17 @@ export default function Home() {
     try {
       const nextUser = await api("/auth/me");
       if (nextUser.incomplete) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("lockin_user_profile");
+        }
         setUser(null);
         return;
       }
       setUser(nextUser);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lockin_user_profile", JSON.stringify(nextUser));
+        localStorage.setItem("lockin_user_id", String(nextUser.id));
+      }
       setBootError(false);
       api(`/users/${nextUser.id}/lock`)
         .then((lock) => typeof lock?.locked === "boolean" && setLocked(lock.locked))
@@ -209,6 +216,20 @@ export default function Home() {
     // Force dark mode on mount
     document.documentElement.classList.remove("light");
 
+    // Instantly hydrate returning user from localStorage so there is 0ms delay / zero flash of login screen
+    if (!isDemoSession() && typeof window !== "undefined") {
+      const cached = localStorage.getItem("lockin_user_profile");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id) {
+            setUser(parsed);
+            setLoading(false);
+          }
+        } catch {}
+      }
+    }
+
     // Check if demo session is active
     if (isDemoSession()) {
       const demoUserStr = localStorage.getItem("lockin_demo_user");
@@ -237,6 +258,10 @@ export default function Home() {
         return;
       }
       if (!session) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("lockin_user_profile");
+          localStorage.removeItem("lockin_user_id");
+        }
         setUser(null);
         setLoading(false);
         return;

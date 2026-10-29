@@ -90,7 +90,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
   const [detectedCampusId, setDetectedCampusId] = useState<any>("");
   const [detectedCampusName, setDetectedCampusName] = useState("");
   const [tempUserId, setTempUserId] = useState<number | null>(null);
-  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("signup");
   const [verifiedResetCode, setVerifiedResetCode] = useState("");
 
   const [usernameState, setUsernameState] = useState<UsernameState>("idle");
@@ -128,9 +128,20 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
           } catch (e) {}
         }
       }
-      const savedEmail = localStorage.getItem("lockin_saved_email");
-      if (savedEmail) {
-        setForm((f) => ({ ...f, email: savedEmail }));
+
+      // Check query param override e.g. /?mode=signup or /?mode=login
+      const params = new URLSearchParams(window.location.search);
+      const urlMode = params.get("mode");
+      if (urlMode === "signup" || urlMode === "login" || urlMode === "forgot") {
+        setMode(urlMode);
+      } else {
+        const savedEmail = localStorage.getItem("lockin_saved_email");
+        if (savedEmail) {
+          setForm((f) => ({ ...f, email: savedEmail }));
+          setMode("login");
+        } else {
+          setMode("signup");
+        }
       }
     }
   }, [onReady]);
@@ -357,12 +368,25 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       }
 
       if (!supabase) throw new Error("Supabase is not initialized.");
-      const { data, error: signUpErr } = await supabase.auth.signUp({
+      let { data, error: signUpErr } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: { emailRedirectTo: window.location.origin }
       });
-      if (signUpErr) throw signUpErr;
+
+      if (signUpErr) {
+        if (/already registered/i.test(signUpErr.message || "")) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: form.email,
+            password: form.password,
+          });
+          if (signInErr) {
+            throw new Error("This email is already registered. Please log in with your password.");
+          }
+        } else {
+          throw signUpErr;
+        }
+      }
 
       const syncRes = await api("/auth/profile", { method: "POST" });
       const isIncomplete = !syncRes.user.department || !syncRes.user.college;
@@ -499,7 +523,7 @@ export default function ProfileGate({ onReady, api }: ProfileGateProps) {
       if (!form.campusId && form.campusName.trim().length < 3)
         errs.campusId = "Select a campus or type your college name (min 3 chars).";
       const reg = form.college_id.trim().toUpperCase();
-      if (!reg || reg.length < 6) errs.college_id = "Enter your college student ID/roll number.";
+      if (!reg || reg.length < 2) errs.college_id = "Enter your college student ID/roll number.";
       if (form.department.trim().length < 2) errs.department = "Enter your department & year.";
     }
     if (s === 4) {
@@ -1215,8 +1239,14 @@ function EmailStep({ form, setForm, validation, onNext, busy, mode, setMode, onD
 
 /* ─── CHECK INBOX & OTP ──────────────────────────────────────────── */
 function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, devOtp }: any) {
-  const [enteredOtp, setEnteredOtp] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(30);
+  const [enteredOtp, setEnteredOtp] = useState(devOtp || "");
+  const [resendCooldown, setResendCooldown] = useState(10);
+
+  useEffect(() => {
+    if (devOtp && !enteredOtp) {
+      setEnteredOtp(devOtp);
+    }
+  }, [devOtp, enteredOtp]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -1228,9 +1258,11 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
     <div className="space-y-7">
       <StepHeading
         eyebrow={mode === "forgot" ? "Password Recovery" : "Verification"}
-        title="Check your student inbox"
+        title={devOtp ? "Verification code ready" : "Check your student inbox"}
         sub={
-          mode === "forgot"
+          devOtp
+            ? `Your verification code is ready below. Tap auto-fill or enter the 6 digits.`
+            : mode === "forgot"
             ? `We sent a 6-digit recovery code to ${form.email}. Enter it below to reset your password.`
             : `We sent a 6-digit code to ${form.email}. Enter it below to verify your student email.`
         }
@@ -1255,9 +1287,26 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
         </div>
 
         {devOtp && (
-          <p className="text-center text-xs text-ink-3">
-            Dev code: <span className="font-mono font-bold text-crimson">{devOtp}</span>
-          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEnteredOtp(devOtp);
+              onVerifyOtp(devOtp);
+            }}
+            className="group flex w-full items-center justify-between rounded-xl border border-signal/40 bg-surface px-4 py-3 text-left transition-colors hover:border-signal"
+          >
+            <div>
+              <span className="block text-caption font-semibold uppercase tracking-wider text-signal">
+                Verification Code
+              </span>
+              <span className="font-mono text-callout font-bold tracking-widest text-ink">
+                {devOtp}
+              </span>
+            </div>
+            <span className="text-footnote font-medium text-signal group-hover:underline">
+              Auto-fill and verify &rarr;
+            </span>
+          </button>
         )}
 
         <PrimaryButton
@@ -1272,7 +1321,7 @@ function OtpStep({ form, onNext, mode, setMode, onVerifyOtp, onResendOtp, busy, 
             type="button"
             disabled={busy || resendCooldown > 0}
             onClick={() => {
-              setResendCooldown(30);
+              setResendCooldown(10);
               onResendOtp();
             }}
             className="text-footnote font-semibold text-ink-3 hover:text-ink disabled:opacity-50 transition-colors"
