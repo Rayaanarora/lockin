@@ -268,6 +268,8 @@ export default function Home() {
       }
       // Same person, new token: nothing to reload.
       if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+      // Recovery code just verified: ProfileGate asks for the new password first.
+      if (event === "PASSWORD_RECOVERY") return;
       // Never call Supabase from inside this callback: it holds the auth lock,
       // and api() reading the session would deadlock. Defer instead.
       setTimeout(() => {
