@@ -2,11 +2,26 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
-import { Download, Share2, Check, BookOpen, Quote, Trash2, X, MessageCircle } from "lucide-react";
+import {
+  Download,
+  Share2,
+  Check,
+  BookOpen,
+  Quote,
+  Trash2,
+  X,
+  MessageCircle,
+  Camera,
+  Tag,
+  Sparkles,
+  Ticket,
+  Layers
+} from "lucide-react";
 import { LockinMark, LockinWordmark } from "./ui/LockinLogo";
 import { CountUp, Portal } from "./ui/motion";
 import { POINTS_NAME } from "../lib/brand";
 import { toPng } from "html-to-image";
+import { uploadImage } from "../lib/supabase";
 
 interface RecapProps {
   isOpen: boolean;
@@ -30,10 +45,12 @@ interface RecapProps {
     generatedAt?: string;
     reflectionText?: string;
     lessonsLearned?: string;
+    customMetric?: string;
     metadata?: {
       isFailed?: boolean;
       screenshot?: string | null;
       link?: string | null;
+      customMetric?: string | null;
       [key: string]: any;
     };
   };
@@ -72,8 +89,20 @@ export default function LockinRecapCard({
   const [copied, setCopied] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isTrashing, setIsTrashing] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
-  const [cardImage, setCardImage] = useState<string | null>(null);
+
+  // Strava & Multi-Format Modes
+  const initialPhoto = recapData.metadata?.screenshot || null;
+  const [cardMode, setCardMode] = useState<"metallic" | "hud" | "pass">(
+    initialPhoto ? "hud" : "metallic"
+  );
+  const [currentPhoto, setCurrentPhoto] = useState<string | null>(initialPhoto);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Custom Metric / Accomplishment sticker
+  const initialMetric = recapData.metadata?.customMetric || recapData.customMetric || "";
+  const [activeMetric, setActiveMetric] = useState<string>(initialMetric);
+  const [isEditingMetric, setIsEditingMetric] = useState<boolean>(false);
+  const [tempMetric, setTempMetric] = useState<string>("");
 
   // 3D Tilt properties
   const tiltX = useMotionValue(0);
@@ -117,14 +146,18 @@ export default function LockinRecapCard({
   } = recapData;
 
   const isFailed = recapData.metadata?.isFailed || false;
-  const screenshot = recapData.metadata?.screenshot || null;
   const link = recapData.metadata?.link || null;
 
   useEffect(() => {
     if (isOpen) {
       setIsTrashing(false);
+      setCurrentPhoto(recapData.metadata?.screenshot || null);
+      if (recapData.metadata?.screenshot) {
+        setCardMode("hud");
+      }
+      setActiveMetric(recapData.metadata?.customMetric || recapData.customMetric || "");
     }
-  }, [isOpen]);
+  }, [isOpen, recapData]);
 
   const streakVal = recapData.streak !== undefined ? recapData.streak : (recapData.currentStreak !== undefined ? recapData.currentStreak : 0);
   const categoryVal = recapData.categorySnapshot || recapData.topCategory || "None";
@@ -315,13 +348,20 @@ export default function LockinRecapCard({
     ? Number(recapData.metadata.gritDelta)
     : (isFailed ? -5 : 10);
 
-  // Handle export (we force capturing the Front card flat)
+  // Dynamic Card Border Styling based on Mode
+  const activeBorderStyle =
+    cardMode === "hud"
+      ? `border-2 shadow-[0_0_40px_${glowColor}]`
+      : cardMode === "pass"
+      ? "border border-white/20 shadow-2xl"
+      : borderStyle;
+
+  // Handle export (force capturing the Front card flat at high-DPI for Instagram Stories)
   const handleSave = useCallback(async () => {
     if (!cardRef.current || saving) return;
 
     try {
       setSaving(true);
-      // Temporarily ensure card is facing front for image export
       const wasFlipped = isFlipped;
       if (wasFlipped) {
         setIsFlipped(false);
@@ -329,16 +369,45 @@ export default function LockinRecapCard({
       }
 
       const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2.2,
+        pixelRatio: 2.4,
         cacheBust: true,
       });
 
+      // Attempt native mobile share if supported (iOS Safari / Android Chrome shares direct to IG Stories / WhatsApp)
+      if (typeof navigator !== "undefined" && navigator.share) {
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const file = new File(
+            [blob],
+            `lockin-recap-${tierName.toLowerCase().replace(/\s+/g, "-")}.png`,
+            { type: "image/png" }
+          );
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: "LOCKIN Focus Recap",
+              text: `Locked in for ${hours > 0 ? `${hours}h ` : ""}${mins}m on LOCKIN. ${activeMetric ? `Output: ${activeMetric} · ` : ""}${tierName}.`
+            });
+            if (wasFlipped) setIsFlipped(true);
+            setSaving(false);
+            return;
+          }
+        } catch (shareErr: any) {
+          if (shareErr.name === "AbortError") {
+            if (wasFlipped) setIsFlipped(true);
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
+      // Fallback: standard PNG download
       const link = document.createElement("a");
       link.download = `lockin-recap-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
 
-      // Restore flip state
       if (wasFlipped) {
         setIsFlipped(true);
       }
@@ -348,7 +417,7 @@ export default function LockinRecapCard({
     } finally {
       setSaving(false);
     }
-  }, [saving, isFlipped]);
+  }, [saving, isFlipped, hours, mins, tierName, activeMetric]);
 
   const handleShare = useCallback(async () => {
     if (!recapData.shareId) {
@@ -362,7 +431,7 @@ export default function LockinRecapCard({
       try {
         await navigator.share({
           title: "LOCKIN Recap",
-          text: `Check out my Lockin productivity recap! I locked in for ${hours}h ${mins}m.`,
+          text: `Check out my Lockin productivity recap! I locked in for ${hours}h ${mins}m. ${activeMetric ? `Output: ${activeMetric}. ` : ""}`,
           url: shareUrl,
         });
         return;
@@ -378,7 +447,7 @@ export default function LockinRecapCard({
     } catch (err) {
       alert(`Here is your share link: ${shareUrl}`);
     }
-  }, [recapData.shareId, hours, mins]);
+  }, [recapData.shareId, hours, mins, activeMetric]);
 
   if (!isOpen) return null;
 
@@ -389,400 +458,644 @@ export default function LockinRecapCard({
   });
 
   const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="py-3.5">
-      <div className="text-[11px] font-semibold text-ink-3">{label}</div>
-      <div className="t-display mt-1 truncate text-title-3 text-ink">{value}</div>
+    <div className="py-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">{label}</div>
+      <div className="t-display mt-0.5 truncate text-headline font-bold text-ink">{value}</div>
     </div>
   );
 
   return (
     <Portal>
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[999] flex flex-col items-center justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-md"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${statusText}: ${subtitleText}`}
-      >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="absolute right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface/80 text-ink-2 backdrop-blur transition-colors hover:text-ink"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
+      <AnimatePresence>
         <motion.div
-          onClick={(e) => e.stopPropagation()}
-          className="relative my-auto flex w-full max-w-[340px] flex-col items-center sm:max-w-[380px]"
+          className="fixed inset-0 z-[999] flex flex-col items-center justify-center overflow-y-auto bg-black/90 p-3 sm:p-4 backdrop-blur-md"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${statusText}: ${subtitleText}`}
         >
-          {/* Success sparks */}
-          {!isFailed && !isTrashing && (
-            <div className="pointer-events-none absolute left-1/2 top-[40%] z-0" aria-hidden="true">
-              {SPARKS.map((s, i) => (
-                <motion.span
-                  key={i}
-                  className={`absolute h-1.5 w-1.5 rounded-full ${s.gold ? "bg-gold" : "bg-signal"}`}
-                  initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
-                  animate={{ x: s.x, y: s.y, opacity: [0, 1, 0], scale: [0, 1.4, 0.4] }}
-                  transition={{ duration: 1.1, delay: s.delay, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ boxShadow: `0 0 10px ${s.gold ? "rgb(var(--gold))" : "rgb(var(--signal))"}` }}
-                />
-              ))}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface/80 text-ink-2 backdrop-blur transition-colors hover:text-ink"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
 
-          {/* Shatter on trash */}
-          {isTrashing && (
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-40" style={{ aspectRatio: "9/16" }} aria-hidden="true">
-              {SHARDS.map((sh, i) => (
-                <motion.div
-                  key={i}
-                  className={`absolute inset-0 rounded-sm border ${borderStyle}`}
-                  style={{ background: cardBg, clipPath: sh.clip }}
-                  initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
-                  animate={{ x: sh.tx, y: sh.ty + 300, rotate: sh.r, opacity: 0 }}
-                  transition={{ duration: 0.9, ease: [0.4, 0, 0.8, 0.6] }}
-                  onAnimationComplete={() => {
-                    if (i === 0) {
-                      onClose();
-                      setIsTrashing(false);
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            className="relative my-auto flex w-full max-w-[340px] flex-col items-center sm:max-w-[380px]"
+          >
+            {/* Success sparks */}
+            {!isFailed && !isTrashing && (
+              <div className="pointer-events-none absolute left-1/2 top-[40%] z-0" aria-hidden="true">
+                {SPARKS.map((s, i) => (
+                  <motion.span
+                    key={i}
+                    className={`absolute h-1.5 w-1.5 rounded-full ${s.gold ? "bg-gold" : "bg-signal"}`}
+                    initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
+                    animate={{ x: s.x, y: s.y, opacity: [0, 1, 0], scale: [0, 1.4, 0.4] }}
+                    transition={{ duration: 1.1, delay: s.delay, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ boxShadow: `0 0 10px ${s.gold ? "rgb(var(--gold))" : "rgb(var(--signal))"}` }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Shatter on trash */}
+            {isTrashing && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-40" style={{ aspectRatio: "9/16" }} aria-hidden="true">
+                {SHARDS.map((sh, i) => (
+                  <motion.div
+                    key={i}
+                    className={`absolute inset-0 rounded-sm border ${borderStyle}`}
+                    style={{ background: cardBg, clipPath: sh.clip }}
+                    initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
+                    animate={{ x: sh.tx, y: sh.ty + 300, rotate: sh.r, opacity: 0 }}
+                    transition={{ duration: 0.9, ease: [0.4, 0, 0.8, 0.6] }}
+                    onAnimationComplete={() => {
+                      if (i === 0) {
+                        onClose();
+                        setIsTrashing(false);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* ─── Mode Switcher Bar (Strava vs Obsidian vs Pass) ─── */}
+            <div className="relative z-30 mb-2.5 flex w-full items-center justify-between gap-1 rounded-xl border border-line bg-surface/90 p-1 backdrop-blur-md shadow-lg">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCardMode("metallic")}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    cardMode === "metallic"
+                      ? "bg-ink text-bg shadow-sm"
+                      : "text-ink-3 hover:text-ink hover:bg-raised"
+                  }`}
+                >
+                  Metallic
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardMode("hud")}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    cardMode === "hud"
+                      ? "bg-ink text-bg shadow-sm"
+                      : "text-ink-3 hover:text-ink hover:bg-raised"
+                  }`}
+                >
+                  Photo HUD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardMode("pass")}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    cardMode === "pass"
+                      ? "bg-ink text-bg shadow-sm"
+                      : "text-ink-3 hover:text-ink hover:bg-raised"
+                  }`}
+                >
+                  Pass
+                </button>
+              </div>
+
+              {/* Quick photo upload button */}
+              <label className="flex items-center gap-1 rounded-lg border border-line bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2 cursor-pointer transition-colors hover:text-ink hover:border-ink/40">
+                <Camera className="h-3.5 w-3.5 text-crimson" />
+                <span>{uploadingPhoto ? "..." : currentPhoto ? "Swap" : "Photo"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) {
+                      try {
+                        setUploadingPhoto(true);
+                        const url = await uploadImage(file);
+                        setCurrentPhoto(url);
+                        setCardMode("hud");
+                      } catch (err: any) {
+                        alert(err.message || "Failed to upload photo");
+                      } finally {
+                        setUploadingPhoto(false);
+                      }
                     }
                   }}
                 />
-              ))}
+              </label>
             </div>
-          )}
 
-          <motion.div
-            ref={containerRef}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => setIsFlipped(!isFlipped)}
-            initial={{ y: 80, rotateX: 28, opacity: 0, scale: 0.9 }}
-            animate={isTrashing ? { opacity: 0, transition: { duration: 0.05 } } : { y: 0, rotateX: 0, opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 160, damping: 20 }}
-            className="relative z-10 w-full cursor-pointer select-none"
-            style={{ perspective: "1200px", aspectRatio: "9/16", transformPerspective: 1200 }}
-            aria-label={isFlipped ? "Show front" : "Show reflection"}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setIsFlipped(!isFlipped);
-              }
-            }}
-          >
-            <motion.div style={{ rotateX, rotateY, translateX, translateY, transformStyle: "preserve-3d", width: "100%", height: "100%" }}>
-              <div
-                style={{
-                  transformStyle: "preserve-3d",
-                  transition: "transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)",
-                  transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                  position: "absolute",
-                  width: "100%",
-                  height: "100%"
-                }}
-              >
-                {/* ───────── FRONT ───────── */}
+            {/* ─── 3D Interactive Card Canvas ─── */}
+            <motion.div
+              ref={containerRef}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => setIsFlipped(!isFlipped)}
+              initial={{ y: 80, rotateX: 28, opacity: 0, scale: 0.9 }}
+              animate={isTrashing ? { opacity: 0, transition: { duration: 0.05 } } : { y: 0, rotateX: 0, opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 160, damping: 20 }}
+              className="relative z-10 w-full cursor-pointer select-none"
+              style={{ perspective: "1200px", aspectRatio: "9/16", transformPerspective: 1200 }}
+              aria-label={isFlipped ? "Show front" : "Show reflection"}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setIsFlipped(!isFlipped);
+                }
+              }}
+            >
+              <motion.div style={{ rotateX, rotateY, translateX, translateY, transformStyle: "preserve-3d", width: "100%", height: "100%" }}>
                 <div
-                  ref={cardRef}
-                  className={`relative flex flex-col justify-between overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
-                  style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(!isFlipped) }}
+                  style={{
+                    transformStyle: "preserve-3d",
+                    transition: "transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)",
+                    transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%"
+                  }}
                 >
-                  {/* Ambient radiant metallic glow */}
+                  {/* ───────── FRONT ───────── */}
                   <div
-                    className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
-                    style={{ background: glowColor }}
-                    aria-hidden="true"
-                  />
+                    ref={cardRef}
+                    className={`relative flex flex-col justify-between overflow-hidden rounded-sm p-6 text-left shadow-lift sm:p-7 ${activeBorderStyle}`}
+                    style={{
+                      background: cardMode === "pass" ? "#0C0C0D" : cardBg,
+                      borderColor: cardMode === "hud" ? tierColor : undefined,
+                      position: "absolute",
+                      inset: 0,
+                      ...faceStyle(!isFlipped)
+                    }}
+                  >
+                    {/* STRAVA PHOTO HUD MODE: Photo backdrop with vibrant metallic tier glow preservation */}
+                    {cardMode === "hud" && (
+                      <>
+                        {currentPhoto ? (
+                          <>
+                            <img
+                              src={currentPhoto}
+                              alt="Session evidence"
+                              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                            />
+                            {/* Tier-colored radiant wash & vignette preserving Gold/Silver/Bronze feel */}
+                            <div
+                              className="pointer-events-none absolute inset-0"
+                              style={{
+                                background: `linear-gradient(to top, rgba(0,0,0,0.94) 0%, rgba(0,0,0,0.60) 45%, rgba(0,0,0,0.25) 75%, ${tierColor}20 100%)`
+                              }}
+                            />
+                            {/* Top radiant flare on photo */}
+                            <div
+                              className="pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full blur-3xl opacity-85"
+                              style={{ background: glowColor }}
+                              aria-hidden="true"
+                            />
+                          </>
+                        ) : (
+                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-black/80">
+                            <Camera className="h-8 w-8 text-ink-3 mb-2" />
+                            <span className="text-xs text-ink-3">Upload photo to activate Photo HUD</span>
+                          </div>
+                        )}
+                      </>
+                    )}
 
-                  {/* Strava Photo Layer */}
-                  {screenshot && (
-                    <>
-                      <img
-                        src={screenshot}
-                        alt="Session evidence"
-                        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                    {/* PASS MODE: Perforation notches and dashed tear-line */}
+                    {cardMode === "pass" && (
+                      <>
+                        <div className="pointer-events-none absolute left-0 top-[66%] -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
+                        <div className="pointer-events-none absolute right-0 top-[66%] translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
+                        <div className="pointer-events-none absolute inset-x-4 top-[66%] h-px border-b border-dashed border-white/20 z-30" />
+                      </>
+                    )}
+
+                    {/* METALLIC MODE: Pure ambient radiant flare */}
+                    {cardMode === "metallic" && (
+                      <div
+                        className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
+                        style={{ background: glowColor }}
+                        aria-hidden="true"
                       />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/65 to-black/35" />
-                    </>
-                  )}
+                    )}
 
-                  {/* Deer persona, as a quiet watermark */}
-                  <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.07]">
-                    <LockinMark size={260} color="rgb(var(--ink))" showTriangle={false} />
-                  </div>
-
-                  {/* Crash cracks draw on */}
-                  {isFailed && (
-                    <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                      {[
-                        "M 0 30 L 25 35 L 35 20 L 50 35 L 55 55 L 45 70 L 60 85 L 50 100",
-                        "M 35 20 L 45 10 L 65 5 L 80 15",
-                        "M 55 55 L 75 50 L 90 65 L 100 60",
-                        "M 25 35 L 15 50 L 0 55",
-                        "M 45 70 L 30 80 L 15 75 L 0 90",
-                        "M 60 85 L 80 90 L 100 80"
-                      ].map((d, i) => (
-                        <motion.path
-                          key={d}
-                          d={d}
-                          stroke="rgb(var(--signal))"
-                          strokeWidth="0.5"
-                          strokeLinecap="round"
-                          fill="none"
-                          initial={{ pathLength: 0 }}
-                          animate={{ pathLength: 1 }}
-                          transition={{ delay: 0.35 + i * 0.06, duration: 0.35, ease: "easeOut" }}
-                        />
-                      ))}
-                    </svg>
-                  )}
-
-                  {isFailed && (
-                    <motion.div
-                      initial={{ scale: 2.2, opacity: 0, rotate: -4 }}
-                      animate={{ scale: 1, opacity: 1, rotate: -12 }}
-                      transition={{ delay: 0.75, type: "spring", stiffness: 500, damping: 18 }}
-                      className="pointer-events-none absolute left-1/2 top-[42%] z-30 -translate-x-1/2 -translate-y-1/2 rounded-xl border-4 border-signal bg-black/90 px-5 py-2.5 text-center"
-                    >
-                      <span className="t-display block whitespace-nowrap text-title-1 text-crimson">Runway crashed</span>
-                      <span className="mt-0.5 block text-caption font-semibold text-crimson">−5 {POINTS_NAME}</span>
-                    </motion.div>
-                  )}
-
-                  {/* Brand row */}
-                  <div className="relative z-10 flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <LockinMark size={22} color="rgb(var(--ink))" />
-                      <LockinWordmark size="sm" />
+                    {/* Deer persona quiet watermark */}
+                    <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.06] z-10">
+                      <LockinMark size={260} color="rgb(var(--ink))" showTriangle={false} />
                     </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${badgeBg}`}>
-                          {tierPill}
+
+                    {/* Crash cracks draw on */}
+                    {isFailed && (
+                      <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        {[
+                          "M 0 30 L 25 35 L 35 20 L 50 35 L 55 55 L 45 70 L 60 85 L 50 100",
+                          "M 35 20 L 45 10 L 65 5 L 80 15",
+                          "M 55 55 L 75 50 L 90 65 L 100 60",
+                          "M 25 35 L 15 50 L 0 55",
+                          "M 45 70 L 30 80 L 15 75 L 0 90",
+                          "M 60 85 L 80 90 L 100 80"
+                        ].map((d, i) => (
+                          <motion.path
+                            key={d}
+                            d={d}
+                            stroke="rgb(var(--signal))"
+                            strokeWidth="0.5"
+                            strokeLinecap="round"
+                            fill="none"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ delay: 0.35 + i * 0.06, duration: 0.35, ease: "easeOut" }}
+                          />
+                        ))}
+                      </svg>
+                    )}
+
+                    {isFailed && (
+                      <motion.div
+                        initial={{ scale: 2.2, opacity: 0, rotate: -4 }}
+                        animate={{ scale: 1, opacity: 1, rotate: -12 }}
+                        transition={{ delay: 0.75, type: "spring", stiffness: 500, damping: 18 }}
+                        className="pointer-events-none absolute left-1/2 top-[42%] z-30 -translate-x-1/2 -translate-y-1/2 rounded-xl border-4 border-signal bg-black/90 px-5 py-2.5 text-center"
+                      >
+                        <span className="t-display block whitespace-nowrap text-title-1 text-crimson">Runway crashed</span>
+                        <span className="mt-0.5 block text-caption font-semibold text-crimson">−5 {POINTS_NAME}</span>
+                      </motion.div>
+                    )}
+
+                    {/* Brand row */}
+                    <div className="relative z-10 flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <LockinMark size={22} color="rgb(var(--ink))" />
+                        <LockinWordmark size="sm" />
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
+                            style={{
+                              borderColor: `${tierColor}60`,
+                              backgroundColor: `${tierColor}20`,
+                              color: tierColor
+                            }}
+                          >
+                            {tierPill}
+                          </span>
+                          <span
+                            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular backdrop-blur-md ${
+                              pointsDelta >= 0
+                                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                                : "border-red-500/40 bg-red-500/15 text-red-300"
+                            }`}
+                          >
+                            {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-ink-3 tabular">{date}</span>
+                      </div>
+                    </div>
+
+                    {/* Hero Section */}
+                    <div className="relative z-10 my-auto">
+                      <div className="t-display flex items-baseline leading-none text-ink drop-shadow-[0_4px_18px_rgba(0,0,0,0.85)]">
+                        {hours > 0 && (
+                          <>
+                            <CountUp value={hours} className="text-[84px] sm:text-[96px]" duration={1.2} />
+                            <span className="mr-3 text-[32px] sm:text-[36px]">h</span>
+                          </>
+                        )}
+                        {(mins > 0 || hours === 0) && (
+                          <>
+                            <CountUp value={mins} className="text-[84px] sm:text-[96px]" duration={1.2} />
+                            <span className="text-[32px] sm:text-[36px]">m</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-footnote font-semibold tracking-wide uppercase" style={{ color: tierColor }}>
+                          {tierName}
                         </span>
-                        <span
-                          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular ${
-                            pointsDelta >= 0
-                              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                              : "border-red-500/40 bg-red-500/15 text-red-300"
-                          }`}
-                        >
-                          {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
+                        <span className="text-ink-4">·</span>
+                        <span className="text-footnote font-medium text-ink-2">
+                          {statusText}
                         </span>
                       </div>
-                      <span className="text-[11px] text-ink-3 tabular">{date}</span>
+
+                      {/* Custom Metric / Accomplishment Sticker Pill */}
+                      {activeMetric ? (
+                        <motion.div
+                          initial={{ scale: 0.95, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 shadow-lg backdrop-blur-md"
+                          style={{
+                            borderColor: `${tierColor}80`,
+                            backgroundColor: "rgba(0, 0, 0, 0.70)",
+                            boxShadow: `0 4px 20px ${glowColor}`
+                          }}
+                        >
+                          <span className="text-[10px] font-bold tracking-widest text-crimson uppercase">OUTPUT</span>
+                          <span className="h-3 w-px bg-white/20" />
+                          <span className="font-mono text-xs font-bold text-ink tracking-tight uppercase">
+                            {activeMetric}
+                          </span>
+                        </motion.div>
+                      ) : (
+                        <div className="t-display mt-2 line-clamp-2 text-title-2 font-bold text-ink drop-shadow-md">
+                          {isPeriod ? "Your summary" : subtitleText}
+                        </div>
+                      )}
+
+                      {activeMetric && (
+                        <div className="mt-1.5 line-clamp-1 text-footnote text-ink-3 font-medium">
+                          {isPeriod ? "Your summary" : subtitleText}
+                        </div>
+                      )}
                     </div>
+
+                    {/* Stats Section & HUD Box */}
+                    <div className="relative z-10">
+                      <div className={`transition-all ${cardMode === "hud" ? "rounded-xl border border-white/15 bg-black/65 p-3.5 backdrop-blur-md shadow-2xl" : ""}`}>
+                        <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
+                          <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
+                          <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
+                          <Stat label="Category" value={categoryVal} />
+                          <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
+                        </div>
+                      </div>
+
+                      {/* PASS MODE: Barcode Footer */}
+                      {cardMode === "pass" && (
+                        <div className="pt-2 flex items-center justify-between border-t border-white/10 mt-2">
+                          <div className="flex items-center gap-0.5">
+                            {[14, 22, 10, 18, 8, 24, 16, 12, 20, 10, 26, 14, 18, 12].map((h, i) => (
+                              <span key={i} className="inline-block bg-white/70" style={{ width: i % 3 === 0 ? "2px" : "1px", height: `${h}px` }} />
+                            ))}
+                          </div>
+                          <span className="font-mono text-[9px] tracking-widest text-ink-3 uppercase">
+                            #{recapData.shareId ? recapData.shareId.slice(0, 10).toUpperCase() : "VERIFIED"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Editorial Watermark */}
+                      <div className="flex items-center justify-between border-t border-white/10 pt-2.5 text-caption text-ink-3 mt-2">
+                        <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
+                          <span>lockin.top</span>
+                          <span className="text-ink-4">/</span>
+                          <span className="text-[10px] text-ink-3">Stop scrolling. Start executing.</span>
+                        </div>
+                        <span className="text-[10px] text-ink-3">Tap to flip</span>
+                      </div>
+                    </div>
+
+                    {/* Glare + one-time sheen */}
+                    <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundFront, opacity: 0.5 }} />
+                    <motion.div
+                      className="pointer-events-none absolute inset-y-0 z-50 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                      initial={{ x: "-120%" }}
+                      animate={{ x: "320%" }}
+                      transition={{ delay: 0.6, duration: 1.1, ease: "easeInOut" }}
+                    />
                   </div>
 
-                  {/* Hero */}
-                  <div className="relative z-10">
-                    <div className="t-display flex items-baseline leading-none text-ink drop-shadow-[0_4px_16px_rgba(0,0,0,0.6)]">
-                      {hours > 0 && (
-                        <>
-                          <CountUp value={hours} className="text-[88px] sm:text-[100px]" duration={1.2} />
-                          <span className="mr-3 text-[34px]">h</span>
-                        </>
-                      )}
-                      {(mins > 0 || hours === 0) && (
-                        <>
-                          <CountUp value={mins} className="text-[88px] sm:text-[100px]" duration={1.2} />
-                          <span className="text-[34px]">m</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-footnote font-semibold tracking-wide uppercase" style={{ color: tierColor }}>
+                  {/* ───────── BACK ───────── */}
+                  <div
+                    className={`relative flex flex-col overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
+                    style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(isFlipped), transform: "rotateY(180deg)" }}
+                  >
+                    {/* Ambient radiant metallic glow */}
+                    <div
+                      className="pointer-events-none absolute -left-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-75"
+                      style={{ background: glowColor }}
+                      aria-hidden="true"
+                    />
+                    <div className="relative z-10 flex items-start justify-between">
+                      <span className="text-footnote font-semibold text-ink">Reflection</span>
+                      <span className="rounded-sm border px-2.5 py-0.5 text-[11px] font-semibold" style={{ borderColor: tierColor, color: tierColor }}>
                         {tierName}
                       </span>
-                      <span className="text-ink-4">·</span>
-                      <span className="text-footnote font-medium text-ink-2">
-                        {statusText}
-                      </span>
                     </div>
-                    <div className="t-display mt-1.5 line-clamp-2 text-title-2 font-bold text-ink">
-                      {isPeriod ? "Your summary" : subtitleText}
-                    </div>
-                  </div>
 
-                  {/* Stats */}
-                  <div className="relative z-10">
-                    <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
-                      <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
-                      <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
-                      <Stat label="Category" value={categoryVal} />
-                      <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
+                    <div className="relative z-10 my-5 flex-1 space-y-4 overflow-y-auto pr-1 scrollbar-none">
+                      {isFailed && (
+                        <div className="rounded-xl border border-signal/70 bg-surface p-3.5">
+                          <p className="text-headline text-crimson">Crash logged</p>
+                          <p className="mt-0.5 text-footnote text-ink-2">Left early with nothing done. 5 {POINTS_NAME} lost.</p>
+                        </div>
+                      )}
+                      {activeMetric && (
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <p className="text-[10px] font-bold text-crimson tracking-wider uppercase">Key Output</p>
+                          <p className="mt-1 font-mono text-subhead font-bold text-ink">{activeMetric}</p>
+                        </div>
+                      )}
+                      {reflectionText && (
+                        <div>
+                          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3">
+                            <Quote className="h-3.5 w-3.5" style={{ color: tierColor }} /> How it went
+                          </p>
+                          <p className="mt-2 text-subhead leading-relaxed text-ink">&ldquo;{reflectionText}&rdquo;</p>
+                        </div>
+                      )}
+                      {lessonsLearned && (
+                        <div>
+                          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3">
+                            <BookOpen className="h-3.5 w-3.5" style={{ color: tierColor }} /> Next time
+                          </p>
+                          <p className="mt-2 text-subhead leading-relaxed text-ink-2">{lessonsLearned}</p>
+                        </div>
+                      )}
+                      {currentPhoto && (
+                        <div className="aspect-video w-full overflow-hidden rounded-xl border border-white/10">
+                          <img src={currentPhoto} alt="Session proof" className="h-full w-full object-cover" />
+                        </div>
+                      )}
+                      {link && (
+                        <a
+                          href={link.startsWith("http") ? link : `https://${link}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="block truncate rounded-xl border border-white/10 bg-black/40 px-3.5 py-3 text-subhead text-gold transition-colors hover:bg-black/60"
+                        >
+                          {link}
+                        </a>
+                      )}
+                      {!reflectionText && !lessonsLearned && !currentPhoto && !link && !isFailed && !activeMetric && (
+                        <div className="flex h-full flex-col items-center justify-center text-center">
+                          <LockinMark size={80} color={tierColor} />
+                          <p className="t-display mt-5 text-title-2 text-ink">Showed up.</p>
+                          <p className="mt-1 text-subhead text-ink-3">No notes this time.</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between border-t border-white/10 pt-3 text-caption text-ink-3">
+
+                    <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-3 text-caption text-ink-3">
                       <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
                         <span>lockin.top</span>
                         <span className="text-ink-4">/</span>
-                        <span className="text-[11px] text-ink-3">Stop scrolling. Start executing.</span>
+                        <span className="tabular text-[11px] text-ink-3">#{recapData.shareId ? recapData.shareId.slice(0, 8) : "lockin"}</span>
                       </div>
                       <span className="text-[11px] text-ink-3">Tap to flip</span>
                     </div>
+                    <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundBack, opacity: 0.4 }} />
                   </div>
-
-                  {/* Glare + one-time sheen */}
-                  <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundFront, opacity: 0.5 }} />
-                  <motion.div
-                    className="pointer-events-none absolute inset-y-0 z-50 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-                    initial={{ x: "-120%" }}
-                    animate={{ x: "320%" }}
-                    transition={{ delay: 0.6, duration: 1.1, ease: "easeInOut" }}
-                  />
                 </div>
+              </motion.div>
+            </motion.div>
 
-                {/* ───────── BACK ───────── */}
-                <div
-                  className={`relative flex flex-col overflow-hidden rounded-sm border p-7 text-left shadow-lift sm:p-8 ${borderStyle}`}
-                  style={{ background: cardBg, position: "absolute", inset: 0, ...faceStyle(isFlipped), transform: "rotateY(180deg)" }}
-                >
-                  {/* Ambient radiant metallic glow */}
-                  <div
-                    className="pointer-events-none absolute -left-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-75"
-                    style={{ background: glowColor }}
-                    aria-hidden="true"
-                  />
-                  <div className="relative z-10 flex items-start justify-between">
-                    <span className="text-footnote font-semibold text-ink">Reflection</span>
-                    <span className="rounded-sm border px-2.5 py-0.5 text-[11px] font-semibold" style={{ borderColor: tierColor, color: tierColor }}>
-                      {tierName}
-                    </span>
-                  </div>
-
-                  <div className="relative z-10 my-5 flex-1 space-y-4 overflow-y-auto pr-1 scrollbar-none">
-                    {isFailed && (
-                      <div className="rounded-xl border border-signal/70 bg-surface p-3.5">
-                        <p className="text-headline text-crimson">Crash logged</p>
-                        <p className="mt-0.5 text-footnote text-ink-2">Left early with nothing done. 5 {POINTS_NAME} lost.</p>
-                      </div>
-                    )}
-                    {reflectionText && (
-                      <div>
-                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3">
-                          <Quote className="h-3.5 w-3.5" style={{ color: tierColor }} /> How it went
-                        </p>
-                        <p className="mt-2 text-subhead leading-relaxed text-ink">&ldquo;{reflectionText}&rdquo;</p>
-                      </div>
-                    )}
-                    {lessonsLearned && (
-                      <div>
-                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3">
-                          <BookOpen className="h-3.5 w-3.5" style={{ color: tierColor }} /> Next time
-                        </p>
-                        <p className="mt-2 text-subhead leading-relaxed text-ink-2">{lessonsLearned}</p>
-                      </div>
-                    )}
-                    {screenshot && (
-                      <div className="aspect-video w-full overflow-hidden rounded-xl border border-white/10">
-                        <img src={screenshot} alt="Session proof" className="h-full w-full object-cover" />
-                      </div>
-                    )}
-                    {link && (
-                      <a
-                        href={link.startsWith("http") ? link : `https://${link}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="block truncate rounded-xl border border-white/10 bg-black/40 px-3.5 py-3 text-subhead text-gold transition-colors hover:bg-black/60"
-                      >
-                        {link}
-                      </a>
-                    )}
-                    {!reflectionText && !lessonsLearned && !screenshot && !link && !isFailed && (
-                      <div className="flex h-full flex-col items-center justify-center text-center">
-                        <LockinMark size={80} color={tierColor} />
-                        <p className="t-display mt-5 text-title-2 text-ink">Showed up.</p>
-                        <p className="mt-1 text-subhead text-ink-3">No notes this time.</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-3 text-caption text-ink-3">
-                    <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
-                      <span>lockin.top</span>
-                      <span className="text-ink-4">/</span>
-                      <span className="tabular text-[11px] text-ink-3">#{recapData.shareId ? recapData.shareId.slice(0, 8) : "lockin"}</span>
-                    </div>
-                    <span className="text-[11px] text-ink-3">Tap to flip</span>
-                  </div>
-                  <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundBack, opacity: 0.4 }} />
-                </div>
+            {/* ─── Interactive Metric / Output Highlight Bar ─── */}
+            <div className="relative z-20 mt-3 w-full space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold uppercase tracking-wider text-ink-3 flex items-center gap-1.5">
+                  <Tag className="h-3 w-3 text-crimson" /> Highlight Output
+                </span>
+                {activeMetric && (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveMetric(""); setIsEditingMetric(false); }}
+                    className="text-[10px] uppercase tracking-wider text-ink-4 hover:text-ink-2"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
+
+              {/* Quick chips scroller */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+                {["8 questions", "5.0 km run", "Back & biceps", "4 PRs merged", "Unit 1 & 2", "100 pushups"].map((chip) => {
+                  const isSelected = activeMetric.toLowerCase().includes(chip.toLowerCase());
+                  return (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => {
+                        setActiveMetric(chip);
+                        setIsEditingMetric(false);
+                      }}
+                      className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${
+                        isSelected
+                          ? "border-crimson bg-crimson/20 text-ink font-semibold"
+                          : "border-line bg-surface/80 text-ink-3 hover:border-ink/40 hover:text-ink"
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingMetric(!isEditingMetric);
+                    setTempMetric(activeMetric);
+                  }}
+                  className="shrink-0 rounded-full border border-line bg-surface/80 px-2.5 py-1 text-[11px] font-medium text-ink-3 hover:text-ink hover:border-ink/40"
+                >
+                  + Custom
+                </button>
+              </div>
+
+              {isEditingMetric && (
+                <div className="flex gap-1.5 pt-1">
+                  <input
+                    type="text"
+                    value={tempMetric}
+                    onChange={(e) => setTempMetric(e.target.value)}
+                    placeholder="e.g. 10 leetcode, bench 80kg..."
+                    className="h-9 flex-1 rounded-lg border border-line bg-surface px-2.5 text-xs text-ink placeholder:text-ink-4 focus:border-crimson focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setActiveMetric(tempMetric.trim());
+                        setIsEditingMetric(false);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMetric(tempMetric.trim());
+                      setIsEditingMetric(false);
+                    }}
+                    className="h-9 rounded-lg bg-ink px-3 text-xs font-semibold text-bg transition-colors hover:bg-ink-2"
+                  >
+                    Set
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ─── Actions Bar ─── */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={isTrashing ? { opacity: 0 } : { opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 26 }}
+              className="relative z-10 mt-3 flex w-full gap-2"
+            >
+              {isFailed ? (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setIsTrashing(true)}
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-signal/70 bg-surface text-subhead font-semibold text-ink transition-colors hover:bg-signal/25"
+                >
+                  <Trash2 className="h-[18px] w-[18px]" /> Trash card
+                </motion.button>
+              ) : (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="btn-primary h-12 flex-1 gap-2"
+                >
+                  <Download className="h-[18px] w-[18px]" />
+                  {saving ? "Rendering..." : "Save Story Image"}
+                </motion.button>
+              )}
+
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={() => {
+                  const text = `*${subtitleText}* on LOCKIN\n${statusText} · ${hours > 0 ? `${hours}h ` : ""}${mins}m locked in${activeMetric ? ` · ${activeMetric}` : ""}${tasksCompleted ? ` · ${tasksCompleted} tasks` : ""}${streakVal ? ` · ${streakVal}-day streak` : ""}\n\nLock in: ${typeof window !== "undefined" ? window.location.origin : ""}`;
+                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                }}
+                aria-label="Share on WhatsApp"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] transition-colors hover:bg-[#25D366]/20"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </motion.button>
+
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={handleShare}
+                aria-label={copied ? "Link copied" : "Copy share link"}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-ink-2 transition-colors hover:text-ink"
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span key={copied ? "ok" : "share"} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} className="flex">
+                    {copied ? <Check className="h-5 w-5 text-success" /> : <Share2 className="h-5 w-5" />}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
             </motion.div>
           </motion.div>
-
-          {/* Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={isTrashing ? { opacity: 0 } : { opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 26 }}
-            className="relative z-10 mt-5 flex w-full gap-2"
-          >
-            {isFailed ? (
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setIsTrashing(true)}
-                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-signal/70 bg-surface text-subhead font-semibold text-ink transition-colors hover:bg-signal/25"
-              >
-                <Trash2 className="h-[18px] w-[18px]" /> Trash card
-              </motion.button>
-            ) : (
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.96 }}
-                onClick={handleSave}
-                disabled={saving}
-                className="btn-primary h-12 flex-1"
-              >
-                <Download className="h-[18px] w-[18px]" />
-                {saving ? "Saving" : "Save image"}
-              </motion.button>
-            )}
-
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.9 }}
-              onClick={() => {
-                const text = `*${subtitleText}* on LOCKIN\n${statusText} · ${hours > 0 ? `${hours}h ` : ""}${mins}m locked in${tasksCompleted ? ` · ${tasksCompleted} tasks` : ""}${streakVal ? ` · ${streakVal}-day streak` : ""}\n\nLock in: ${typeof window !== "undefined" ? window.location.origin : ""}`;
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-              }}
-              aria-label="Share on WhatsApp"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] transition-colors hover:bg-[#25D366]/20"
-            >
-              <MessageCircle className="h-5 w-5" />
-            </motion.button>
-
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.9 }}
-              onClick={handleShare}
-              aria-label={copied ? "Link copied" : "Copy share link"}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-ink-2 transition-colors hover:text-ink"
-            >
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.span key={copied ? "ok" : "share"} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} className="flex">
-                  {copied ? <Check className="h-5 w-5 text-success" /> : <Share2 className="h-5 w-5" />}
-                </motion.span>
-              </AnimatePresence>
-            </motion.button>
-          </motion.div>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </AnimatePresence>
     </Portal>
   );
 }

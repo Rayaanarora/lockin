@@ -41,13 +41,26 @@ export default function Home() {
   const tabRef = useRef(tab);
   tabRef.current = tab;
 
-  // Synchronize active tab from URL query params if present
+  // Synchronize active tab from URL query params if present + capture creator referral tags
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const queryTab = params.get("tab");
       if (queryTab && ["missions", "feed", "active", "inbox", "notifications", "profile"].includes(queryTab)) {
         setTab(queryTab);
+      }
+
+      // Creator & Referral Attribution: capture ?ref= or ?c= from student creator links
+      const refCode = params.get("ref") || params.get("c") || params.get("creator");
+      if (refCode) {
+        try {
+          const cleanRef = refCode.trim().toLowerCase().slice(0, 50);
+          localStorage.setItem("lockin_creator_ref", cleanRef);
+          if (!localStorage.getItem("lockin_creator_ref_initial")) {
+            localStorage.setItem("lockin_creator_ref_initial", cleanRef);
+            localStorage.setItem("lockin_creator_ref_timestamp", new Date().toISOString());
+          }
+        } catch (_) {}
       }
     }
   }, []);

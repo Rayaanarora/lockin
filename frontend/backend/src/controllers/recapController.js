@@ -69,6 +69,7 @@ async function finishSession(req, res) {
   }
   const reflectionText = cleanText(reflection.reflectionText, 2000);
   const lessonsLearned = cleanText(reflection.lessonsLearned, 2000);
+  const customMetric = cleanText(reflection.customMetric || body.customMetric, 120);
   const isPublic = reflection.isPublic !== false;
 
   try {
@@ -169,7 +170,8 @@ async function finishSession(req, res) {
             screenshot: screenshot || null,
             link,
             isFailed,
-            gritDelta
+            gritDelta,
+            customMetric: customMetric || null
           }
         }
       });
@@ -194,7 +196,7 @@ async function finishSession(req, res) {
             type: "mission_completed",
             title: title.slice(0, 200),
             description: reflectionText,
-            metadata: { sessionDuration, tasksCompleted, category: mission.category?.categoryName || "Other", missionType: mission.missionType, participantCount: crew, screenshot: screenshot || null, link, isFailed },
+            metadata: { sessionDuration, tasksCompleted, category: mission.category?.categoryName || "Other", missionType: mission.missionType, participantCount: crew, screenshot: screenshot || null, link, isFailed, customMetric: customMetric || null },
             recapId: recap.id
           }
         });

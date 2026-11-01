@@ -76,6 +76,12 @@ async function send(path: string, options: RequestInit, token: string | null) {
   const timeoutId = setTimeout(() => controller.abort(), 25000);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== "undefined") {
+    try {
+      const creatorRef = localStorage.getItem("lockin_creator_ref");
+      if (creatorRef) headers["x-creator-ref"] = creatorRef;
+    } catch (_) {}
+  }
   try {
     const response = await fetch(`${API}${path}`, {
       ...options,

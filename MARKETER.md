@@ -255,10 +255,117 @@ Every hook before scripting must pass the **Four Failures Check**:
 
 ---
 
-### [Next in Queue] Campaign 03: "Productive Procrastination / The Plan Paradox" (Video 03)
+### [2026-10-30] Campaign 03: "Wait... We Get Cards?" (15s Tier Cards Reel)
+* **Deliverable:** `lockin_cards_reel_15s.mp4` (1080 × 1920, 30 FPS, HyperFrames, 5.9 MB)
+* **Core Hook (SPENT):** *"WAIT... WE GET CARDS? Every time you lock in, you don't just finish a timer."*
+* **Core Visual Metaphor:** 
+  - Heavy monolithic 5-card deck dropping into void black and fanning out in 3D perspective (`card_bronze`, `card_silver`, `card_gold`, `card_crimson`, `card_crashed`).
+  - Minute-based metallic progression:
+    - Bronze (< 45m · Copper · 25m Pomodoro)
+    - Silver (45–74m · Chrome · 50m Architecture)
+    - Gold (75–90m · 24K Gold · 1h 30m Core Engine)
+    - Crimson (> 90m · Hyper-Focus · 2h 0m Hackathon)
+  - The Viral Plot Twist: Runway Crashed card violently slamming in with glowing red laser fractures and stamped caution badge (`Quit at 2m · -5 Motion`).
+  - Full 5K panoramic lineup resolve (`tier_cards_lineup_marketing.png`) + Lockin stag emblem + `lockin.top` callout.
+* **Tactile Sound Design:** 14 synchronized SFX tracks (cinematic sub-bass drops, card dealing whooshes, platinum pings, riser build, glass shatter/glitch, and brand chime resolve).
+* **Master Taglines:** *"stop scrolling. start executing."* and *"find your people."*
+* **Status:** **PRODUCED & RENDERED.**
+
+---
+
+### [Next in Queue] Campaign 04: "Productive Procrastination / The Plan Paradox" (Video 04)
 * **Status:** **QUEUED**
 * **Territory:** Productivity & Over-planning
 * **Hook:** *"you don’t need another plan."*
 * **Target Audience:** Students caught in Notion setups, saving tabs, watching tutorials instead of shipping.
 * **Core Visual Metaphor:** Stacking Notion boards, checklists, and tabs collapsing into: `START FOR 10 MINUTES`.
 * **Format:** 15s (9:16 Vertical), HyperFrames, haptic SFX.
+
+---
+
+## 9. The Student Creator Engine & UGC Playbook (StudyFetch Model)
+
+> **Core Philosophy:** Don't start with 400 creators. Find a content format that works with 3–5 student creators, prove it produces local density and real mission joins at SRM, and scale from there.
+
+### 9.1 The StudyFetch Benchmark (Plutus Media Analysis)
+* **The Numbers:** $10M+ ARR in ~3 years, 7M+ registered users, 400 creators.
+* **The Trajectory:** Founders started by filming in lecture halls themselves (1 creator), grew to 5, then 20, then 400.
+* **Key Creative Mechanics:**
+  - **The Power-Law Distribution:** A handful of pages carry the bulk of views (e.g. `@studyfetchalexus` pulled 19.6M views from just 12 videos; top video `"I studied for 1 day and got a 92%"` reached 10.9M views).
+  - **App Name in Handle, Never in the Hook:** The account handle carries the brand (`@lockin.[name]` or `@lockin.srm`), while the opening 3 seconds focus 100% on the student problem, tension, or experiment.
+  - **The Series Rule:** Recurring numbered series (`"pt. 23"`) create episodic expectations and viewer equity.
+  - **Repeat Winners:** Re-shooting the exact same winning hook structure across different students and settings rather than constantly inventing unproven concepts.
+
+---
+
+### 9.2 The 4-Phase Growth Roadmap for LOCKIN
+
+```text
+Phase 1 (Days 1–7):   Founders Create (2 founders, test 3 formats, find first winners)
+Phase 2 (Days 8–14):  Recruit 3–5 Student Creators (SRM campus builders, give briefs not scripts)
+Phase 3 (Days 15–21): Repeat Winners (Double down on top hooks with variation)
+Phase 4 (Days 22–30): Scale What Converts (Expand only if content drives actual mission joins)
+```
+
+---
+
+### 9.3 The 3 Content Formats for LOCKIN
+
+1. **Format A — The Relatable Student Problem (Awareness / Top-of-Funnel)**
+   * *Purpose:* Make students feel personally seen regarding campus friction (isolation, flakey teams, dead weekends).
+   * *Example Hook:* *"the group chat has 87 messages. the project has 0 lines of code."* (SPENT in teaser; see fresh catalog in `growth/creators/SCRIPTS_CATALOG.md`).
+   * *Core Tension:* High talk vs zero execution; loneliness in a crowd of 50,000 students.
+
+2. **Format B — The Real-World Experiment (Trust / Social Proof)**
+   * *Purpose:* Document real students showing up in person, doing a sprint, running, or building together.
+   * *Example Hook:* *"we got students who barely knew each other to build something together."*
+   * *Golden Rule:* **Strictly authentic.** Only make claims that the footage actually supports. Zero staged or fake participants.
+
+3. **Format C — The Product in Action (Conversion / Utility)**
+   * *Purpose:* Demonstrate the real in-app execution flow on `lockin.top` without corporate walkthrough boringness.
+   * *Example Hook:* *"instead of asking 14 people what to do this weekend, we dropped a mission."*
+   * *Visual Flow:* Discover mission on campus feed ➔ Lock In ➔ Focus Timer ➔ Vibe Check & Grit ➔ 3D Recap Card.
+
+---
+
+### 9.4 The Series Rule for LOCKIN
+Every video belongs to an ongoing numbered series to establish recognizable intellectual property:
+* Series 01: `things we should do in college — pt. 01`
+* Series 02: `we tried this on campus — pt. 01`
+* Series 03: `missions we'd actually join — pt. 01`
+* Series 04: `people building things at srm — pt. 01`
+* Series 05: `the college group chat problem — pt. 01`
+
+*Rule:* Keep the series graphic and title consistent, but every individual episode must deliver standalone value. Never number unrelated content artificially.
+
+---
+
+### 9.5 Creator Representation & Account Architecture
+* **Main Brand Channel:** `@lockin` / `@lockin.app` (high-polish manifesto pieces, official mission announcements, weekly leaderboards).
+* **Creator Channels:** Personal student accounts who authentically create college content, with clear affiliation in bio (`building with @lockin` or `campus lead @lockin`).
+* **Campus Dispatch Channel:** Optional dedicated campus page (e.g. `@lockin.srm` / `@lockin.ktr`) strictly showcasing live missions, campus leaderboards, and real student sprints.
+* **Transparency:** Never deceive users. Content created under creator partnerships must disclose appropriately where required.
+
+---
+
+### 9.6 Creator Compensation Pilot Structure
+*Never compensate purely on view count (views incentivize clickbait and off-campus junk traffic).*
+
+| Tier | Structure | Deliverable |
+| :--- | :--- | :--- |
+| **Trial Creator** | Small fixed fee per video (or agreed starter perk/Grit) | 2 test videos on approved briefs |
+| **Active Creator** | Fixed fee per approved video | 2–3 videos/week adhering to standardized formats |
+| **Top Performer** | Fixed base + bonus per verified sign-up/mission join | Proven winners who consistently drive campus density |
+| **Campus Lead** | Monthly retainer | Coordinates 3–5 creators, hosts weekly in-person missions, tracks metrics |
+
+---
+
+### 9.7 The True North Metrics (Beyond Vanity Views)
+Views measure reach, not growth. LOCKIN evaluates content by downstream activation:
+
+$$\text{Views} \longrightarrow \text{Shares \& Saves} \longrightarrow \text{Profile Visits} \longrightarrow \text{Sign-ups (?ref=)} \longrightarrow \text{Mission Joins} \longrightarrow \text{Repeat Sprints}$$
+
+* **Primary Signal:** Mission creation and joins at SRM.
+* **Defensible Moat:** The Campus Flywheel:
+  $$\text{Creator Video} \longrightarrow \text{Student joins mission} \longrightarrow \text{Physical meetup happens} \longrightarrow \text{Experience becomes next video}$$
+

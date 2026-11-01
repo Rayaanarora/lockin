@@ -285,3 +285,17 @@ When the founder introduces a new product principle, architectural constraint, u
     6. *Social & Collaboration* (Java Canteen Midnight Chai & Code, Resume & Portfolio Roast, Mentor Ping)
   - **1-Tap Fill Contract:** Selecting an option immediately populates title, description, category, default location, duration, and specific task checklist, with an instant "Clear template" reset.
 * **Campus Realism Over Generic Hustle:** Tailored missions to real academic milestones (Cycle Tests, lab FAT viva, TCS/CTS/Amazon placement rounds) that students actually care about right now, eliminating synthetic fluff.
+
+### [2026-10-30] Student Creator Growth Engine (The StudyFetch Model Adaptation)
+* **Context:** Adopting the Plutus Media / StudyFetch $10M+ creator playbook (analyzed by Diogo) for LOCKIN's campus distribution.
+* **Core Principle:** Do not start with 400 creators. Prove the model with 3–5 creators at SRM KTR who can drive local density and verified mission participation, then scale.
+* **The 3 Formats:**
+  1. *Format A (Awareness):* Relatable student problem (talk vs execution, isolation in large colleges, dead weekends).
+  2. *Format B (Trust):* Real-world campus experiments (strangers building together, silent library sprints, sunrise runs).
+  3. *Format C (Conversion):* Product in action (discovering a mission on `lockin.top`, 60-min sprint lock, vibe check, 3D recap card).
+* **Crucial Distribution Rules:**
+  - **App name in handle, never in the hook:** The handle carries the brand (`@lockin.[name]`); the first 3 seconds focus 100% on the conflict/tension.
+  - **The Series Rule:** Recurring numbered series (`"pt. 01"`) create intellectual property and viewer anticipation.
+  - **Pay per deliverable, not per view:** Fixed fees avoid clickbait and low-intent audiences.
+  - **The Campus Loop Moat:** Creator video ➔ student joins mission ➔ physical meetup happens ➔ experience fuels the next video.
+* **Operational Assets:** All briefs, scripts, agreements, and day-by-day calendar housed in `growth/creators/` and monitored via `lockin.top/?ref=creator_tag`.

@@ -36,6 +36,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
   const [activeReflectionMission, setActiveReflectionMission] = useState<Mission | null>(null);
   const [reflectionText, setReflectionText] = useState("");
   const [lessonsLearned, setLessonsLearned] = useState("");
+  const [customMetric, setCustomMetric] = useState("");
   const [isPublicReflection, setIsPublicReflection] = useState(true);
   const [submittingReflection, setSubmittingReflection] = useState(false);
   
@@ -247,6 +248,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
     setTimerRunning(false);
     setReflectionText("");
     setLessonsLearned("");
+    setCustomMetric("");
     setIsPublicReflection(true);
     setScreenshotBase64(null);
     setAttachLink("");
@@ -272,6 +274,7 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
           reflection: {
             reflectionText: reflectionText.trim() || null,
             lessonsLearned: lessonsLearned.trim() || null,
+            customMetric: customMetric.trim() || null,
             isPublic: isPublicReflection,
             screenshot: screenshotBase64,
             link: attachLink.trim() || null
@@ -1011,6 +1014,34 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
                   ) : "0 tasks"
                 }
               </p>
+            </div>
+
+            {/* Key Output / Stat (Optional) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                  Key Output / Stat (Optional)
+                </label>
+                <span className="text-[9px] font-bold text-cherryRed uppercase tracking-wider">Story Highlight</span>
+              </div>
+              <Input
+                value={customMetric}
+                onChange={(e) => setCustomMetric(e.target.value)}
+                placeholder="e.g. 8 questions solved, 5 km run, Back & biceps, 4 PRs"
+                className="h-10 border-white/5 bg-[#1B1716]/40 text-xs text-cotton rounded-xl focus:border-cherryRed"
+              />
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {["8 questions solved", "5.0 km run", "Back & biceps", "4 PRs merged", "Unit 1 & 2 revision", "100 pushups"].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setCustomMetric(chip)}
+                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-zinc-400 hover:text-white hover:border-white/20 transition-all"
+                  >
+                    + {chip}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5">

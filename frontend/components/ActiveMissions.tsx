@@ -43,6 +43,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
   const [activeReflectionMission, setActiveReflectionMission] = useState<Mission | null>(null);
   const [reflectionText, setReflectionText] = useState("");
   const [lessonsLearned, setLessonsLearned] = useState("");
+  const [customMetric, setCustomMetric] = useState("");
   const [isPublicReflection, setIsPublicReflection] = useState(true);
   const [submittingReflection, setSubmittingReflection] = useState(false);
   
@@ -310,6 +311,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
     setTimerRunning(false);
     setReflectionText("");
     setLessonsLearned("");
+    setCustomMetric("");
     setIsPublicReflection(true);
     setScreenshotBase64(null);
     setAttachLink("");
@@ -336,6 +338,7 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           reflection: {
             reflectionText: reflectionText.trim() || null,
             lessonsLearned: lessonsLearned.trim() || null,
+            customMetric: customMetric.trim() || null,
             isPublic: isPublicReflection,
             screenshot: screenshotBase64,
             link: attachLink.trim() || null
@@ -1549,6 +1552,33 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           </DialogHeader>
 
           <div className="space-y-5">
+            {/* Key Output / Metric (Strava-style personal accomplishment) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="r-metric" className="t-label block">Key Output / Stat (Optional)</label>
+                <span className="text-[10px] uppercase tracking-wider text-ink-3">Story Highlight</span>
+              </div>
+              <Input
+                id="r-metric"
+                value={customMetric}
+                onChange={(e) => setCustomMetric(e.target.value)}
+                placeholder="e.g. 8 questions solved, 5 km run, Back & biceps, 4 PRs"
+                className="h-11 text-subhead bg-surface"
+              />
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {["8 questions solved", "5.0 km run", "Back & biceps", "4 PRs merged", "Unit 1 & 2 revision", "100 pushups"].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setCustomMetric(chip)}
+                    className="rounded-full border border-line bg-surface/80 px-2.5 py-0.5 text-[11px] font-medium text-ink-3 transition-colors hover:border-ink/40 hover:text-ink hover:bg-raised"
+                  >
+                    + {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="r-how" className="t-label block">How did it go?</label>
               <Textarea id="r-how" value={reflectionText} onChange={(e) => setReflectionText(e.target.value)} placeholder="What you got done, what got in the way." />
