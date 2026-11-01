@@ -92,9 +92,14 @@ export default function LockinRecapCard({
 
   // Strava & Multi-Format Modes
   const initialPhoto = recapData.metadata?.screenshot || null;
-  const [cardMode, setCardMode] = useState<"metallic" | "hud" | "pass">(
-    initialPhoto ? "hud" : "metallic"
+  // 3 Distinct Presentation Modes:
+  // 1. "metallic" = Obsidian luxury trading card
+  // 2. "sticker" = Full-bleed photo with floating Latent/Strava overlay stickers
+  // 3. "pass" = Stark industrial ticket pass with barcode & perforation notches
+  const [cardMode, setCardMode] = useState<"metallic" | "sticker" | "pass">(
+    initialPhoto ? "sticker" : "metallic"
   );
+  const [stickerStyle, setStickerStyle] = useState<"stamp" | "telemetry" | "badge">("stamp");
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(initialPhoto);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -153,7 +158,7 @@ export default function LockinRecapCard({
       setIsTrashing(false);
       setCurrentPhoto(recapData.metadata?.screenshot || null);
       if (recapData.metadata?.screenshot) {
-        setCardMode("hud");
+        setCardMode("sticker");
       }
       setActiveMetric(recapData.metadata?.customMetric || recapData.customMetric || "");
     }
@@ -350,8 +355,8 @@ export default function LockinRecapCard({
 
   // Dynamic Card Border Styling based on Mode
   const activeBorderStyle =
-    cardMode === "hud"
-      ? `border-2 shadow-[0_0_40px_${glowColor}]`
+    cardMode === "sticker"
+      ? "border-0 shadow-2xl"
       : cardMode === "pass"
       ? "border border-white/20 shadow-2xl"
       : borderStyle;
@@ -531,70 +536,106 @@ export default function LockinRecapCard({
               </div>
             )}
 
-            {/* ─── Mode Switcher Bar (Strava vs Obsidian vs Pass) ─── */}
-            <div className="relative z-30 mb-2.5 flex w-full items-center justify-between gap-1 rounded-xl border border-line bg-surface/90 p-1 backdrop-blur-md shadow-lg">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCardMode("metallic")}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                    cardMode === "metallic"
-                      ? "bg-ink text-bg shadow-sm"
-                      : "text-ink-3 hover:text-ink hover:bg-raised"
-                  }`}
-                >
-                  Metallic
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardMode("hud")}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                    cardMode === "hud"
-                      ? "bg-ink text-bg shadow-sm"
-                      : "text-ink-3 hover:text-ink hover:bg-raised"
-                  }`}
-                >
-                  Photo HUD
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardMode("pass")}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                    cardMode === "pass"
-                      ? "bg-ink text-bg shadow-sm"
-                      : "text-ink-3 hover:text-ink hover:bg-raised"
-                  }`}
-                >
-                  Pass
-                </button>
+            {/* ─── Mode Switcher Bar (Photo Sticker vs Metallic vs Pass) ─── */}
+            <div className="relative z-30 mb-2.5 flex w-full flex-col gap-1.5 rounded-xl border border-line bg-surface/90 p-1.5 backdrop-blur-md shadow-lg">
+              <div className="flex items-center justify-between gap-1 w-full">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCardMode("sticker")}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                      cardMode === "sticker"
+                        ? "bg-ink text-bg shadow-sm"
+                        : "text-ink-3 hover:text-ink hover:bg-raised"
+                    }`}
+                  >
+                    Sticker
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardMode("metallic")}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                      cardMode === "metallic"
+                        ? "bg-ink text-bg shadow-sm"
+                        : "text-ink-3 hover:text-ink hover:bg-raised"
+                    }`}
+                  >
+                    Metallic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardMode("pass")}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                      cardMode === "pass"
+                        ? "bg-ink text-bg shadow-sm"
+                        : "text-ink-3 hover:text-ink hover:bg-raised"
+                    }`}
+                  >
+                    Pass
+                  </button>
+                </div>
+
+                {/* Quick photo upload button */}
+                <label className="flex items-center gap-1 rounded-lg border border-line bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2 cursor-pointer transition-colors hover:text-ink hover:border-ink/40">
+                  <Camera className="h-3.5 w-3.5 text-crimson" />
+                  <span>{uploadingPhoto ? "..." : currentPhoto ? "Swap" : "Add Photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) {
+                        try {
+                          setUploadingPhoto(true);
+                          const url = await uploadImage(file);
+                          setCurrentPhoto(url);
+                          setCardMode("sticker");
+                        } catch (err: any) {
+                          alert(err.message || "Failed to upload photo");
+                        } finally {
+                          setUploadingPhoto(false);
+                        }
+                      }
+                    }}
+                  />
+                </label>
               </div>
 
-              {/* Quick photo upload button */}
-              <label className="flex items-center gap-1 rounded-lg border border-line bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2 cursor-pointer transition-colors hover:text-ink hover:border-ink/40">
-                <Camera className="h-3.5 w-3.5 text-crimson" />
-                <span>{uploadingPhoto ? "..." : currentPhoto ? "Swap" : "Photo"}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) {
-                      try {
-                        setUploadingPhoto(true);
-                        const url = await uploadImage(file);
-                        setCurrentPhoto(url);
-                        setCardMode("hud");
-                      } catch (err: any) {
-                        alert(err.message || "Failed to upload photo");
-                      } finally {
-                        setUploadingPhoto(false);
-                      }
-                    }
-                  }}
-                />
-              </label>
+              {/* Sub-style selector if in sticker mode (Latent Stamp vs Strava Telemetry vs Badge) */}
+              {cardMode === "sticker" && (
+                <div className="flex items-center gap-1.5 pt-1.5 border-t border-line/60">
+                  <span className="text-[10px] uppercase font-bold text-ink-4 mr-0.5">Overlay:</span>
+                  <button
+                    type="button"
+                    onClick={() => setStickerStyle("stamp")}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                      stickerStyle === "stamp" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
+                    }`}
+                  >
+                    Stamp (Latent)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStickerStyle("telemetry")}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                      stickerStyle === "telemetry" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
+                    }`}
+                  >
+                    Telemetry (Strava)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStickerStyle("badge")}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                      stickerStyle === "badge" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
+                    }`}
+                  >
+                    Badge
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* ─── 3D Interactive Card Canvas ─── */}
@@ -634,241 +675,422 @@ export default function LockinRecapCard({
                     ref={cardRef}
                     className={`relative flex flex-col justify-between overflow-hidden rounded-sm p-6 text-left shadow-lift sm:p-7 ${activeBorderStyle}`}
                     style={{
-                      background: cardMode === "pass" ? "#0C0C0D" : cardBg,
-                      borderColor: cardMode === "hud" ? tierColor : undefined,
+                      background: cardMode === "pass" ? "#0C0C0D" : cardMode === "sticker" ? "#050505" : cardBg,
+                      borderColor: cardMode === "metallic" ? tierColor : undefined,
                       position: "absolute",
                       inset: 0,
                       ...faceStyle(!isFlipped)
                     }}
                   >
-                    {/* STRAVA PHOTO HUD MODE: Photo backdrop with vibrant metallic tier glow preservation */}
-                    {cardMode === "hud" && (
+                    {/* ═══════════════════════════════════════════════════════════════
+                        MODE 1: PHOTO STICKER (Latent & Strava Direct Overlay)
+                        Edge-to-edge photo canvas with floating typographic stickers
+                       ═══════════════════════════════════════════════════════════════ */}
+                    {cardMode === "sticker" ? (
                       <>
+                        {/* Full-bleed photo backdrop */}
                         {currentPhoto ? (
                           <>
                             <img
                               src={currentPhoto}
-                              alt="Session evidence"
+                              alt="Focus session"
                               className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                             />
-                            {/* Tier-colored radiant wash & vignette preserving Gold/Silver/Bronze feel */}
+                            {/* Subtle contrast gradient wash ensuring 100% typography legibility */}
                             <div
                               className="pointer-events-none absolute inset-0"
                               style={{
-                                background: `linear-gradient(to top, rgba(0,0,0,0.94) 0%, rgba(0,0,0,0.60) 45%, rgba(0,0,0,0.25) 75%, ${tierColor}20 100%)`
+                                background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.30) 40%, rgba(0,0,0,0.15) 70%, rgba(0,0,0,0.50) 100%)"
                               }}
                             />
-                            {/* Top radiant flare on photo */}
+                            {/* Subtle tier ambient glow flare */}
                             <div
-                              className="pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full blur-3xl opacity-85"
+                              className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full blur-3xl opacity-60"
                               style={{ background: glowColor }}
                               aria-hidden="true"
                             />
                           </>
                         ) : (
-                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-black/80">
-                            <Camera className="h-8 w-8 text-ink-3 mb-2" />
-                            <span className="text-xs text-ink-3">Upload photo to activate Photo HUD</span>
+                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950">
+                            <div className="rounded-full border border-white/10 bg-white/5 p-4 mb-3">
+                              <Camera className="h-8 w-8 text-ink-3" />
+                            </div>
+                            <span className="text-sm font-semibold text-ink">No photo attached</span>
+                            <span className="text-xs text-ink-3 mt-1 max-w-[200px]">Tap &quot;Add Photo&quot; above to snap or upload desk/workout evidence</span>
+                          </div>
+                        )}
+
+                        {/* ── Sub-Style A: Latent Clean Stamp (Screenshots 1 & 5) ── */}
+                        {stickerStyle === "stamp" && (
+                          <div className="relative z-10 flex h-full flex-col justify-between">
+                            {/* Floating Top Branding */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                                <LockinMark size={20} color="rgb(var(--ink))" />
+                                <LockinWordmark size="sm" />
+                              </div>
+                              <span
+                                className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
+                                style={{
+                                  borderColor: `${tierColor}80`,
+                                  backgroundColor: "rgba(0, 0, 0, 0.65)",
+                                  color: tierColor
+                                }}
+                              >
+                                {tierPill}
+                              </span>
+                            </div>
+
+                            {/* Floating Centered/Lower Latent Typographic Stamp */}
+                            <div className="my-auto text-center flex flex-col items-center">
+                              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">
+                                {subtitleText}
+                              </span>
+
+                              <div className="my-1.5 t-display text-white text-[78px] sm:text-[90px] font-bold leading-none tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
+                                {hours > 0 ? `${hours}h ` : ""}{mins}m
+                              </div>
+
+                              {activeMetric && (
+                                <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/70 px-3.5 py-1 backdrop-blur-md shadow-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                                  <span className="text-[10px] font-bold tracking-widest text-crimson uppercase">OUTPUT</span>
+                                  <span className="h-3 w-px bg-white/25" />
+                                  <span className="font-mono text-xs font-bold text-white uppercase tracking-tight">
+                                    {activeMetric}
+                                  </span>
+                                </div>
+                              )}
+
+                              <span className="mt-3 font-mono text-[11px] font-medium tracking-wider text-white/75 uppercase drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                                {date}
+                              </span>
+                            </div>
+
+                            {/* Floating Footer Watermark */}
+                            <div className="flex items-center justify-between text-[11px] text-white/70 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                              <span>lockin.top</span>
+                              <span className="text-[10px] text-white/50">Stop scrolling. Start executing.</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Sub-Style B: Strava Telemetry (Screenshots 3 & 4) ── */}
+                        {stickerStyle === "telemetry" && (
+                          <div className="relative z-10 flex h-full flex-col justify-between">
+                            {/* Top Header */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex flex-col drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
+                                <span className="font-extrabold tracking-tight text-lg text-white uppercase">LOCKIN</span>
+                                <span className="text-[10px] font-mono text-white/70">{date}</span>
+                              </div>
+                              <span
+                                className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
+                                style={{
+                                  borderColor: `${tierColor}80`,
+                                  backgroundColor: "rgba(0,0,0,0.65)",
+                                  color: tierColor
+                                }}
+                              >
+                                {tierPill}
+                              </span>
+                            </div>
+
+                            {/* Strava Telemetry Stack */}
+                            <div className="my-auto flex flex-col drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
+                              {activeMetric ? (
+                                <>
+                                  <span className="text-[11px] font-bold tracking-widest text-crimson uppercase">PRIMARY OUTPUT</span>
+                                  <span className="t-display text-4xl sm:text-5xl font-extrabold text-white leading-tight uppercase tracking-tight mt-0.5">
+                                    {activeMetric}
+                                  </span>
+                                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-3">
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Time</span>
+                                      <span className="font-mono text-xl font-bold text-white">{hours > 0 ? `${hours}h ` : ""}{mins}m</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Streak</span>
+                                      <span className="font-mono text-xl font-bold text-white">{streakVal}d</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Tasks</span>
+                                      <span className="font-mono text-xl font-bold text-white">{tasksCompleted}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Motion</span>
+                                      <span className="font-mono text-xl font-bold text-emerald-400">+{pointsDelta}</span>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-[11px] font-bold tracking-widest text-white/70 uppercase">FOCUS TIME</span>
+                                  <span className="t-display text-5xl sm:text-6xl font-extrabold text-white leading-tight tracking-tight mt-0.5">
+                                    {hours > 0 ? `${hours}h ` : ""}{mins}m
+                                  </span>
+                                  <span className="text-sm font-medium text-white/80 mt-1">{subtitleText}</span>
+                                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-3">
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Tasks</span>
+                                      <span className="font-mono text-xl font-bold text-white">{tasksCompleted}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Streak</span>
+                                      <span className="font-mono text-xl font-bold text-white">{streakVal}d</span>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Bottom Brand Stamp */}
+                            <div className="flex items-center justify-between text-[11px] text-white/70 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                              <span>lockin.top</span>
+                              <span className="font-mono text-[10px] text-white/50">#VERIFIED</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Sub-Style C: Glassmorphic Badge ── */}
+                        {stickerStyle === "badge" && (
+                          <div className="relative z-10 flex h-full flex-col justify-between">
+                            <div className="flex items-center justify-between">
+                              <LockinWordmark size="sm" />
+                              <span className="font-mono text-xs text-white/70">{date}</span>
+                            </div>
+
+                            {/* Floating HUD Badge */}
+                            <div
+                              className="my-auto mx-auto w-full max-w-[280px] rounded-2xl border p-5 backdrop-blur-xl shadow-2xl"
+                              style={{
+                                borderColor: `${tierColor}80`,
+                                backgroundColor: "rgba(0,0,0,0.72)",
+                                boxShadow: `0 10px 40px ${glowColor}`
+                              }}
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: tierColor }}>
+                                  {tierName}
+                                </span>
+                                <span className="font-mono text-xs font-bold text-emerald-400">+{pointsDelta} Motion</span>
+                              </div>
+                              <div className="text-3xl font-extrabold text-white">
+                                {hours > 0 ? `${hours}h ` : ""}{mins}m
+                              </div>
+                              <div className="text-xs text-white/80 mt-1 line-clamp-1">{subtitleText}</div>
+                              {activeMetric && (
+                                <div className="mt-3 rounded-lg border border-white/10 bg-white/10 px-2.5 py-1 text-center">
+                                  <span className="font-mono text-xs font-bold text-white uppercase">{activeMetric}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="text-center text-[10px] text-white/60">lockin.top / Stop scrolling. Start executing.</div>
                           </div>
                         )}
                       </>
-                    )}
-
-                    {/* PASS MODE: Perforation notches and dashed tear-line */}
-                    {cardMode === "pass" && (
+                    ) : (
+                      /* ═══════════════════════════════════════════════════════════════
+                          MODE 2 & 3: METALLIC OBSIDIAN CARD & TICKET PASS
+                         ═══════════════════════════════════════════════════════════════ */
                       <>
-                        <div className="pointer-events-none absolute left-0 top-[66%] -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
-                        <div className="pointer-events-none absolute right-0 top-[66%] translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
-                        <div className="pointer-events-none absolute inset-x-4 top-[66%] h-px border-b border-dashed border-white/20 z-30" />
+                        {/* PASS MODE: Perforation notches and dashed tear-line */}
+                        {cardMode === "pass" && (
+                          <>
+                            <div className="pointer-events-none absolute left-0 top-[66%] -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
+                            <div className="pointer-events-none absolute right-0 top-[66%] translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
+                            <div className="pointer-events-none absolute inset-x-4 top-[66%] h-px border-b border-dashed border-white/20 z-30" />
+                          </>
+                        )}
+
+                        {/* METALLIC MODE: Pure ambient radiant flare */}
+                        {cardMode === "metallic" && (
+                          <div
+                            className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
+                            style={{ background: glowColor }}
+                            aria-hidden="true"
+                          />
+                        )}
+
+                        {/* Deer persona quiet watermark */}
+                        <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.06] z-10">
+                          <LockinMark size={260} color="rgb(var(--ink))" showTriangle={false} />
+                        </div>
+
+                        {/* Crash cracks draw on */}
+                        {isFailed && (
+                          <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                            {[
+                              "M 0 30 L 25 35 L 35 20 L 50 35 L 55 55 L 45 70 L 60 85 L 50 100",
+                              "M 35 20 L 45 10 L 65 5 L 80 15",
+                              "M 55 55 L 75 50 L 90 65 L 100 60",
+                              "M 25 35 L 15 50 L 0 55",
+                              "M 45 70 L 30 80 L 15 75 L 0 90",
+                              "M 60 85 L 80 90 L 100 80"
+                            ].map((d, i) => (
+                              <motion.path
+                                key={d}
+                                d={d}
+                                stroke="rgb(var(--signal))"
+                                strokeWidth="0.5"
+                                strokeLinecap="round"
+                                fill="none"
+                                initial={{ pathLength: 0 }}
+                                animate={{ pathLength: 1 }}
+                                transition={{ delay: 0.35 + i * 0.06, duration: 0.35, ease: "easeOut" }}
+                              />
+                            ))}
+                          </svg>
+                        )}
+
+                        {isFailed && (
+                          <motion.div
+                            initial={{ scale: 2.2, opacity: 0, rotate: -4 }}
+                            animate={{ scale: 1, opacity: 1, rotate: -12 }}
+                            transition={{ delay: 0.75, type: "spring", stiffness: 500, damping: 18 }}
+                            className="pointer-events-none absolute left-1/2 top-[42%] z-30 -translate-x-1/2 -translate-y-1/2 rounded-xl border-4 border-signal bg-black/90 px-5 py-2.5 text-center"
+                          >
+                            <span className="t-display block whitespace-nowrap text-title-1 text-crimson">Runway crashed</span>
+                            <span className="mt-0.5 block text-caption font-semibold text-crimson">−5 {POINTS_NAME}</span>
+                          </motion.div>
+                        )}
+
+                        {/* Brand row */}
+                        <div className="relative z-10 flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <LockinMark size={22} color="rgb(var(--ink))" />
+                            <LockinWordmark size="sm" />
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
+                                style={{
+                                  borderColor: `${tierColor}60`,
+                                  backgroundColor: `${tierColor}20`,
+                                  color: tierColor
+                                }}
+                              >
+                                {tierPill}
+                              </span>
+                              <span
+                                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular backdrop-blur-md ${
+                                  pointsDelta >= 0
+                                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                                    : "border-red-500/40 bg-red-500/15 text-red-300"
+                                }`}
+                              >
+                                {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-ink-3 tabular">{date}</span>
+                          </div>
+                        </div>
+
+                        {/* Hero Section */}
+                        <div className="relative z-10 my-auto">
+                          <div className="t-display flex items-baseline leading-none text-ink drop-shadow-[0_4px_18px_rgba(0,0,0,0.85)]">
+                            {hours > 0 && (
+                              <>
+                                <CountUp value={hours} className="text-[84px] sm:text-[96px]" duration={1.2} />
+                                <span className="mr-3 text-[32px] sm:text-[36px]">h</span>
+                              </>
+                            )}
+                            {(mins > 0 || hours === 0) && (
+                              <>
+                                <CountUp value={mins} className="text-[84px] sm:text-[96px]" duration={1.2} />
+                                <span className="text-[32px] sm:text-[36px]">m</span>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-footnote font-semibold tracking-wide uppercase" style={{ color: tierColor }}>
+                              {tierName}
+                            </span>
+                            <span className="text-ink-4">·</span>
+                            <span className="text-footnote font-medium text-ink-2">
+                              {statusText}
+                            </span>
+                          </div>
+
+                          {/* Custom Metric / Accomplishment Sticker Pill */}
+                          {activeMetric ? (
+                            <motion.div
+                              initial={{ scale: 0.95, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 shadow-lg backdrop-blur-md"
+                              style={{
+                                borderColor: `${tierColor}80`,
+                                backgroundColor: "rgba(0, 0, 0, 0.70)",
+                                boxShadow: `0 4px 20px ${glowColor}`
+                              }}
+                            >
+                              <span className="text-[10px] font-bold tracking-widest text-crimson uppercase">OUTPUT</span>
+                              <span className="h-3 w-px bg-white/20" />
+                              <span className="font-mono text-xs font-bold text-ink tracking-tight uppercase">
+                                {activeMetric}
+                              </span>
+                            </motion.div>
+                          ) : (
+                            <div className="t-display mt-2 line-clamp-2 text-title-2 font-bold text-ink drop-shadow-md">
+                              {isPeriod ? "Your summary" : subtitleText}
+                            </div>
+                          )}
+
+                          {activeMetric && (
+                            <div className="mt-1.5 line-clamp-1 text-footnote text-ink-3 font-medium">
+                              {isPeriod ? "Your summary" : subtitleText}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Stats Section */}
+                        <div className="relative z-10">
+                          <div className="border-t border-white/10">
+                            <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
+                              <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
+                              <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
+                              <Stat label="Category" value={categoryVal} />
+                              <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
+                            </div>
+                          </div>
+
+                          {/* PASS MODE: Barcode Footer */}
+                          {cardMode === "pass" && (
+                            <div className="pt-2 flex items-center justify-between border-t border-white/10 mt-2">
+                              <div className="flex items-center gap-0.5">
+                                {[14, 22, 10, 18, 8, 24, 16, 12, 20, 10, 26, 14, 18, 12].map((h, i) => (
+                                  <span key={i} className="inline-block bg-white/70" style={{ width: i % 3 === 0 ? "2px" : "1px", height: `${h}px` }} />
+                                ))}
+                              </div>
+                              <span className="font-mono text-[9px] tracking-widest text-ink-3 uppercase">
+                                #{recapData.shareId ? recapData.shareId.slice(0, 10).toUpperCase() : "VERIFIED"}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Editorial Watermark */}
+                          <div className="flex items-center justify-between border-t border-white/10 pt-2.5 text-caption text-ink-3 mt-2">
+                            <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
+                              <span>lockin.top</span>
+                              <span className="text-ink-4">/</span>
+                              <span className="text-[10px] text-ink-3">Stop scrolling. Start executing.</span>
+                            </div>
+                            <span className="text-[10px] text-ink-3">Tap to flip</span>
+                          </div>
+                        </div>
+
+                        {/* Glare + one-time sheen */}
+                        <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundFront, opacity: 0.5 }} />
+                        <motion.div
+                          className="pointer-events-none absolute inset-y-0 z-50 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                          initial={{ x: "-120%" }}
+                          animate={{ x: "320%" }}
+                          transition={{ delay: 0.6, duration: 1.1, ease: "easeInOut" }}
+                        />
                       </>
                     )}
-
-                    {/* METALLIC MODE: Pure ambient radiant flare */}
-                    {cardMode === "metallic" && (
-                      <div
-                        className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
-                        style={{ background: glowColor }}
-                        aria-hidden="true"
-                      />
-                    )}
-
-                    {/* Deer persona quiet watermark */}
-                    <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.06] z-10">
-                      <LockinMark size={260} color="rgb(var(--ink))" showTriangle={false} />
-                    </div>
-
-                    {/* Crash cracks draw on */}
-                    {isFailed && (
-                      <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                        {[
-                          "M 0 30 L 25 35 L 35 20 L 50 35 L 55 55 L 45 70 L 60 85 L 50 100",
-                          "M 35 20 L 45 10 L 65 5 L 80 15",
-                          "M 55 55 L 75 50 L 90 65 L 100 60",
-                          "M 25 35 L 15 50 L 0 55",
-                          "M 45 70 L 30 80 L 15 75 L 0 90",
-                          "M 60 85 L 80 90 L 100 80"
-                        ].map((d, i) => (
-                          <motion.path
-                            key={d}
-                            d={d}
-                            stroke="rgb(var(--signal))"
-                            strokeWidth="0.5"
-                            strokeLinecap="round"
-                            fill="none"
-                            initial={{ pathLength: 0 }}
-                            animate={{ pathLength: 1 }}
-                            transition={{ delay: 0.35 + i * 0.06, duration: 0.35, ease: "easeOut" }}
-                          />
-                        ))}
-                      </svg>
-                    )}
-
-                    {isFailed && (
-                      <motion.div
-                        initial={{ scale: 2.2, opacity: 0, rotate: -4 }}
-                        animate={{ scale: 1, opacity: 1, rotate: -12 }}
-                        transition={{ delay: 0.75, type: "spring", stiffness: 500, damping: 18 }}
-                        className="pointer-events-none absolute left-1/2 top-[42%] z-30 -translate-x-1/2 -translate-y-1/2 rounded-xl border-4 border-signal bg-black/90 px-5 py-2.5 text-center"
-                      >
-                        <span className="t-display block whitespace-nowrap text-title-1 text-crimson">Runway crashed</span>
-                        <span className="mt-0.5 block text-caption font-semibold text-crimson">−5 {POINTS_NAME}</span>
-                      </motion.div>
-                    )}
-
-                    {/* Brand row */}
-                    <div className="relative z-10 flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <LockinMark size={22} color="rgb(var(--ink))" />
-                        <LockinWordmark size="sm" />
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
-                            style={{
-                              borderColor: `${tierColor}60`,
-                              backgroundColor: `${tierColor}20`,
-                              color: tierColor
-                            }}
-                          >
-                            {tierPill}
-                          </span>
-                          <span
-                            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular backdrop-blur-md ${
-                              pointsDelta >= 0
-                                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                                : "border-red-500/40 bg-red-500/15 text-red-300"
-                            }`}
-                          >
-                            {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-ink-3 tabular">{date}</span>
-                      </div>
-                    </div>
-
-                    {/* Hero Section */}
-                    <div className="relative z-10 my-auto">
-                      <div className="t-display flex items-baseline leading-none text-ink drop-shadow-[0_4px_18px_rgba(0,0,0,0.85)]">
-                        {hours > 0 && (
-                          <>
-                            <CountUp value={hours} className="text-[84px] sm:text-[96px]" duration={1.2} />
-                            <span className="mr-3 text-[32px] sm:text-[36px]">h</span>
-                          </>
-                        )}
-                        {(mins > 0 || hours === 0) && (
-                          <>
-                            <CountUp value={mins} className="text-[84px] sm:text-[96px]" duration={1.2} />
-                            <span className="text-[32px] sm:text-[36px]">m</span>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-footnote font-semibold tracking-wide uppercase" style={{ color: tierColor }}>
-                          {tierName}
-                        </span>
-                        <span className="text-ink-4">·</span>
-                        <span className="text-footnote font-medium text-ink-2">
-                          {statusText}
-                        </span>
-                      </div>
-
-                      {/* Custom Metric / Accomplishment Sticker Pill */}
-                      {activeMetric ? (
-                        <motion.div
-                          initial={{ scale: 0.95, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 shadow-lg backdrop-blur-md"
-                          style={{
-                            borderColor: `${tierColor}80`,
-                            backgroundColor: "rgba(0, 0, 0, 0.70)",
-                            boxShadow: `0 4px 20px ${glowColor}`
-                          }}
-                        >
-                          <span className="text-[10px] font-bold tracking-widest text-crimson uppercase">OUTPUT</span>
-                          <span className="h-3 w-px bg-white/20" />
-                          <span className="font-mono text-xs font-bold text-ink tracking-tight uppercase">
-                            {activeMetric}
-                          </span>
-                        </motion.div>
-                      ) : (
-                        <div className="t-display mt-2 line-clamp-2 text-title-2 font-bold text-ink drop-shadow-md">
-                          {isPeriod ? "Your summary" : subtitleText}
-                        </div>
-                      )}
-
-                      {activeMetric && (
-                        <div className="mt-1.5 line-clamp-1 text-footnote text-ink-3 font-medium">
-                          {isPeriod ? "Your summary" : subtitleText}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Stats Section & HUD Box */}
-                    <div className="relative z-10">
-                      <div className={`transition-all ${cardMode === "hud" ? "rounded-xl border border-white/15 bg-black/65 p-3.5 backdrop-blur-md shadow-2xl" : ""}`}>
-                        <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
-                          <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
-                          <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
-                          <Stat label="Category" value={categoryVal} />
-                          <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
-                        </div>
-                      </div>
-
-                      {/* PASS MODE: Barcode Footer */}
-                      {cardMode === "pass" && (
-                        <div className="pt-2 flex items-center justify-between border-t border-white/10 mt-2">
-                          <div className="flex items-center gap-0.5">
-                            {[14, 22, 10, 18, 8, 24, 16, 12, 20, 10, 26, 14, 18, 12].map((h, i) => (
-                              <span key={i} className="inline-block bg-white/70" style={{ width: i % 3 === 0 ? "2px" : "1px", height: `${h}px` }} />
-                            ))}
-                          </div>
-                          <span className="font-mono text-[9px] tracking-widest text-ink-3 uppercase">
-                            #{recapData.shareId ? recapData.shareId.slice(0, 10).toUpperCase() : "VERIFIED"}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Editorial Watermark */}
-                      <div className="flex items-center justify-between border-t border-white/10 pt-2.5 text-caption text-ink-3 mt-2">
-                        <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
-                          <span>lockin.top</span>
-                          <span className="text-ink-4">/</span>
-                          <span className="text-[10px] text-ink-3">Stop scrolling. Start executing.</span>
-                        </div>
-                        <span className="text-[10px] text-ink-3">Tap to flip</span>
-                      </div>
-                    </div>
-
-                    {/* Glare + one-time sheen */}
-                    <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundFront, opacity: 0.5 }} />
-                    <motion.div
-                      className="pointer-events-none absolute inset-y-0 z-50 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-                      initial={{ x: "-120%" }}
-                      animate={{ x: "320%" }}
-                      transition={{ delay: 0.6, duration: 1.1, ease: "easeInOut" }}
-                    />
                   </div>
 
                   {/* ───────── BACK ───────── */}
