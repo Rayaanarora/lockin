@@ -40,6 +40,7 @@ interface RecapProps {
     currentStreak?: number;
     rank?: number;
     missionRank?: number;
+    participantCount?: number;
     missionsCompleted?: number;
     longestSession?: number;
     generatedAt?: string;
@@ -198,6 +199,16 @@ export default function LockinRecapCard({
   const longestHrs = Math.floor(longestDuration / 60);
   const longestMins = longestDuration % 60;
   const longestLockText = `${longestHrs}h ${longestMins}m`;
+
+  const isGroupCrew = (recapData.participantCount ?? 1) > 1 && Boolean(recapData.missionRank || recapData.rank);
+  const fourthLabel = isPeriod ? "Longest" : isGroupCrew ? "Crew Rank" : "Focus";
+  const fourthValue = isPeriod
+    ? longestLockText
+    : isGroupCrew
+      ? `#${recapData.missionRank ?? recapData.rank}/${recapData.participantCount}`
+      : isFailed
+        ? "Crash"
+        : "100%";
 
   const date = generatedAt
     ? new Date(generatedAt).toLocaleDateString("en-US", {
@@ -868,10 +879,6 @@ export default function LockinRecapCard({
                                   </span>
                                 </div>
                               )}
-
-                              <span className="mt-3 font-mono text-[11px] font-medium tracking-wider text-white/75 uppercase drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                                {date}
-                              </span>
                             </div>
 
                             {/* Floating Minimal Footer */}
@@ -937,7 +944,6 @@ export default function LockinRecapCard({
                             {/* Bottom Brand Stamp */}
                             <div className="flex items-center justify-between text-[11px] text-white/70 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                               <span>lockin.top</span>
-                              <span className="font-mono text-[10px] text-white/50">#VERIFIED</span>
                             </div>
                           </div>
                         )}
@@ -1105,7 +1111,7 @@ export default function LockinRecapCard({
                             <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
                             <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
                             <Stat label="Category" value={categoryVal} />
-                            <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
+                            <Stat label={fourthLabel} value={fourthValue} />
                           </div>
 
                           {/* Clean Footer */}
@@ -1205,7 +1211,7 @@ export default function LockinRecapCard({
                         <span className="text-ink-4">/</span>
                         <span className="tabular text-[11px] text-ink-3">#{recapData.shareId ? recapData.shareId.slice(0, 8) : "lockin"}</span>
                       </div>
-                      <span className="text-[11px] text-ink-3">Tap to flip</span>
+                      <span className="tabular text-[11px] text-ink-3">{date}</span>
                     </div>
                     <motion.div className="pointer-events-none absolute inset-0 z-50 rounded-sm mix-blend-overlay" style={{ background: glareBackgroundBack, opacity: 0.4 }} />
                   </div>

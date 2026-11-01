@@ -116,12 +116,14 @@ async function finishSession(req, res) {
       const maxPastStreak = allUserRecaps.reduce((m, r) => Math.max(m, r.streak), 0);
       const first = allUserRecaps.length === 0;
 
-      // Crew size and rank within this mission.
+      // Crew size and rank within this mission (only ranked if multi-participant crew).
       const crew = isSolo
         ? 1
         : 1 + (await tx.participation.count({ where: { missionId, userId: { not: mission.createdBy || 0 }, status: { in: ["Accepted", "Executing", "Completed"] } } }));
       const others = await tx.sessionRecap.findMany({ where: { missionId, userId: { not: userId } }, select: { sessionDuration: true, tasksCompleted: true } });
-      const rank = 1 + others.filter((r) => r.sessionDuration > sessionDuration || (r.sessionDuration === sessionDuration && r.tasksCompleted > tasksCompleted)).length;
+      const rank = crew > 1
+        ? 1 + others.filter((r) => r.sessionDuration > sessionDuration || (r.sessionDuration === sessionDuration && r.tasksCompleted > tasksCompleted)).length
+        : null;
 
       const user = await tx.user.findUnique({ where: { id: userId }, select: { reputationScore: true } });
       const weekAgo = now.getTime() - 7 * 86400e3;
@@ -462,7 +464,7 @@ async function getMissionRecap(req, res) {
         sessionDuration: 45,
         tasksCompleted: 3,
         streak: 2,
-        missionRank: 1,
+        missionRank: null,
         shareId: "mock-share-" + missionId,
         recapType: "session",
         generatedAt: new Date().toISOString()
@@ -531,7 +533,7 @@ async function getPublicShareRecap(req, res) {
         sessionDuration: 180,
         tasksCompleted: 8,
         streak: 4,
-        missionRank: 1,
+        missionRank: null,
         achievements: [{ id: 1, title: "Consistent Agent" }],
         participantCount: 1,
         generatedAt: new Date().toISOString(),

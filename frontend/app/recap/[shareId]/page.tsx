@@ -80,7 +80,9 @@ export default function PublicShareRecap() {
     ? [
         { label: "Tasks", value: recap.tasksCompleted },
         { label: "Streak", value: `${recap.streak}d` },
-        recap.missionRank ? { label: isCollaborative ? "Rank in crew" : "Rank", value: `#${recap.missionRank}` } : null,
+        recap.missionRank && isCollaborative
+          ? { label: "Crew Rank", value: `#${recap.missionRank}/${recap.participantCount}` }
+          : { label: "Focus", value: "100%" },
         recap.categorySnapshot ? { label: "Category", value: recap.categorySnapshot } : null
       ]
     : [
