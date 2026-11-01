@@ -14,13 +14,13 @@ import {
   Camera,
   Tag,
   Sparkles,
-  Ticket,
-  Layers
+  Layers,
+  Copy
 } from "lucide-react";
 import { LockinMark, LockinWordmark } from "./ui/LockinLogo";
 import { CountUp, Portal } from "./ui/motion";
 import { POINTS_NAME } from "../lib/brand";
-import { toPng } from "html-to-image";
+import { toPng, toBlob } from "html-to-image";
 import { uploadImage } from "../lib/supabase";
 
 interface RecapProps {
@@ -92,14 +92,15 @@ export default function LockinRecapCard({
 
   // Strava & Multi-Format Modes
   const initialPhoto = recapData.metadata?.screenshot || null;
-  // 3 Distinct Presentation Modes:
-  // 1. "metallic" = Obsidian luxury trading card
-  // 2. "sticker" = Full-bleed photo with floating Latent/Strava overlay stickers
-  // 3. "pass" = Stark industrial ticket pass with barcode & perforation notches
-  const [cardMode, setCardMode] = useState<"metallic" | "sticker" | "pass">(
-    initialPhoto ? "sticker" : "metallic"
+  // 2 Master Presentation Modes:
+  // 1. "sticker" = Transparent PNG Sticker (for Instagram Story) or Photo Overlay
+  // 2. "metallic" = Obsidian 3D collectible trading card
+  const [cardMode, setCardMode] = useState<"sticker" | "metallic">("sticker");
+  const [stickerBg, setStickerBg] = useState<"transparent" | "photo">(
+    initialPhoto ? "photo" : "transparent"
   );
   const [stickerStyle, setStickerStyle] = useState<"stamp" | "telemetry" | "badge">("stamp");
+  const [copiedSticker, setCopiedSticker] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(initialPhoto);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -354,12 +355,66 @@ export default function LockinRecapCard({
     : (isFailed ? -5 : 10);
 
   // Dynamic Card Border Styling based on Mode
+  const isTransparentSticker = cardMode === "sticker" && stickerBg === "transparent";
   const activeBorderStyle =
     cardMode === "sticker"
-      ? "border-0 shadow-2xl"
-      : cardMode === "pass"
-      ? "border border-white/20 shadow-2xl"
+      ? isTransparentSticker
+        ? "border-0 shadow-none"
+        : "border border-white/10 shadow-2xl"
       : borderStyle;
+
+  // Handle 1-tap clipboard copy of transparent PNG sticker (for Instagram Story paste)
+  const handleCopySticker = useCallback(async () => {
+    if (!cardRef.current || saving) return;
+
+    try {
+      setSaving(true);
+      const wasFlipped = isFlipped;
+      if (wasFlipped) {
+        setIsFlipped(false);
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+
+      const blob = await toBlob(cardRef.current, {
+        pixelRatio: 2.5,
+        cacheBust: true,
+        backgroundColor: "transparent",
+      });
+
+      if (!blob) throw new Error("Failed to render sticker");
+
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard && navigator.clipboard.write) {
+        try {
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+          setCopiedSticker(true);
+          setTimeout(() => setCopiedSticker(false), 2500);
+          if (wasFlipped) setIsFlipped(true);
+          setSaving(false);
+          return;
+        } catch (clipErr) {
+          console.warn("Direct clipboard write failed, falling back to download", clipErr);
+        }
+      }
+
+      // Fallback: direct download
+      const dataUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `lockin-sticker-transparent-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      URL.revokeObjectURL(dataUrl);
+
+      setCopiedSticker(true);
+      setTimeout(() => setCopiedSticker(false), 2500);
+      if (wasFlipped) setIsFlipped(true);
+    } catch (err: any) {
+      console.error("Failed to copy sticker:", err);
+      alert(err.message || "Failed to copy sticker image.");
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, isFlipped]);
 
   // Handle export (force capturing the Front card flat at high-DPI for Instagram Stories)
   const handleSave = useCallback(async () => {
@@ -370,29 +425,32 @@ export default function LockinRecapCard({
       const wasFlipped = isFlipped;
       if (wasFlipped) {
         setIsFlipped(false);
-        await new Promise((resolve) => setTimeout(resolve, 750));
+        await new Promise((resolve) => setTimeout(resolve, 600));
       }
 
+      const isTransparent = cardMode === "sticker" && stickerBg === "transparent";
+
       const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2.4,
+        pixelRatio: 2.5,
         cacheBust: true,
+        backgroundColor: isTransparent ? "transparent" : undefined,
       });
 
-      // Attempt native mobile share if supported (iOS Safari / Android Chrome shares direct to IG Stories / WhatsApp)
-      if (typeof navigator !== "undefined" && navigator.share) {
+      // Attempt native mobile share if supported and not transparent
+      if (!isTransparent && typeof navigator !== "undefined" && navigator.share) {
         try {
           const res = await fetch(dataUrl);
           const blob = await res.blob();
           const file = new File(
             [blob],
-            `lockin-recap-${tierName.toLowerCase().replace(/\s+/g, "-")}.png`,
+            `lockin-${cardMode === "sticker" ? "story" : "card"}-${Date.now()}.png`,
             { type: "image/png" }
           );
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: "LOCKIN Focus Recap",
-              text: `Locked in for ${hours > 0 ? `${hours}h ` : ""}${mins}m on LOCKIN. ${activeMetric ? `Output: ${activeMetric} · ` : ""}${tierName}.`
+              title: "LOCKIN Focus Story",
+              text: `Locked in for ${hours > 0 ? `${hours}h ` : ""}${mins}m on LOCKIN.${activeMetric ? ` ${activeMetric}.` : ""}`
             });
             if (wasFlipped) setIsFlipped(true);
             setSaving(false);
@@ -409,7 +467,9 @@ export default function LockinRecapCard({
 
       // Fallback: standard PNG download
       const link = document.createElement("a");
-      link.download = `lockin-recap-${Date.now()}.png`;
+      link.download = isTransparent
+        ? `lockin-sticker-transparent-${Date.now()}.png`
+        : `lockin-${cardMode === "sticker" ? "story" : "card"}-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
 
@@ -417,12 +477,12 @@ export default function LockinRecapCard({
         setIsFlipped(true);
       }
     } catch (err: any) {
-      console.error("Failed to export card image:", err);
-      alert(err.message || "Failed to export PNG image of the recap. Please try again.");
+      console.error("Failed to export image:", err);
+      alert(err.message || "Failed to export PNG image. Please try again.");
     } finally {
       setSaving(false);
     }
-  }, [saving, isFlipped, hours, mins, tierName, activeMetric]);
+  }, [saving, isFlipped, cardMode, stickerBg, hours, mins, activeMetric]);
 
   const handleShare = useCallback(async () => {
     if (!recapData.shareId) {
@@ -536,104 +596,137 @@ export default function LockinRecapCard({
               </div>
             )}
 
-            {/* ─── Mode Switcher Bar (Photo Sticker vs Metallic vs Pass) ─── */}
+            {/* ─── Mode Switcher Bar (Story Sticker vs Metallic Obsidian) ─── */}
             <div className="relative z-30 mb-2.5 flex w-full flex-col gap-1.5 rounded-xl border border-line bg-surface/90 p-1.5 backdrop-blur-md shadow-lg">
               <div className="flex items-center justify-between gap-1 w-full">
+                {/* 2 Primary Modes */}
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setCardMode("sticker")}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
                       cardMode === "sticker"
                         ? "bg-ink text-bg shadow-sm"
                         : "text-ink-3 hover:text-ink hover:bg-raised"
                     }`}
                   >
-                    Sticker
+                    Story Sticker
                   </button>
                   <button
                     type="button"
                     onClick={() => setCardMode("metallic")}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
                       cardMode === "metallic"
                         ? "bg-ink text-bg shadow-sm"
                         : "text-ink-3 hover:text-ink hover:bg-raised"
                     }`}
                   >
-                    Metallic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardMode("pass")}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                      cardMode === "pass"
-                        ? "bg-ink text-bg shadow-sm"
-                        : "text-ink-3 hover:text-ink hover:bg-raised"
-                    }`}
-                  >
-                    Pass
+                    Metallic Card
                   </button>
                 </div>
 
-                {/* Quick photo upload button */}
-                <label className="flex items-center gap-1 rounded-lg border border-line bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2 cursor-pointer transition-colors hover:text-ink hover:border-ink/40">
-                  <Camera className="h-3.5 w-3.5 text-crimson" />
-                  <span>{uploadingPhoto ? "..." : currentPhoto ? "Swap" : "Add Photo"}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (file) {
-                        try {
-                          setUploadingPhoto(true);
-                          const url = await uploadImage(file);
-                          setCurrentPhoto(url);
-                          setCardMode("sticker");
-                        } catch (err: any) {
-                          alert(err.message || "Failed to upload photo");
-                        } finally {
-                          setUploadingPhoto(false);
-                        }
-                      }
-                    }}
-                  />
-                </label>
+                {/* In Sticker Mode: Toggle between Transparent PNG vs Photo */}
+                {cardMode === "sticker" && (
+                  <div className="flex items-center gap-1 rounded-lg border border-line bg-raised/80 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setStickerBg("transparent")}
+                      className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        stickerBg === "transparent"
+                          ? "bg-surface text-ink shadow-xs"
+                          : "text-ink-3 hover:text-ink"
+                      }`}
+                    >
+                      No BG (PNG)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStickerBg("photo")}
+                      className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        stickerBg === "photo"
+                          ? "bg-surface text-ink shadow-xs"
+                          : "text-ink-3 hover:text-ink"
+                      }`}
+                    >
+                      Photo
+                    </button>
+                  </div>
+                )}
+
+                {/* Flip button for metallic card */}
+                {cardMode === "metallic" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsFlipped(!isFlipped)}
+                    className="flex items-center gap-1 rounded-lg border border-line bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2 transition-colors hover:text-ink"
+                  >
+                    <Layers className="h-3.5 w-3.5 text-ink-3" />
+                    <span>Flip Card</span>
+                  </button>
+                )}
               </div>
 
-              {/* Sub-style selector if in sticker mode (Latent Stamp vs Strava Telemetry vs Badge) */}
+              {/* In Sticker Mode: Overlay Style Picker & Photo Actions */}
               {cardMode === "sticker" && (
-                <div className="flex items-center gap-1.5 pt-1.5 border-t border-line/60">
-                  <span className="text-[10px] uppercase font-bold text-ink-4 mr-0.5">Overlay:</span>
-                  <button
-                    type="button"
-                    onClick={() => setStickerStyle("stamp")}
-                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                      stickerStyle === "stamp" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
-                    }`}
-                  >
-                    Stamp (Latent)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStickerStyle("telemetry")}
-                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                      stickerStyle === "telemetry" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
-                    }`}
-                  >
-                    Telemetry (Strava)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStickerStyle("badge")}
-                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                      stickerStyle === "badge" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
-                    }`}
-                  >
-                    Badge
-                  </button>
+                <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-line/60">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] uppercase font-bold text-ink-4 mr-0.5">Style:</span>
+                    <button
+                      type="button"
+                      onClick={() => setStickerStyle("stamp")}
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        stickerStyle === "stamp" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
+                      }`}
+                    >
+                      Stamp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStickerStyle("telemetry")}
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        stickerStyle === "telemetry" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
+                      }`}
+                    >
+                      Telemetry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStickerStyle("badge")}
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        stickerStyle === "badge" ? "bg-raised text-ink border border-line" : "text-ink-3 hover:text-ink"
+                      }`}
+                    >
+                      Badge
+                    </button>
+                  </div>
+
+                  {stickerBg === "photo" && (
+                    <label className="flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-0.5 text-[10px] font-semibold text-ink-2 cursor-pointer transition-colors hover:text-ink">
+                      <Camera className="h-3 w-3 text-crimson" />
+                      <span>{uploadingPhoto ? "..." : currentPhoto ? "Swap" : "Upload"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file) {
+                            try {
+                              setUploadingPhoto(true);
+                              const url = await uploadImage(file);
+                              setCurrentPhoto(url);
+                              setStickerBg("photo");
+                            } catch (err: any) {
+                              alert(err.message || "Failed to upload photo");
+                            } finally {
+                              setUploadingPhoto(false);
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
               )}
             </div>
@@ -673,57 +766,74 @@ export default function LockinRecapCard({
                   {/* ───────── FRONT ───────── */}
                   <div
                     ref={cardRef}
-                    className={`relative flex flex-col justify-between overflow-hidden rounded-sm p-6 text-left shadow-lift sm:p-7 ${activeBorderStyle}`}
+                    className={`relative flex flex-col justify-between overflow-hidden rounded-xl p-6 text-left sm:p-7 ${activeBorderStyle}`}
                     style={{
-                      background: cardMode === "pass" ? "#0C0C0D" : cardMode === "sticker" ? "#050505" : cardBg,
+                      background: cardMode === "sticker"
+                        ? isTransparentSticker
+                          ? "transparent"
+                          : "#050505"
+                        : cardBg,
                       borderColor: cardMode === "metallic" ? tierColor : undefined,
                       position: "absolute",
                       inset: 0,
                       ...faceStyle(!isFlipped)
                     }}
                   >
+                    {/* Visual transparency preview grid when in Transparent PNG mode */}
+                    {isTransparentSticker && (
+                      <div
+                        className="pointer-events-none absolute inset-0 -z-10 opacity-30"
+                        style={{
+                          backgroundImage: "radial-gradient(#52525b 1px, transparent 1px)",
+                          backgroundSize: "16px 16px"
+                        }}
+                        aria-hidden="true"
+                      />
+                    )}
+
                     {/* ═══════════════════════════════════════════════════════════════
-                        MODE 1: PHOTO STICKER (Latent & Strava Direct Overlay)
-                        Edge-to-edge photo canvas with floating typographic stickers
+                        MODE 1: STORY STICKER (Transparent PNG or Photo Backdrop)
                        ═══════════════════════════════════════════════════════════════ */}
                     {cardMode === "sticker" ? (
                       <>
-                        {/* Full-bleed photo backdrop */}
-                        {currentPhoto ? (
+                        {/* Photo Backdrop (Only if Photo option selected) */}
+                        {stickerBg === "photo" && (
                           <>
-                            <img
-                              src={currentPhoto}
-                              alt="Focus session"
-                              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-                            />
-                            {/* Subtle contrast gradient wash ensuring 100% typography legibility */}
-                            <div
-                              className="pointer-events-none absolute inset-0"
-                              style={{
-                                background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.30) 40%, rgba(0,0,0,0.15) 70%, rgba(0,0,0,0.50) 100%)"
-                              }}
-                            />
-                            {/* Subtle tier ambient glow flare */}
-                            <div
-                              className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full blur-3xl opacity-60"
-                              style={{ background: glowColor }}
-                              aria-hidden="true"
-                            />
+                            {currentPhoto ? (
+                              <>
+                                <img
+                                  src={currentPhoto}
+                                  alt="Focus session"
+                                  className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                                />
+                                <div
+                                  className="pointer-events-none absolute inset-0"
+                                  style={{
+                                    background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.25) 40%, rgba(0,0,0,0.15) 70%, rgba(0,0,0,0.50) 100%)"
+                                  }}
+                                />
+                                <div
+                                  className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full blur-3xl opacity-60"
+                                  style={{ background: glowColor }}
+                                  aria-hidden="true"
+                                />
+                              </>
+                            ) : (
+                              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950">
+                                <div className="rounded-full border border-white/10 bg-white/5 p-4 mb-3">
+                                  <Camera className="h-8 w-8 text-ink-3" />
+                                </div>
+                                <span className="text-sm font-semibold text-ink">No photo attached</span>
+                                <span className="text-xs text-ink-3 mt-1 max-w-[200px]">Tap &quot;Upload&quot; above to snap or upload desk/workout photo</span>
+                              </div>
+                            )}
                           </>
-                        ) : (
-                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950">
-                            <div className="rounded-full border border-white/10 bg-white/5 p-4 mb-3">
-                              <Camera className="h-8 w-8 text-ink-3" />
-                            </div>
-                            <span className="text-sm font-semibold text-ink">No photo attached</span>
-                            <span className="text-xs text-ink-3 mt-1 max-w-[200px]">Tap &quot;Add Photo&quot; above to snap or upload desk/workout evidence</span>
-                          </div>
                         )}
 
                         {/* ── Sub-Style A: Latent Clean Stamp (Screenshots 1 & 5) ── */}
                         {stickerStyle === "stamp" && (
                           <div className="relative z-10 flex h-full flex-col justify-between">
-                            {/* Floating Top Branding */}
+                            {/* Floating Header */}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                                 <LockinMark size={20} color="rgb(var(--ink))" />
@@ -741,20 +851,18 @@ export default function LockinRecapCard({
                               </span>
                             </div>
 
-                            {/* Floating Centered/Lower Latent Typographic Stamp */}
+                            {/* Center Typographic Stamp */}
                             <div className="my-auto text-center flex flex-col items-center">
-                              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">
+                              <span className="text-xs font-bold uppercase tracking-[0.22em] text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">
                                 {subtitleText}
                               </span>
 
-                              <div className="my-1.5 t-display text-white text-[78px] sm:text-[90px] font-bold leading-none tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
+                              <div className="my-1.5 t-display text-white text-[76px] sm:text-[88px] font-bold leading-none tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
                                 {hours > 0 ? `${hours}h ` : ""}{mins}m
                               </div>
 
                               {activeMetric && (
-                                <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/70 px-3.5 py-1 backdrop-blur-md shadow-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-                                  <span className="text-[10px] font-bold tracking-widest text-crimson uppercase">OUTPUT</span>
-                                  <span className="h-3 w-px bg-white/25" />
+                                <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-3.5 py-1 backdrop-blur-md shadow-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
                                   <span className="font-mono text-xs font-bold text-white uppercase tracking-tight">
                                     {activeMetric}
                                   </span>
@@ -766,15 +874,15 @@ export default function LockinRecapCard({
                               </span>
                             </div>
 
-                            {/* Floating Footer Watermark */}
+                            {/* Floating Minimal Footer */}
                             <div className="flex items-center justify-between text-[11px] text-white/70 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                               <span>lockin.top</span>
-                              <span className="text-[10px] text-white/50">Stop scrolling. Start executing.</span>
+                              <span className="font-mono text-[10px] text-white/50">{date}</span>
                             </div>
                           </div>
                         )}
 
-                        {/* ── Sub-Style B: Strava Telemetry (Screenshots 3 & 4) ── */}
+                        {/* ── Sub-Style B: Strava Athletic Telemetry (Screenshots 3 & 4) ── */}
                         {stickerStyle === "telemetry" && (
                           <div className="relative z-10 flex h-full flex-col justify-between">
                             {/* Top Header */}
@@ -797,50 +905,33 @@ export default function LockinRecapCard({
 
                             {/* Strava Telemetry Stack */}
                             <div className="my-auto flex flex-col drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
-                              {activeMetric ? (
-                                <>
-                                  <span className="text-[11px] font-bold tracking-widest text-crimson uppercase">PRIMARY OUTPUT</span>
-                                  <span className="t-display text-4xl sm:text-5xl font-extrabold text-white leading-tight uppercase tracking-tight mt-0.5">
-                                    {activeMetric}
-                                  </span>
-                                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-3">
-                                    <div>
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Time</span>
-                                      <span className="font-mono text-xl font-bold text-white">{hours > 0 ? `${hours}h ` : ""}{mins}m</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Streak</span>
-                                      <span className="font-mono text-xl font-bold text-white">{streakVal}d</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Tasks</span>
-                                      <span className="font-mono text-xl font-bold text-white">{tasksCompleted}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Motion</span>
-                                      <span className="font-mono text-xl font-bold text-emerald-400">+{pointsDelta}</span>
-                                    </div>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="text-[11px] font-bold tracking-widest text-white/70 uppercase">FOCUS TIME</span>
-                                  <span className="t-display text-5xl sm:text-6xl font-extrabold text-white leading-tight tracking-tight mt-0.5">
-                                    {hours > 0 ? `${hours}h ` : ""}{mins}m
-                                  </span>
-                                  <span className="text-sm font-medium text-white/80 mt-1">{subtitleText}</span>
-                                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/20 pt-3">
-                                    <div>
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Tasks</span>
-                                      <span className="font-mono text-xl font-bold text-white">{tasksCompleted}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Streak</span>
-                                      <span className="font-mono text-xl font-bold text-white">{streakVal}d</span>
-                                    </div>
-                                  </div>
-                                </>
+                              <div className="t-display text-4xl sm:text-5xl font-extrabold text-white leading-tight uppercase tracking-tight">
+                                {activeMetric || subtitleText}
+                              </div>
+                              {activeMetric && (
+                                <span className="text-xs font-semibold uppercase tracking-wider text-white/70 mt-1">
+                                  {subtitleText}
+                                </span>
                               )}
+
+                              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/20 pt-3">
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Time</span>
+                                  <span className="font-mono text-xl font-bold text-white">{hours > 0 ? `${hours}h ` : ""}{mins}m</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Streak</span>
+                                  <span className="font-mono text-xl font-bold text-white">{streakVal}d</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Tasks</span>
+                                  <span className="font-mono text-xl font-bold text-white">{tasksCompleted}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">Motion</span>
+                                  <span className="font-mono text-xl font-bold text-emerald-400">+{pointsDelta}</span>
+                                </div>
+                              </div>
                             </div>
 
                             {/* Bottom Brand Stamp */}
@@ -851,7 +942,7 @@ export default function LockinRecapCard({
                           </div>
                         )}
 
-                        {/* ── Sub-Style C: Glassmorphic Badge ── */}
+                        {/* ── Sub-Style C: Minimalist Glassmorphic Badge ── */}
                         {stickerStyle === "badge" && (
                           <div className="relative z-10 flex h-full flex-col justify-between">
                             <div className="flex items-center justify-between">
@@ -859,7 +950,6 @@ export default function LockinRecapCard({
                               <span className="font-mono text-xs text-white/70">{date}</span>
                             </div>
 
-                            {/* Floating HUD Badge */}
                             <div
                               className="my-auto mx-auto w-full max-w-[280px] rounded-2xl border p-5 backdrop-blur-xl shadow-2xl"
                               style={{
@@ -885,32 +975,21 @@ export default function LockinRecapCard({
                               )}
                             </div>
 
-                            <div className="text-center text-[10px] text-white/60">lockin.top / Stop scrolling. Start executing.</div>
+                            <div className="text-center text-[10px] text-white/60">lockin.top</div>
                           </div>
                         )}
                       </>
                     ) : (
                       /* ═══════════════════════════════════════════════════════════════
-                          MODE 2 & 3: METALLIC OBSIDIAN CARD & TICKET PASS
+                          MODE 2: METALLIC OBSIDIAN CARD (Collectible 3D Trading Card)
                          ═══════════════════════════════════════════════════════════════ */
                       <>
-                        {/* PASS MODE: Perforation notches and dashed tear-line */}
-                        {cardMode === "pass" && (
-                          <>
-                            <div className="pointer-events-none absolute left-0 top-[66%] -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
-                            <div className="pointer-events-none absolute right-0 top-[66%] translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/95 border border-line z-30" />
-                            <div className="pointer-events-none absolute inset-x-4 top-[66%] h-px border-b border-dashed border-white/20 z-30" />
-                          </>
-                        )}
-
-                        {/* METALLIC MODE: Pure ambient radiant flare */}
-                        {cardMode === "metallic" && (
-                          <div
-                            className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
-                            style={{ background: glowColor }}
-                            aria-hidden="true"
-                          />
-                        )}
+                        {/* Pure ambient radiant flare */}
+                        <div
+                          className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full blur-3xl opacity-80"
+                          style={{ background: glowColor }}
+                          aria-hidden="true"
+                        />
 
                         {/* Deer persona quiet watermark */}
                         <div className="pointer-events-none absolute -bottom-6 -right-10 opacity-[0.06] z-10">
@@ -955,39 +1034,36 @@ export default function LockinRecapCard({
                           </motion.div>
                         )}
 
-                        {/* Brand row */}
+                        {/* Top Brand row */}
                         <div className="relative z-10 flex items-start justify-between">
                           <div className="flex items-center gap-2">
                             <LockinMark size={22} color="rgb(var(--ink))" />
                             <LockinWordmark size="sm" />
                           </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className="rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
-                                style={{
-                                  borderColor: `${tierColor}60`,
-                                  backgroundColor: `${tierColor}20`,
-                                  color: tierColor
-                                }}
-                              >
-                                {tierPill}
-                              </span>
-                              <span
-                                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular backdrop-blur-md ${
-                                  pointsDelta >= 0
-                                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                                    : "border-red-500/40 bg-red-500/15 text-red-300"
-                                }`}
-                              >
-                                {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-ink-3 tabular">{date}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md"
+                              style={{
+                                borderColor: `${tierColor}60`,
+                                backgroundColor: `${tierColor}20`,
+                                color: tierColor
+                              }}
+                            >
+                              {tierPill}
+                            </span>
+                            <span
+                              className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide tabular backdrop-blur-md ${
+                                pointsDelta >= 0
+                                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                                  : "border-red-500/40 bg-red-500/15 text-red-300"
+                              }`}
+                            >
+                              {pointsDelta >= 0 ? `+${pointsDelta}` : pointsDelta} {POINTS_NAME}
+                            </span>
                           </div>
                         </div>
 
-                        {/* Hero Section */}
+                        {/* Center Hero Section */}
                         <div className="relative z-10 my-auto">
                           <div className="t-display flex items-baseline leading-none text-ink drop-shadow-[0_4px_18px_rgba(0,0,0,0.85)]">
                             {hours > 0 && (
@@ -1004,80 +1080,38 @@ export default function LockinRecapCard({
                             )}
                           </div>
 
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-footnote font-semibold tracking-wide uppercase" style={{ color: tierColor }}>
-                              {tierName}
-                            </span>
-                            <span className="text-ink-4">·</span>
-                            <span className="text-footnote font-medium text-ink-2">
-                              {statusText}
-                            </span>
-                          </div>
-
-                          {/* Custom Metric / Accomplishment Sticker Pill */}
-                          {activeMetric ? (
+                          {/* Clean Accomplishment Highlight */}
+                          {activeMetric && (
                             <motion.div
                               initial={{ scale: 0.95, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
-                              className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 shadow-lg backdrop-blur-md"
-                              style={{
-                                borderColor: `${tierColor}80`,
-                                backgroundColor: "rgba(0, 0, 0, 0.70)",
-                                boxShadow: `0 4px 20px ${glowColor}`
-                              }}
+                              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md"
+                              style={{ boxShadow: `0 4px 20px ${glowColor}` }}
                             >
-                              <span className="text-[10px] font-bold tracking-widest text-crimson uppercase">OUTPUT</span>
-                              <span className="h-3 w-px bg-white/20" />
                               <span className="font-mono text-xs font-bold text-ink tracking-tight uppercase">
                                 {activeMetric}
                               </span>
                             </motion.div>
-                          ) : (
-                            <div className="t-display mt-2 line-clamp-2 text-title-2 font-bold text-ink drop-shadow-md">
-                              {isPeriod ? "Your summary" : subtitleText}
-                            </div>
                           )}
 
-                          {activeMetric && (
-                            <div className="mt-1.5 line-clamp-1 text-footnote text-ink-3 font-medium">
-                              {isPeriod ? "Your summary" : subtitleText}
-                            </div>
-                          )}
+                          <div className="t-display mt-2 line-clamp-2 text-title-2 font-bold text-ink drop-shadow-md">
+                            {isPeriod ? "Your summary" : subtitleText}
+                          </div>
                         </div>
 
-                        {/* Stats Section */}
+                        {/* Bottom Stats Matrix */}
                         <div className="relative z-10">
-                          <div className="border-t border-white/10">
-                            <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
-                              <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
-                              <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
-                              <Stat label="Category" value={categoryVal} />
-                              <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
-                            </div>
+                          <div className="grid grid-cols-2 gap-x-5 border-t border-white/10">
+                            <div className="border-b border-white/10"><Stat label="Tasks" value={tasksCompleted} /></div>
+                            <div className="border-b border-white/10"><Stat label={isPeriod ? "Missions" : "Streak"} value={isPeriod ? recapData.missionsCompleted ?? 0 : `${streakVal}d`} /></div>
+                            <Stat label="Category" value={categoryVal} />
+                            <Stat label={isPeriod ? "Longest" : "Rank"} value={isPeriod ? longestLockText : `#${recapData.missionRank ?? recapData.rank ?? 1}`} />
                           </div>
 
-                          {/* PASS MODE: Barcode Footer */}
-                          {cardMode === "pass" && (
-                            <div className="pt-2 flex items-center justify-between border-t border-white/10 mt-2">
-                              <div className="flex items-center gap-0.5">
-                                {[14, 22, 10, 18, 8, 24, 16, 12, 20, 10, 26, 14, 18, 12].map((h, i) => (
-                                  <span key={i} className="inline-block bg-white/70" style={{ width: i % 3 === 0 ? "2px" : "1px", height: `${h}px` }} />
-                                ))}
-                              </div>
-                              <span className="font-mono text-[9px] tracking-widest text-ink-3 uppercase">
-                                #{recapData.shareId ? recapData.shareId.slice(0, 10).toUpperCase() : "VERIFIED"}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Editorial Watermark */}
+                          {/* Clean Footer */}
                           <div className="flex items-center justify-between border-t border-white/10 pt-2.5 text-caption text-ink-3 mt-2">
-                            <div className="flex items-center gap-1.5 font-medium tracking-tight text-ink-2">
-                              <span>lockin.top</span>
-                              <span className="text-ink-4">/</span>
-                              <span className="text-[10px] text-ink-3">Stop scrolling. Start executing.</span>
-                            </div>
-                            <span className="text-[10px] text-ink-3">Tap to flip</span>
+                            <span className="font-medium text-ink-2">lockin.top</span>
+                            <span className="tabular text-[11px] text-ink-3">{date}</span>
                           </div>
                         </div>
 
@@ -1275,6 +1309,30 @@ export default function LockinRecapCard({
                 >
                   <Trash2 className="h-[18px] w-[18px]" /> Trash card
                 </motion.button>
+              ) : cardMode === "sticker" && isTransparentSticker ? (
+                <div className="flex flex-1 gap-2">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={handleCopySticker}
+                    disabled={saving}
+                    className="btn-primary h-12 flex-1 gap-2"
+                  >
+                    {copiedSticker ? <Check className="h-[18px] w-[18px] text-success" /> : <Copy className="h-[18px] w-[18px]" />}
+                    {copiedSticker ? "Copied Sticker" : saving ? "Rendering..." : "Copy Sticker"}
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex h-12 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-4 text-xs font-semibold text-ink transition-colors hover:bg-raised"
+                    title="Download transparent PNG sticker"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>PNG</span>
+                  </motion.button>
+                </div>
               ) : (
                 <motion.button
                   type="button"
