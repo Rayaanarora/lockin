@@ -89,8 +89,16 @@ async function finishSession(req, res) {
       if (claimed.count !== 1) throw new Error("NOT_ACTIVE");
 
       const now = new Date();
-      const elapsedSec = Math.max(0, Math.floor((now.getTime() - participation.workStartedAt.getTime()) / 1000));
-      const sessionDuration = Math.min(12 * 60, Math.max(1, Math.round(elapsedSec / 60)));
+      const wallElapsedSec = Math.max(0, Math.floor((now.getTime() - participation.workStartedAt.getTime()) / 1000));
+      const maxAllowedDuration = Math.min(12 * 60, Math.max(1, Math.round(wallElapsedSec / 60)));
+
+      // If client provided actual focused sessionDuration (which excludes paused durations in Pomodoro/solo timer),
+      // respect it bounded by wall-clock time elapsed to prevent illegitimate inflation.
+      const rawClientMins = Number(body.sessionDuration);
+      let sessionDuration = maxAllowedDuration;
+      if (Number.isFinite(rawClientMins) && rawClientMins > 0) {
+        sessionDuration = Math.min(Math.round(rawClientMins), maxAllowedDuration);
+      }
 
       const tasks = await tx.task.findMany({ where: { missionId }, select: { completed: true } });
       const tasksCompleted = tasks.length
@@ -103,7 +111,8 @@ async function finishSession(req, res) {
       const target = isSolo
         ? Math.min(240, Math.max(0, Math.floor(Number(body.targetMinutes) || 0)))
         : participation.workDuration || mission.focusDuration || 0;
-      const isFailed = elapsedSec < 180 || (target > 0 && elapsedSec < target * 60 * 0.5 && tasksCompleted === 0);
+      const focusedSec = sessionDuration * 60;
+      const isFailed = focusedSec < 180 || (target > 0 && focusedSec < target * 60 * 0.5 && tasksCompleted === 0);
 
       // Streak / personal bests from real history.
       const allUserRecaps = await tx.sessionRecap.findMany({

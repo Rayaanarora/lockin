@@ -11,6 +11,8 @@ import { Input, fieldClass } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { spring } from "../lib/motion";
 import { STARTER_QUESTS, StarterQuest, getStarterQuestsByPillar, getStarterQuestGroups } from "../lib/starterQuests";
+import QuickFocusModal from "./QuickFocusModal";
+import QuickFocusDock from "./QuickFocusDock";
 
 const SWIPE_THRESHOLD = 120;
 
@@ -65,6 +67,8 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showQuickModal, setShowQuickModal] = useState(false);
+  const [quickModalDuration, setQuickModalDuration] = useState(45);
   const [exitDir, setExitDir] = useState<Dir>("left");
   const [busy, setBusy] = useState(false);
   const [lockedFlash, setLockedFlash] = useState(false);
@@ -240,6 +244,21 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
       .then((data) => setCategories(data))
       .catch((err) => console.error("Error loading categories:", err));
   }, []);
+
+  // Prompt user to launch a focus mission when they log in / start app
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    const key = `lockin_timer_${user.id}`;
+    const hasActiveTimer = localStorage.getItem(key);
+    const dismissedThisSession = sessionStorage.getItem("lockin_launch_prompt_dismissed");
+    if (!hasActiveTimer && !dismissedThisSession) {
+      const timer = setTimeout(() => {
+        setShowQuickModal(true);
+        sessionStorage.setItem("lockin_launch_prompt_dismissed", "1");
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [user.id]);
 
   const currentMission = missions[Math.min(index, Math.max(0, missions.length - 1))];
   // The last pass, kept for a few seconds so it can be undone.
@@ -489,6 +508,16 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
 
       {/* The deck: one card, centred, the whole point of the page */}
       <div className="mx-auto mt-4 w-full max-w-[640px] md:mt-10">
+        {/* Quick Focus / Pomodoro Dock & Active Session Beacon */}
+        <QuickFocusDock
+          user={user}
+          onOpenModal={(mins) => {
+            setQuickModalDuration(mins || 45);
+            setShowQuickModal(true);
+          }}
+          setTab={setTab}
+        />
+
         <div className="relative perspective-distant">
           {deck.slice().reverse().map((m) => {
             const depth = missions.indexOf(m) - index; // 1 or 2
@@ -1210,6 +1239,17 @@ export default function Feed({ user, refreshUser, locked, setLocked, api, setTab
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Quick Pomodoro Launch Modal */}
+      <QuickFocusModal
+        open={showQuickModal}
+        onOpenChange={setShowQuickModal}
+        user={user}
+        api={api}
+        setTab={setTab}
+        refreshUser={refreshUser}
+        initialDuration={quickModalDuration}
+      />
     </section>
   );
 }

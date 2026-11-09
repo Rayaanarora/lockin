@@ -427,7 +427,7 @@ export default function LockinRecapCard({
     }
   }, [saving, isFlipped]);
 
-  // Handle export (force capturing the Front card flat at high-DPI for Instagram Stories)
+  // Handle export: ALWAYS performs direct high-DPI file download without share-sheet interception
   const handleSave = useCallback(async () => {
     if (!cardRef.current || saving) return;
 
@@ -447,42 +447,20 @@ export default function LockinRecapCard({
         backgroundColor: isTransparent ? "transparent" : undefined,
       });
 
-      // Attempt native mobile share if supported and not transparent
-      if (!isTransparent && typeof navigator !== "undefined" && navigator.share) {
-        try {
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          const file = new File(
-            [blob],
-            `lockin-${cardMode === "sticker" ? "story" : "card"}-${Date.now()}.png`,
-            { type: "image/png" }
-          );
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: "LOCKIN Focus Story",
-              text: `Locked in for ${hours > 0 ? `${hours}h ` : ""}${mins}m on LOCKIN.${activeMetric ? ` ${activeMetric}.` : ""}`
-            });
-            if (wasFlipped) setIsFlipped(true);
-            setSaving(false);
-            return;
-          }
-        } catch (shareErr: any) {
-          if (shareErr.name === "AbortError") {
-            if (wasFlipped) setIsFlipped(true);
-            setSaving(false);
-            return;
-          }
-        }
-      }
-
-      // Fallback: standard PNG download
+      // Always trigger direct file download via Blob for 100% reliable saving across all devices
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = isTransparent
+      const filename = isTransparent
         ? `lockin-sticker-transparent-${Date.now()}.png`
         : `lockin-${cardMode === "sticker" ? "story" : "card"}-${Date.now()}.png`;
-      link.href = dataUrl;
+      link.download = filename;
+      link.href = objectUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
 
       if (wasFlipped) {
         setIsFlipped(true);
@@ -493,7 +471,7 @@ export default function LockinRecapCard({
     } finally {
       setSaving(false);
     }
-  }, [saving, isFlipped, cardMode, stickerBg, hours, mins, activeMetric]);
+  }, [saving, isFlipped, cardMode, stickerBg]);
 
   const handleShare = useCallback(async () => {
     if (!recapData.shareId) {
@@ -505,9 +483,35 @@ export default function LockinRecapCard({
 
     if (navigator.share) {
       try {
+        if (cardRef.current && navigator.canShare) {
+          const isTransparent = cardMode === "sticker" && stickerBg === "transparent";
+          const dataUrl = await toPng(cardRef.current, {
+            pixelRatio: 2.5,
+            cacheBust: true,
+            backgroundColor: isTransparent ? "transparent" : undefined,
+          });
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const file = new File(
+            [blob],
+            `lockin-${cardMode === "sticker" ? "story" : "card"}-${Date.now()}.png`,
+            { type: "image/png" }
+          );
+
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: "LOCKIN Focus Story",
+              text: `Locked in for ${hours > 0 ? `${hours}h ` : ""}${mins}m on LOCKIN.${activeMetric ? ` ${activeMetric}.` : ""}`,
+              url: shareUrl,
+            });
+            return;
+          }
+        }
+
         await navigator.share({
           title: "LOCKIN Recap",
-          text: `Check out my Lockin productivity recap! I locked in for ${hours}h ${mins}m. ${activeMetric ? `Output: ${activeMetric}. ` : ""}`,
+          text: `Check out my Lockin productivity recap! I locked in for ${hours}h ${mins}m.${activeMetric ? ` ${activeMetric}.` : ""}`,
           url: shareUrl,
         });
         return;
@@ -523,7 +527,7 @@ export default function LockinRecapCard({
     } catch (err) {
       alert(`Here is your share link: ${shareUrl}`);
     }
-  }, [recapData.shareId, hours, mins, activeMetric]);
+  }, [recapData.shareId, cardMode, stickerBg, hours, mins, activeMetric]);
 
   if (!isOpen) return null;
 
@@ -1348,7 +1352,7 @@ export default function LockinRecapCard({
                   className="btn-primary h-12 flex-1 gap-2"
                 >
                   <Download className="h-[18px] w-[18px]" />
-                  {saving ? "Rendering..." : "Save Story Image"}
+                  {saving ? "Rendering..." : cardMode === "sticker" ? "Download Story Image" : "Download Card"}
                 </motion.button>
               )}
 

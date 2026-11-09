@@ -369,3 +369,17 @@ $$\text{Views} \longrightarrow \text{Shares \& Saves} \longrightarrow \text{Prof
 * **Defensible Moat:** The Campus Flywheel:
   $$\text{Creator Video} \longrightarrow \text{Student joins mission} \longrightarrow \text{Physical meetup happens} \longrightarrow \text{Experience becomes next video}$$
 
+---
+
+### 9.8 The Autonomous 7-Bot UGC Growth Engine [2026-11-10]
+*Operating suite documented in `growth/ugc_engine/`.*  
+Inspired by the multi-million dollar growth playbooks of Cal AI, Strava, Alarmy, Tethered, Superyou, Latent, Musa, and Airlearn, LOCKIN deploys a 7-bot autonomous UGC growth operating system:
+
+1. **Format Scout (`01_FORMAT_SCOUT.md`):** Identifies outlier short-form videos with >15x audience disproportion on accounts <25k followers across productivity, study, and fitness categories.
+2. **Teardown Bot (`02_TEARDOWN_BOT.md`):** Deconstructs winners shot-by-shot (hook, product reveal at ≤0:06, visual consequence, and payoff/CTA).
+3. **Hook Miner (`03_HOOK_MINER.md`):** Mines 30+ high-voltage hooks from competitor comment sections, Play Store/App Store reviews, and student Reddit threads across 5 distinct emotional territories.
+4. **Brief Writer (`04_BRIEF_WRITER.md`):** Converts formats into foolproof 15-second creator briefs with exact on-screen UI requirements (focus timer, cracked card, crimson tier card, squad slots).
+5. **Creator Scout (`05_CREATOR_SCOUT.md`):** Sources nano-creators (1k–15k) on target campuses (SRM, IITs) with high authenticity, low cost, and proven on-camera delivery.
+6. **Launch Planner (`06_LAUNCH_PLANNER.md`):** Coordinates the 7-day algorithmic account warm-up, peak college posting windows (8 AM, 1 PM, 10 PM), and the 30-day A/B testing matrix.
+7. **Numbers Bot (`07_NUMBERS_BOT.md`):** Executes the weekly Sunday night **Cut / Keep / Scale** decision engine based on 3s hold rate (target ≥35%), saves/shares (≥2.5%), and verified mission joins.
+

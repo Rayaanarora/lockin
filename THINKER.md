@@ -272,6 +272,21 @@ When the founder introduces a new product principle, architectural constraint, u
     - **Runway Crashed (Early exit / failed):** Shattered abyssal red gradient (`#1C0508` -> `#0E0204`) with `-5 Motion`.
   - **Story Optimization:** Prominent `+10 Motion` pill, clean date stamp, massive display counter, mission title, stat grid, and `lockin.top / Stop scrolling. Start executing.` editorial watermark. Strictly zero emojis.
 
+### [2026-11-10] Pomodoro Pause Time Accuracy, Instant Focus Dock & Direct Image Download
+* **Pomodoro Paused Time Exclusion:**
+  - **Problem:** If a user paused a 90m timer for 30m or an hour, the backend calculated `sessionDuration` as wall-clock time (`now - workStartedAt`), producing inflated totals like 2h 50m on the recap card instead of the 90 minutes actually focused.
+  - **Solution:** `recapController.finishSession` now respects the client's actual focused `sessionDuration`, bounded by wall-clock time elapsed to prevent illegitimate inflation while strictly subtracting paused duration. A 90m session with pauses logs exactly 90 minutes.
+* **Frictionless App Onboarding & Quick Focus Dock:**
+  - **Problem:** Users opening LOCKIN had to navigate multi-step event forms or browse cards to start a solo focus session.
+  - **Solution:** Added `QuickFocusDock` on the Missions screen and an automatic `QuickFocusModal` prompt on app launch/login:
+    - 1-tap presets: 25m Sprint, 45m Deep Work, 90m Monk Mode, Stopwatch.
+    - 1-tap goal chips (DSA Grind, Exam Prep, Back & Biceps, Ship Feature, Reading).
+    - Auto-creates solo mission, checks in immediately, and transitions to fullscreen `FocusOverlay` with running countdown in under 2 seconds.
+    - Displays active session radar beacon if a focus session is already executing.
+* **Direct Image Download Guarantee:**
+  - **Problem:** Clicking "Save Story Image" previously invoked `navigator.share`, presenting OS share sheets (AirDrop, Copy) rather than directly downloading the image to device storage/camera roll.
+  - **Solution:** Decoupled direct image download from social sharing. The primary button now reliably downloads the PNG via Blob object URL on all browsers. The dedicated `Share` button handles native OS sharing with image + link.
+
 ### [2026-10-30] Side Quest Expansion & Dropdown Selector Architecture
 * **Context:** Expanding side quests to mirror authentic Indian engineering college reality (SRM KTR CTs, Lab exams, placement tests) alongside Computer Science core study and builder/app research (viral product breakdowns, reverse engineering).
 * **Side Quest Dropdown Selector (`Feed.tsx`):**

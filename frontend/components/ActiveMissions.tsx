@@ -193,6 +193,11 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           }
           setTimeLeftSeconds(nextTime);
           setTimerRunning(nextTime > 0 || state.duration === 0 ? state.running : false);
+
+          if (typeof window !== "undefined" && localStorage.getItem("lockin_open_focus_overlay")) {
+            setFocusOverlayOpen(true);
+            localStorage.removeItem("lockin_open_focus_overlay");
+          }
         } else {
           localStorage.removeItem(key);
         }
@@ -201,6 +206,15 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
       }
     }
   }, [missions, user, loading]);
+
+  // Listen for direct focus overlay trigger from QuickLaunch
+  useEffect(() => {
+    const handleOpenFocus = () => {
+      setFocusOverlayOpen(true);
+    };
+    window.addEventListener("lockin:open-focus", handleOpenFocus);
+    return () => window.removeEventListener("lockin:open-focus", handleOpenFocus);
+  }, []);
 
   const formatTime = (totalSecs: number) => {
     const hrs = Math.floor(totalSecs / 3600);
@@ -331,10 +345,8 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         method: "POST",
         body: JSON.stringify({
           tasksCompleted,
-          // The server measures the session and decides crash vs. complete;
-          // this only tells it which timer you picked (0 = open-ended).
           targetMinutes: reflectionTargetMinutes,
-
+          sessionDuration: reflectionDuration,
           reflection: {
             reflectionText: reflectionText.trim() || null,
             lessonsLearned: lessonsLearned.trim() || null,
