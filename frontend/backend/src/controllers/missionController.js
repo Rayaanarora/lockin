@@ -65,7 +65,17 @@ async function createMission(req, res) {
   });
 
   if (isSolo) {
-    await prisma.participation.create({ data: { userId: creatorId, missionId: mission.id, status: "Accepted" } });
+    const startNow = b.startNow !== false;
+    await prisma.participation.create({
+      data: {
+        userId: creatorId,
+        missionId: mission.id,
+        status: startNow ? "Executing" : "Accepted",
+        workStartedAt: startNow ? new Date() : null,
+        workDuration: focusDuration,
+        showedUp: startNow ? true : null
+      }
+    });
   }
 
   res.status(201).json({

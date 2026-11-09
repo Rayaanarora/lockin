@@ -47,6 +47,11 @@ export default function QuickFocusModal({
   const [launching, setLaunching] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
+  // Sync selected duration when prop changes or modal opens
+  React.useEffect(() => {
+    setSelectedMinutes(initialDuration);
+  }, [initialDuration, open]);
+
   const handleLaunch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (launching) return;
@@ -56,8 +61,9 @@ export default function QuickFocusModal({
     try {
       const title = goal.trim() || (selectedMinutes > 0 ? `${selectedMinutes}m Focus Sprint` : "Open Focus Session");
       const duration = selectedMinutes > 0 ? selectedMinutes : 25;
+      const targetSecs = selectedMinutes > 0 ? selectedMinutes * 60 : 0;
 
-      // 1. Create solo focus mission
+      // 1. Create solo focus mission (created directly as Executing with workDuration: duration)
       const mission = await api("/missions", {
         method: "POST",
         body: JSON.stringify({
@@ -67,24 +73,25 @@ export default function QuickFocusModal({
           datetime: new Date().toISOString(),
           categoryId: selectedCatId,
           focusDuration: duration,
-          missionType: "solo"
+          missionType: "solo",
+          startNow: true
         })
       });
 
       const missionId = mission?.id;
       if (!missionId) throw new Error("Could not initialize mission coordinates.");
 
-      // 2. Immediate check-in / start execution
-      const targetSecs = selectedMinutes * 60;
-      await api(`/missions/${missionId}/attendance`, {
-        method: "POST",
-        body: JSON.stringify({
-          showedUp: true,
-          duration: targetSecs
-        })
-      });
+      const fullMission = {
+        ...mission,
+        id: missionId,
+        title,
+        status: "Executing",
+        focus_duration: duration,
+        work_duration: duration,
+        showed_up: true
+      };
 
-      // 3. Persist timer state in localStorage so ActiveMissions loads it seamlessly
+      // 2. Persist timer state in localStorage and dispatch exact duration event
       if (typeof window !== "undefined") {
         const key = `lockin_timer_${user.id}`;
         localStorage.setItem(
@@ -98,10 +105,17 @@ export default function QuickFocusModal({
           })
         );
         localStorage.setItem("lockin_open_focus_overlay", "true");
-        window.dispatchEvent(new CustomEvent("lockin:open-focus"));
+        window.dispatchEvent(
+          new CustomEvent("lockin:open-focus", {
+            detail: {
+              mission: fullMission,
+              duration: targetSecs
+            }
+          })
+        );
       }
 
-      // 4. Clean up & transition
+      // 3. Clean up & transition to queue/active tab
       onOpenChange(false);
       setTab?.("active");
       await refreshUser();

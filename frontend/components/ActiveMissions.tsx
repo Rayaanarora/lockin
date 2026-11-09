@@ -56,8 +56,8 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
   // Timer V2 states
   const [activeFocusMission, setActiveFocusMission] = useState<Mission | null>(null);
-  const [activeTimerDuration, setActiveTimerDuration] = useState<number>(1500); // default 25 min
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(1500);
+  const [activeTimerDuration, setActiveTimerDuration] = useState<number>(0);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(0);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
   const [focusOverlayOpen, setFocusOverlayOpen] = useState<boolean>(false);
   const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);
@@ -180,25 +180,29 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
         const mission = missions.find(m => m.id === state.missionId);
         if (mission && mission.status === "Executing") {
           setActiveFocusMission(mission);
-          setActiveTimerDuration(state.duration);
+          const dur = typeof state.duration === "number" && state.duration > 0
+            ? state.duration
+            : ((mission.work_duration || mission.focus_duration || 25) * 60);
+          setActiveTimerDuration(dur);
           
-          let nextTime = state.timeLeft;
+          let nextTime = typeof state.timeLeft === "number" ? state.timeLeft : dur;
           if (state.running) {
             const elapsed = Math.floor((Date.now() - state.lastSaved) / 1000);
-            if (state.duration > 0) {
-              nextTime = Math.max(0, state.timeLeft - elapsed);
+            if (dur > 0) {
+              nextTime = Math.max(0, nextTime - elapsed);
             } else {
-              nextTime = state.timeLeft + elapsed;
+              nextTime = nextTime + elapsed;
             }
           }
           setTimeLeftSeconds(nextTime);
-          setTimerRunning(nextTime > 0 || state.duration === 0 ? state.running : false);
+          setTimerRunning(nextTime > 0 || dur === 0 ? state.running : false);
 
           if (typeof window !== "undefined" && localStorage.getItem("lockin_open_focus_overlay")) {
             setFocusOverlayOpen(true);
             localStorage.removeItem("lockin_open_focus_overlay");
           }
-        } else {
+        } else if (!loading && missions.length > 0 && !missions.some(m => m.id === state.missionId)) {
+          // Only delete key if missions have fully loaded and this mission definitely does not exist
           localStorage.removeItem(key);
         }
       } catch (err) {
@@ -209,7 +213,17 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
 
   // Listen for direct focus overlay trigger from QuickLaunch
   useEffect(() => {
-    const handleOpenFocus = () => {
+    const handleOpenFocus = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.mission) {
+        setActiveFocusMission(detail.mission);
+        const dur = typeof detail.duration === "number"
+          ? detail.duration
+          : ((detail.mission.work_duration || detail.mission.focus_duration || 25) * 60);
+        setActiveTimerDuration(dur);
+        setTimeLeftSeconds(dur);
+        setTimerRunning(true);
+      }
       setFocusOverlayOpen(true);
     };
     window.addEventListener("lockin:open-focus", handleOpenFocus);
@@ -551,9 +565,10 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
           if (typeof chosenDuration === "number") {
             setActiveTimerDuration(chosenDuration);
             setTimeLeftSeconds(chosenDuration);
-          } else if (activeTimerDuration === 0 && timeLeftSeconds === 0) {
-            setActiveTimerDuration(1500);
-            setTimeLeftSeconds(1500);
+          } else {
+            const mSecs = (currentM.work_duration || currentM.focus_duration || 25) * 60;
+            setActiveTimerDuration(mSecs);
+            setTimeLeftSeconds(mSecs);
           }
           setTimerRunning(true);
         }
@@ -1208,13 +1223,12 @@ export default function ActiveMissions({ user, refreshUser, api, socketUrl }: Ac
                             if (activeFocusMission?.id === mission.id) {
                               setFocusOverlayOpen(true);
                             } else {
+                              const mSecs = (mission.work_duration || mission.focus_duration || 25) * 60;
                               setActiveFocusMission(mission);
-                              setFocusOverlayOpen(true);
-                              if (activeTimerDuration === 0 && timeLeftSeconds === 0) {
-                                setActiveTimerDuration(1500); // 25 min default
-                                setTimeLeftSeconds(1500);
-                              }
+                              setActiveTimerDuration(mSecs);
+                              setTimeLeftSeconds(mSecs);
                               setTimerRunning(true);
+                              setFocusOverlayOpen(true);
                             }
                           }}
                           className="group relative flex w-full items-center justify-between overflow-hidden rounded-sm bg-signal p-5 text-left text-ink transition-colors hover:bg-cherry"

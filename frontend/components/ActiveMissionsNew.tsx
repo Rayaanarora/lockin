@@ -48,8 +48,8 @@ export default function ActiveMissionsNew({ user, refreshUser, api, socketUrl }:
 
   // Timer V2 states
   const [activeFocusMission, setActiveFocusMission] = useState<Mission | null>(null);
-  const [activeTimerDuration, setActiveTimerDuration] = useState<number>(1500); // default 25 min
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(1500);
+  const [activeTimerDuration, setActiveTimerDuration] = useState<number>(0);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(0);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
   const [focusOverlayOpen, setFocusOverlayOpen] = useState<boolean>(false);
   const [showTimerSelector, setShowTimerSelector] = useState<number | null>(null);

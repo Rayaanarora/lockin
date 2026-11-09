@@ -277,12 +277,18 @@ When the founder introduces a new product principle, architectural constraint, u
   - **Problem:** If a user paused a 90m timer for 30m or an hour, the backend calculated `sessionDuration` as wall-clock time (`now - workStartedAt`), producing inflated totals like 2h 50m on the recap card instead of the 90 minutes actually focused.
   - **Solution:** `recapController.finishSession` now respects the client's actual focused `sessionDuration`, bounded by wall-clock time elapsed to prevent illegitimate inflation while strictly subtracting paused duration. A 90m session with pauses logs exactly 90 minutes.
 * **Frictionless App Onboarding & Quick Focus Dock:**
-  - **Problem:** Users opening LOCKIN had to navigate multi-step event forms or browse cards to start a solo focus session.
-  - **Solution:** Added `QuickFocusDock` on the Missions screen and an automatic `QuickFocusModal` prompt on app launch/login:
-    - 1-tap presets: 25m Sprint, 45m Deep Work, 90m Monk Mode, Stopwatch.
-    - 1-tap goal chips (DSA Grind, Exam Prep, Back & Biceps, Ship Feature, Reading).
-    - Auto-creates solo mission, checks in immediately, and transitions to fullscreen `FocusOverlay` with running countdown in under 2 seconds.
-    - Displays active session radar beacon if a focus session is already executing.
+  - **Problem:** Users opening LOCKIN had to navigate multi-step event forms or browse cards to start a solo focus session. Furthermore, selecting a 45m or 90m preset previously defaulted to a 25m countdown upon entering `ActiveMissions`.
+  - **Root Causes:**
+    1. `QuickFocusModal` relied on `useState(initialDuration)` without a dynamic synchronization effect, causing preset duration updates to be ignored after mount.
+    2. `createMission` left solo missions in `"Accepted"` status without setting `workDuration`, requiring a second attendance call and exposing race conditions during queue load.
+    3. `ActiveMissions` initialized `activeTimerDuration` to a hardcoded `1500` (25m) and defaulted to `1500` inside `onClick` and `handleAttendance` rather than referencing `mission.focus_duration` or `mission.work_duration`.
+    4. The timer restore effect in `ActiveMissions` executed `localStorage.removeItem(key)` if `missions` was still in flight, wiping out newly created focus timers.
+  - **Solution:**
+    1. Added `useEffect` in `QuickFocusModal` syncing `selectedMinutes` to `initialDuration`.
+    2. `createMission` now atomically sets solo missions to `"Executing"` with `workDuration: focusDuration` and `workStartedAt: now`.
+    3. Removed all hardcoded `1500` seconds from `ActiveMissions.tsx`. Timer durations dynamically resolve via `(mission.work_duration || mission.focus_duration || 25) * 60`.
+    4. Enhanced `lockin:open-focus` event payload to transmit the full mission and exact target duration directly to `ActiveMissions`, triggering the fullscreen countdown immediately.
+    5. Guarded `localStorage` against premature deletion while queue data is loading.
 * **Direct Image Download Guarantee:**
   - **Problem:** Clicking "Save Story Image" previously invoked `navigator.share`, presenting OS share sheets (AirDrop, Copy) rather than directly downloading the image to device storage/camera roll.
   - **Solution:** Decoupled direct image download from social sharing. The primary button now reliably downloads the PNG via Blob object URL on all browsers. The dedicated `Share` button handles native OS sharing with image + link.
