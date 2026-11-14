@@ -327,3 +327,13 @@ When the founder introduces a new product principle, architectural constraint, u
 * **Hosts never check guests in.** Check-in is the guest entering the host's 4-digit code; the server forbids host check-in, so the UI no longer offers it. Hosts see a live read-only clock of the partner's session.
 * **Recap card opens on the metallic tier card.** Sticker (transparent PNG) and Photo are opt-in versions; each can be saved as its own PNG.
 * **Reset-email errors are shown, not swallowed.** Supabase answers identically for unknown emails, so surfacing errors leaks nothing; hiding them made a broken email setup look like success.
+
+### [2026-11-14] Reel Distribution & Campus Gate Horizon (Evaluating Universal Access vs. Walled Garden)
+* **Context:** Founder is scaling short-form video (Instagram Reels / YouTube Shorts) showcasing solo focus missions, the Pomodoro timer, and shareable story recap cards. Algorithm distribution will reach audiences beyond SRM KTR (students from other universities, personal email users, high-schoolers, independent builders).
+* **Current State:** Backend `checkDomain` enforces institutional domain verification across 498 seeded colleges, whitelisting only `@gmail.com` as a personal fallback (which hard-binds to SRM KTR) and rejecting all other personal domains (`@outlook.com`, `@icloud.com`) with HTTP 400. `ProfileGate.tsx` also requires a minimum 2-character student roll number.
+* **Proposed Architecture (Under Observation):** Universal Access with Campus Anchoring:
+  1. Accept any valid email at front door.
+  2. Auto-bind institutional domains to verified campuses; allow personal emails to select their college or join under a "Global / Independent Hub".
+  3. Make student roll number optional so high-schoolers and self-learners are not blocked at the front door.
+  4. Preserve collegiate partitions on the group mission feed while keeping solo focus and story recaps universal.
+* **Founder Decision:** Hold for 2–3 days. Monitor initial reel performance, sign-up conversions, and bounce patterns under the current setup before modifying domain gating or database schemas.
