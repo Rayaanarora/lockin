@@ -13,13 +13,13 @@ import { POINTS_NAME } from "../lib/brand";
  * motion moment: the mark draws itself, then the headline types.
  */
 
-const WORDS = ["Lock in.", "Focus.", "Execute."];
-const FINAL = ["Stop planning.", "Start showing up."];
+const WORDS = ["lock in.", "focus.", "execute."];
+const FINAL = ["stop planning.", "start showing up."];
 
 const LOOP = [
-  { n: "01", title: "Discover", desc: "See live study sprints, workouts, and missions happening across your campus." },
-  { n: "02", title: "Lock in", desc: "Commit solo or with a crew. Drop the excuses, put your phone away, and execute." },
-  { n: "03", title: "Show up", desc: `Finish what you started, earn ${POINTS_NAME}, and get your metallic recap card.` }
+  { n: "01", title: "discover", desc: "See who is studying, working out, or building on your campus right now." },
+  { n: "02", title: "lock in", desc: "Join in solo or with a crew. Put your phone down and start the clock." },
+  { n: "03", title: "show receipts", desc: `Finish the session, earn ${POINTS_NAME}, and get a card with your stats to share on your story.` }
 ];
 
 // The mark finishes drawing at about this point; typing starts after it.
@@ -165,7 +165,7 @@ export default function Landing({
       {/* ── Top bar ── */}
       <header className="mx-auto flex w-full max-w-[1240px] items-center justify-between px-6 pt-7 md:px-12">
         {/* On phones the lockup sits right below and already names the brand. */}
-        <p className="t-section hidden text-crimson sm:block">LOCKIN — find your people</p>
+        <p className="t-section hidden text-crimson sm:block">find your people.</p>
         <span className="sm:hidden" />
         <button type="button" onClick={onLogin} className="t-label -mr-3 h-11 px-3 transition-colors hover:text-ink">
           Log in
@@ -209,7 +209,7 @@ export default function Landing({
             transition={{ delay: 1.2, duration: 0.9, ease: ease.out }}
             className="mt-8 max-w-[500px] text-[17px] font-light leading-relaxed text-ink-2 md:text-[19px]"
           >
-            The campus execution network. Find people on your wavelength, drop live missions—from exam blitzes and 5km runs to coding side projects—and lock in with verified proof of work.
+            Find people on your campus who actually want to get things done. Drop a mission for exam prep, a gym session, or a side project, and lock in with people who will not flake.
           </motion.p>
 
           <motion.div
@@ -276,8 +276,8 @@ export default function Landing({
       {/* ── Footer, as on the brand sheet ── */}
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-3 px-6 py-7 md:flex-row md:items-center md:justify-between md:px-12">
-          <p className="t-label">LOCKIN — find your people.</p>
-          <p className="t-label hidden lg:block">Stop scrolling. Start executing.</p>
+          <p className="t-label">find your people.</p>
+          <p className="t-label hidden lg:block">stop scrolling. start executing.</p>
           <a
             href="https://instagram.com/lockin.top"
             target="_blank"
