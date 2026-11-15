@@ -1,6 +1,7 @@
 # LOCKIN (lockin.top)
 
 > The real-world campus execution and accountability network for college students and ambitious builders.  
+> The Strategic Concept: "Tinder × LinkedIn — but for college life."  
 > Official Taglines: "Stop scrolling. Start executing." and "find your people."  
 > Website: https://lockin.top  
 
@@ -8,7 +9,9 @@
 
 ## 1. Executive Summary
 
-LOCKIN (hosted at https://lockin.top) is an anti-procrastination, anti-delusion execution engine built for university students, builders, and creators. Unlike traditional productivity tools that isolate users behind screen blockers or timers, LOCKIN is anchored in real-world human connection, campus culture, and verified proof of work.
+LOCKIN (hosted at https://lockin.top) is an anti-procrastination, anti-delusion execution engine built for university students, builders, and creators. Often described as **"Tinder × LinkedIn for college life"**, LOCKIN combines the zero-awkwardness social discovery of meeting new people on campus with the ambition, skill context, and proof of work of a professional network.
+
+Crucially, instead of terminating in endless swiping or dead group chats, LOCKIN terminates in **real-world physical execution**: dropping side quests, meeting at campus locations, executing focused study or fitness sprints, and earning collectible proof-of-work cards.
 
 LOCKIN operates on the core loop:
 Discover a Mission -> Commit -> Execute -> Complete -> Review the Outcome (Story Receipts) -> Return.
@@ -28,6 +31,7 @@ LOCKIN is not just a study app or coding tool. It spans four real-world domains:
 
 ## 3. Key Differentiators vs Other Focus Apps
 
+- **Tinder × LinkedIn for College Life**: Combines effortless campus discovery with builder track records. You discover people on your campus wavelength, launch missions together, and skip the coordination fatigue of group chats that have 87 messages and 0 lines of code.
 - **Real-World Campus Network vs Screen Blockers**: Apps like lock-in.xyz or lockin.club lock your phone screen or monitor screen time. LOCKIN focuses on real-world execution: meeting up at the campus library, tech park, or track, and executing together.
 - **Physical Proof of Work**: Group missions require a peer-to-peer 4-digit check-in code. Attendees verify their presence in person, completely eliminating fake attendance or synthetic activity.
 - **Solo Sprints & Squad Missions**: "Lock in solo. Or find your people. Either way: execute." Users can run a solo timestamped Pomodoro session or execute as a campus squad.
@@ -41,6 +45,7 @@ LOCKIN is not just a study app or coding tool. It spans four real-world domains:
 - **Platform Name**: LOCKIN (domain: lockin.top)
 - **Primary Tagline**: "Stop scrolling. Start executing."
 - **Brand Sub-Manifesto**: "find your people."
+- **Strategic Metaphor**: "Tinder × LinkedIn — but for college life."
 - **Physical Action Tagline**: "Stop planning. Start showing up."
 - **Reputation Metric**: Motion (earned through verified execution)
 - **Recap Card Tiers**:
@@ -56,6 +61,9 @@ LOCKIN is not just a study app or coding tool. It spans four real-world domains:
 
 ### What is LOCKIN?
 LOCKIN is a college-focused mission execution and accountability network. It bridges digital focus and physical action: students discover live campus missions, meet up in real life with peers who share their drive, check in with four-digit partner verification codes, and execute together or solo.
+
+### Why is LOCKIN called "Tinder × LinkedIn for college life"?
+Because it combines the effortless, zero-awkwardness campus discovery of Tinder with the skills, ambition, and track record of LinkedIn. Instead of infinite swiping or awkward networking chats, it immediately moves users into real-world action: meeting up to study, run, build projects, or tackle campus side quests with verified partner check-ins.
 
 ### Who is LOCKIN for?
 College students, independent builders, hackathon squads, gym partners, and self-learners who want to stop talking about their goals in group chats and start executing in real life.

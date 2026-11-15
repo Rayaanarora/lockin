@@ -42,7 +42,10 @@ export const metadata: Metadata = {
     "lockin.top",
     "find your people",
     "stop scrolling start executing",
+    "tinder for college builders",
+    "linkedin for college life",
     "campus missions",
+    "side quests",
     "college accountability",
     "study buddy app",
     "pomodoro focus timer",
@@ -143,6 +146,14 @@ const jsonLdData = [
           "@type": "Answer",
           "text": "Both. LOCKIN's philosophy is: 'Lock in solo. Or find your people. Either way: execute.' You can launch a solo timestamped Pomodoro session or commit to a group mission with peers on your campus."
         }
+      },
+      {
+        "@type": "Question",
+        "name": "Why do students describe LOCKIN as 'Tinder × LinkedIn for college life'?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Because it combines the effortless, zero-awkwardness campus discovery of meeting new peers with the ambition, skills, and proof of work of a professional network. Rather than endless messaging or passive swiping, it immediately terminates in real-world physical action: launching side quests, studying together, and earning collectible proof-of-work cards."
+        }
       }
     ]
   }
@@ -164,8 +175,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <p>find your people. stop scrolling. start executing.</p>
           <p>
             LOCKIN (lockin.top) is a campus accountability and execution platform built for students and builders.
-            Discover live missions, meet up in real life, verify attendance with 4-digit partner check-in codes,
-            and turn ideas into verified proof of work. Missions span four pillars: Grind &amp; Academics,
+            Often described as &quot;Tinder &times; LinkedIn for college life&quot;, LOCKIN combines zero-awkwardness
+            campus social discovery with real builder capability and proof of work.
+          </p>
+          <p>
+            Discover live missions and side quests, meet up in real life, verify attendance with 4-digit partner
+            check-in codes, and turn ideas into verified proof of work. Missions span four pillars: Grind &amp; Academics,
             Fitness &amp; Physical, Discipline &amp; Routine, and Campus Social Discovery.
           </p>
           <h2>Strava, but for your brain.</h2>
