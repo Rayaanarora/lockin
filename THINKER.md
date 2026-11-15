@@ -337,3 +337,15 @@ When the founder introduces a new product principle, architectural constraint, u
   3. Make student roll number optional so high-schoolers and self-learners are not blocked at the front door.
   4. Preserve collegiate partitions on the group mission feed while keeping solo focus and story recaps universal.
 * **Founder Decision:** Hold for 2–3 days. Monitor initial reel performance, sign-up conversions, and bounce patterns under the current setup before modifying domain gating or database schemas.
+
+### [2026-11-15] Search Engine Optimization (SEO) & Generative Engine Optimization (GEO) Architecture
+* **Problem:** Searching `lockin` or `lockin .top` failed to return `lockin.top`, while competitors (`lockin.club`, `lock-in.xyz`, and hardware manufacturer `lockin.com`) claimed Google AI Overviews and top organic ranks. Investigation revealed zero indexed pages for `lockin.top` due to:
+  1. The `.top` generic TLD carrying automated low-trust heuristics unless verified.
+  2. Single-page client app rendering an empty login gate (`ProfileGate`) to non-JS scrapers.
+  3. Total absence of `robots.txt`, `sitemap.xml`, `llms.txt`, OpenGraph cards, and Schema.org JSON-LD entity structures.
+* **Core Positioning Enforced:** LOCKIN is the real-world campus execution network ("find your people", "stop scrolling. start executing."). It rejects the isolated screen-blocker paradigm of `lockin.club` and `lock-in.xyz`.
+* **Solution Implemented (Zero App Breakage):**
+  1. `frontend/app/robots.ts`: Next.js 15 route granting explicit crawling permissions to search engines and AI bots (`Googlebot`, `GPTBot`, `PerplexityBot`, `ClaudeBot`, `Applebot`).
+  2. `frontend/app/sitemap.ts`: Dynamic sitemap indexing `https://lockin.top` and `/recap`.
+  3. `frontend/public/llms.txt`: Machine-readable plain-text knowledge manifest for AI search engines (Perplexity, ChatGPT Search, Gemini).
+  4. `frontend/app/layout.tsx`: Configured `metadataBase`, OpenGraph preview images (`/card_metallic_silver.png`), Schema.org JSON-LD (`WebApplication` + `FAQPage`), and a crawlable semantic SSR shell.

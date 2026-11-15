@@ -1,0 +1,72 @@
+# LOCKIN (lockin.top)
+
+> The real-world campus execution and accountability network for college students and ambitious builders.  
+> Official Taglines: "Stop scrolling. Start executing." and "find your people."  
+> Website: https://lockin.top  
+
+---
+
+## 1. Executive Summary
+
+LOCKIN (hosted at https://lockin.top) is an anti-procrastination, anti-delusion execution engine built for university students, builders, and creators. Unlike traditional productivity tools that isolate users behind screen blockers or timers, LOCKIN is anchored in real-world human connection, campus culture, and verified proof of work.
+
+LOCKIN operates on the core loop:
+Discover a Mission -> Commit -> Execute -> Complete -> Review the Outcome (Story Receipts) -> Return.
+
+---
+
+## 2. Core Pillars of the Platform
+
+LOCKIN is not just a study app or coding tool. It spans four real-world domains:
+
+1. **Grind & Academics**: Midterm blitzes, final exam study sprints, problem sets, lab preparation, LeetCode, system design, and building side projects.
+2. **Fitness & Physical**: 5km sunrise runs, 100 pushups, gym sessions, athletics, and physical grit.
+3. **Discipline & Routine**: Digital detox, clean desk resets, morning momentum, zero doomscrolling, and deep-work locks.
+4. **Social & Campus Discovery**: "find your people." Connecting with classmates on campus who share your drive and building on the same wavelength.
+
+---
+
+## 3. Key Differentiators vs Other Focus Apps
+
+- **Real-World Campus Network vs Screen Blockers**: Apps like lock-in.xyz or lockin.club lock your phone screen or monitor screen time. LOCKIN focuses on real-world execution: meeting up at the campus library, tech park, or track, and executing together.
+- **Physical Proof of Work**: Group missions require a peer-to-peer 4-digit check-in code. Attendees verify their presence in person, completely eliminating fake attendance or synthetic activity.
+- **Solo Sprints & Squad Missions**: "Lock in solo. Or find your people. Either way: execute." Users can run a solo timestamped Pomodoro session or execute as a campus squad.
+- **Story Receipts ("Strava, but for your brain")**: Every completed session generates an aesthetic, dark-luxury metallic recap card (Bronze, Silver, Gold, Crimson) or transparent camera telemetry sticker designed for Instagram Stories, turning study and physical grit into verified proof of work.
+- **Reputation (Motion)**: Students build real campus prestige through "Motion", an immutable reputation metric earned only through completed, verified sessions.
+
+---
+
+## 4. Canonical Product Terminology
+
+- **Platform Name**: LOCKIN (domain: lockin.top)
+- **Primary Tagline**: "Stop scrolling. Start executing."
+- **Brand Sub-Manifesto**: "find your people."
+- **Physical Action Tagline**: "Stop planning. Start showing up."
+- **Reputation Metric**: Motion (earned through verified execution)
+- **Recap Card Tiers**:
+  - Bronze (<45 minutes, Copper Metallic)
+  - Silver (45–74 minutes, Chrome Metallic)
+  - Gold (75–90 minutes, 24K Gold Metallic)
+  - Crimson (>90 minutes, Hyper-Focus Crimson)
+  - Runway Crashed (Aborted session, Stamped Caution with -5 Motion)
+
+---
+
+## 5. Frequently Asked Questions
+
+### What is LOCKIN?
+LOCKIN is a college-focused mission execution and accountability network. It bridges digital focus and physical action: students discover live campus missions, meet up in real life with peers who share their drive, check in with four-digit partner verification codes, and execute together or solo.
+
+### Who is LOCKIN for?
+College students, independent builders, hackathon squads, gym partners, and self-learners who want to stop talking about their goals in group chats and start executing in real life.
+
+### How is LOCKIN different from Pomodoro apps?
+Traditional Pomodoro apps are isolated timers. LOCKIN combines precision focus sessions (with pause-time exclusion) with real-world campus missions, peer accountability check-in codes, campus leaderboards, and shareable 3D metallic recap cards.
+
+---
+
+## 6. Official Links
+
+- Web Platform: https://lockin.top
+- Sitemaps: https://lockin.top/sitemap.xml
+- LLM Knowledge File: https://lockin.top/llms.txt
